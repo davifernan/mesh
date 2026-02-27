@@ -20,6 +20,7 @@ type DeveloperToolsProps = {
 export function DeveloperTools({ requestClose }: DeveloperToolsProps) {
   const mx = useMatrixClient();
   const [developerTools, setDeveloperTools] = useSetting(settingsAtom, 'developerTools');
+  const [issueTracker, setIssueTracker] = useSetting(settingsAtom, 'issueTracker');
   const [expand, setExpend] = useState(false);
   const [accountDataType, setAccountDataType] = useState<string | null>();
 
@@ -61,6 +62,27 @@ export function DeveloperTools({ requestClose }: DeveloperToolsProps) {
         <Scroll hideTrack visibility="Hover">
           <PageContent>
             <Box direction="Column" gap="700">
+              <Box direction="Column" gap="100">
+                <Text size="L400">Experimental Features</Text>
+                <SequenceCard
+                  className={SequenceCardStyle}
+                  variant="SurfaceVariant"
+                  direction="Column"
+                  gap="400"
+                >
+                  <SettingTile
+                    title="Issue Tracker"
+                    description="Enable per-room issue tracker (experimental)."
+                    after={
+                      <Switch
+                        variant="Primary"
+                        value={issueTracker}
+                        onChange={setIssueTracker}
+                      />
+                    }
+                  />
+                </SequenceCard>
+              </Box>
               <Box direction="Column" gap="100">
                 <Text size="L400">Options</Text>
                 <SequenceCard
