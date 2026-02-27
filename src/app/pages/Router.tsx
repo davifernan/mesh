@@ -69,7 +69,7 @@ import { CreateSpaceModalRenderer } from '../features/create-space';
 import { SearchModalRenderer } from '../features/search';
 import { getFallbackSession } from '../state/sessions';
 
-export const createRouter = (clientConfig: ClientConfig, screenSize: ScreenSize) => {
+export const createRouter = (clientConfig: ClientConfig, screenSize: ScreenSize, basePath?: string) => {
   const { hashRouter } = clientConfig;
   const mobile = screenSize === ScreenSize.Mobile;
 
@@ -299,6 +299,6 @@ export const createRouter = (clientConfig: ClientConfig, screenSize: ScreenSize)
     return createHashRouter(routes, { basename: hashRouter.basename });
   }
   return createBrowserRouter(routes, {
-    basename: import.meta.env.BASE_URL,
+    basename: basePath ?? import.meta.env.BASE_URL,
   });
 };

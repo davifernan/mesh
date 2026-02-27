@@ -41,6 +41,7 @@ export interface Settings {
   dateFormatString: string;
 
   developerTools: boolean;
+  multiAccount: boolean;
 }
 
 const defaultSettings: Settings = {
@@ -75,6 +76,7 @@ const defaultSettings: Settings = {
   dateFormatString: 'D MMM YYYY',
 
   developerTools: false,
+  multiAccount: false,
 };
 
 export const getSettings = () => {
