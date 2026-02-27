@@ -19,7 +19,7 @@ type DeveloperToolsProps = {
 };
 export function DeveloperTools({ requestClose }: DeveloperToolsProps) {
   const mx = useMatrixClient();
-  const [developerTools, setDeveloperTools] = useSetting(settingsAtom, 'developerTools');
+  const [developerTools, setDeveloperTools] = useSetting(settingsAtom, 'developerTools');\n  const [multiAccount, setMultiAccount] = useSetting(settingsAtom, 'multiAccount');
   const [expand, setExpend] = useState(false);
   const [accountDataType, setAccountDataType] = useState<string | null>();
 
@@ -76,6 +76,17 @@ export function DeveloperTools({ requestClose }: DeveloperToolsProps) {
                         variant="Primary"
                         value={developerTools}
                         onChange={setDeveloperTools}
+                      />
+                    }
+                  />
+                  <SettingTile
+                    title="Multi-Account"
+                    description="Show account switcher in sidebar (experimental)."
+                    after={
+                      <Switch
+                        variant="Primary"
+                        value={multiAccount}
+                        onChange={setMultiAccount}
                       />
                     }
                   />
