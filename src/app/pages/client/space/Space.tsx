@@ -76,6 +76,10 @@ import {
   getRoomNotificationMode,
   useRoomsNotificationPreferencesContext,
 } from '../../../hooks/useRoomsNotificationPreferences';
+import { CallNavStatus } from '../../../features/room-nav/RoomCallNavStatus';
+import { useRoomListKeyboard } from '../../../hooks/useRoomListKeyboard';
+import { RoomListbox } from '../../../components/room-listbox/RoomListbox';
+import { searchModalAtom, searchModalInitialCharAtom } from '../../../state/searchModal';
 import { useOpenSpaceSettings } from '../../../state/hooks/spaceSettings';
 import { useRoomNavigate } from '../../../hooks/useRoomNavigate';
 import { useRoomCreators } from '../../../hooks/useRoomCreators';
@@ -429,6 +433,7 @@ export function Space() {
     getScrollElement: () => scrollRef.current,
     estimateSize: () => 0,
     overscan: 10,
+    getItemKey: (index) => displayHierarchy[index]?.roomId ?? index,
   });
 
   const handleCategoryClick = useCategoryHandler(setClosedCategories, (categoryId) =>
@@ -500,7 +505,7 @@ export function Space() {
                 return (
                   <VirtualTile
                     virtualItem={vItem}
-                    key={vItem.index}
+                    key={vItem.key}
                     ref={virtualizer.measureElement}
                   >
                     <div style={{ paddingTop: vItem.index === 0 ? undefined : config.space.S400 }}>
@@ -519,7 +524,7 @@ export function Space() {
               }
 
               return (
-                <VirtualTile virtualItem={vItem} key={vItem.index} ref={virtualizer.measureElement}>
+                <VirtualTile virtualItem={vItem} key={vItem.key} ref={virtualizer.measureElement}>
                   <RoomNavItem
                     room={room}
                     selected={selectedRoomId === roomId}
@@ -534,6 +539,7 @@ export function Space() {
           </NavCategory>
         </Box>
       </PageNavContent>
+      <CallNavStatus space={space} />
     </PageNav>
   );
 }
