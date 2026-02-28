@@ -7,6 +7,7 @@ import {
   Icon,
   IconButton,
   Icons,
+  Line,
   Menu,
   MenuItem,
   PopOut,
@@ -16,9 +17,9 @@ import {
   toRem,
 } from 'folds';
 import { useVirtualizer } from '@tanstack/react-virtual';
-import { useAtom, useAtomValue } from 'jotai';
+import { useAtom, useAtomValue, useSetAtom } from 'jotai';
 import FocusTrap from 'focus-trap-react';
-import { factoryRoomIdByActivity, factoryRoomIdByAtoZ } from '../../../utils/sort';
+import { factoryRoomIdByActivity, factoryRoomIdByAtoZ, factoryRoomIdByUnreadFirst } from '../../../utils/sort';
 import {
   NavButton,
   NavCategory,
@@ -74,6 +75,7 @@ const HomeMenu = forwardRef<HTMLDivElement, HomeMenuProps>(({ requestClose }, re
   const [hideActivity] = useSetting(settingsAtom, 'hideActivity');
   const unread = useRoomsUnread(orphanRooms, roomToUnreadAtom);
   const mx = useMatrixClient();
+  const [roomSortOrder, setRoomSortOrder] = useSetting(settingsAtom, 'roomSortOrder');
 
   const handleMarkAsRead = () => {
     if (!unread) return;
@@ -84,6 +86,37 @@ const HomeMenu = forwardRef<HTMLDivElement, HomeMenuProps>(({ requestClose }, re
   return (
     <Menu ref={ref} style={{ maxWidth: toRem(160), width: '100vw' }}>
       <Box direction="Column" gap="100" style={{ padding: config.space.S100 }}>
+        <MenuItem
+          onClick={() => setRoomSortOrder('activity')}
+          size="300"
+          after={roomSortOrder === 'activity' ? <Icon size="100" src={Icons.Check} /> : undefined}
+          radii="300"
+        >
+          <Text style={{ flexGrow: 1 }} as="span" size="T300" truncate>
+            Sort by Activity
+          </Text>
+        </MenuItem>
+        <MenuItem
+          onClick={() => setRoomSortOrder('az')}
+          size="300"
+          after={roomSortOrder === 'az' ? <Icon size="100" src={Icons.Check} /> : undefined}
+          radii="300"
+        >
+          <Text style={{ flexGrow: 1 }} as="span" size="T300" truncate>
+            Sort A-Z
+          </Text>
+        </MenuItem>
+        <MenuItem
+          onClick={() => setRoomSortOrder('unread')}
+          size="300"
+          after={roomSortOrder === 'unread' ? <Icon size="100" src={Icons.Check} /> : undefined}
+          radii="300"
+        >
+          <Text style={{ flexGrow: 1 }} as="span" size="T300" truncate>
+            Unread First
+          </Text>
+        </MenuItem>
+        <Line variant="Surface" size="300" />
         <MenuItem
           onClick={handleMarkAsRead}
           size="300"
@@ -208,18 +241,27 @@ export function Home() {
   const searchSelected = useHomeSearchSelected();
   const noRoomToDisplay = rooms.length === 0;
   const [closedCategories, setClosedCategories] = useAtom(useClosedNavCategoriesAtom());
+  const [roomSortOrder] = useSetting(settingsAtom, 'roomSortOrder');
 
   const sortedRooms = useMemo(() => {
-    const items = Array.from(rooms).sort(
-      closedCategories.has(DEFAULT_CATEGORY_ID)
-        ? factoryRoomIdByActivity(mx)
-        : factoryRoomIdByAtoZ(mx)
-    );
+    let sortFn;
+    if (roomSortOrder === 'az') {
+      sortFn = factoryRoomIdByAtoZ(mx);
+    } else if (roomSortOrder === 'unread') {
+      sortFn = factoryRoomIdByUnreadFirst(
+        (id) => roomToUnread.get(id)?.highlight ?? 0,
+        (id) => roomToUnread.get(id)?.total ?? 0,
+        factoryRoomIdByActivity(mx)
+      );
+    } else {
+      sortFn = factoryRoomIdByActivity(mx);
+    }
+    const items = Array.from(rooms).sort(sortFn);
     if (closedCategories.has(DEFAULT_CATEGORY_ID)) {
       return items.filter((rId) => roomToUnread.has(rId) || rId === selectedRoomId);
     }
     return items;
-  }, [mx, rooms, closedCategories, roomToUnread, selectedRoomId]);
+  }, [mx, rooms, closedCategories, roomToUnread, selectedRoomId, roomSortOrder]);
 
   const virtualizer = useVirtualizer({
     count: sortedRooms.length,

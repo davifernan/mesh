@@ -41,6 +41,9 @@ export interface Settings {
   dateFormatString: string;
 
   developerTools: boolean;
+  issueTracker: boolean;
+  multiAccount: boolean;
+  roomSortOrder: 'activity' | 'az' | 'unread';
 }
 
 const defaultSettings: Settings = {
@@ -75,6 +78,9 @@ const defaultSettings: Settings = {
   dateFormatString: 'D MMM YYYY',
 
   developerTools: false,
+  issueTracker: false,
+  multiAccount: false,
+  roomSortOrder: 'activity',
 };
 
 export const getSettings = () => {

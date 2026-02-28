@@ -6,7 +6,7 @@ import React, {
   useRef,
   useState,
 } from 'react';
-import { useAtom, useAtomValue } from 'jotai';
+import { useAtom, useAtomValue, useSetAtom } from 'jotai';
 import {
   Avatar,
   Box,
@@ -53,7 +53,8 @@ import { roomToUnreadAtom } from '../../../state/room/roomToUnread';
 import { useCategoryHandler } from '../../../hooks/useCategoryHandler';
 import { useNavToActivePathMapper } from '../../../hooks/useNavToActivePathMapper';
 import { useRoomName } from '../../../hooks/useRoomMeta';
-import { useSpaceJoinedHierarchy } from '../../../hooks/useSpaceHierarchy';
+import { HierarchyItem, useSpaceJoinedHierarchy } from '../../../hooks/useSpaceHierarchy';
+import { factoryRoomIdByActivity, factoryRoomIdByAtoZ, factoryRoomIdByUnreadFirst, byOrderKey, byTsOldToNew } from '../../../utils/sort';
 import { allRoomsAtom } from '../../../state/room-list/roomList';
 import { PageNav, PageNavContent, PageNavHeader } from '../../../components/page';
 import { usePowerLevels } from '../../../hooks/usePowerLevels';
@@ -93,6 +94,7 @@ const SpaceMenu = forwardRef<HTMLDivElement, SpaceMenuProps>(({ room, requestClo
   const mx = useMatrixClient();
   const [hideActivity] = useSetting(settingsAtom, 'hideActivity');
   const [developerTools] = useSetting(settingsAtom, 'developerTools');
+  const [roomSortOrder, setRoomSortOrder] = useSetting(settingsAtom, 'roomSortOrder');
   const roomToParents = useAtomValue(roomToParentsAtom);
   const powerLevels = usePowerLevels(room);
   const creators = useRoomCreators(room);
@@ -149,6 +151,47 @@ const SpaceMenu = forwardRef<HTMLDivElement, SpaceMenuProps>(({ room, requestClo
             }}
           />
         )}
+        <MenuItem
+          onClick={() => setRoomSortOrder('admin')}
+          size="300"
+          after={roomSortOrder === 'admin' ? <Icon size="100" src={Icons.Check} /> : undefined}
+          radii="300"
+        >
+          <Text style={{ flexGrow: 1 }} as="span" size="T300" truncate>
+            Admin Order
+          </Text>
+        </MenuItem>
+        <MenuItem
+          onClick={() => setRoomSortOrder('activity')}
+          size="300"
+          after={roomSortOrder === 'activity' ? <Icon size="100" src={Icons.Check} /> : undefined}
+          radii="300"
+        >
+          <Text style={{ flexGrow: 1 }} as="span" size="T300" truncate>
+            Sort by Activity
+          </Text>
+        </MenuItem>
+        <MenuItem
+          onClick={() => setRoomSortOrder('az')}
+          size="300"
+          after={roomSortOrder === 'az' ? <Icon size="100" src={Icons.Check} /> : undefined}
+          radii="300"
+        >
+          <Text style={{ flexGrow: 1 }} as="span" size="T300" truncate>
+            Sort A-Z
+          </Text>
+        </MenuItem>
+        <MenuItem
+          onClick={() => setRoomSortOrder('unread')}
+          size="300"
+          after={roomSortOrder === 'unread' ? <Icon size="100" src={Icons.Check} /> : undefined}
+          radii="300"
+        >
+          <Text style={{ flexGrow: 1 }} as="span" size="T300" truncate>
+            Unread First
+          </Text>
+        </MenuItem>
+        <Line variant="Surface" size="300" />
         <MenuItem
           onClick={handleMarkAsRead}
           size="300"
@@ -394,6 +437,8 @@ export function Space() {
 
   const [closedCategories, setClosedCategories] = useAtom(useClosedNavCategoriesAtom());
 
+  const [roomSortOrder] = useSetting(settingsAtom, 'roomSortOrder');
+
   const getRoom = useCallback(
     (rId: string) => {
       if (allJoinedRooms.has(rId)) {
@@ -402,6 +447,31 @@ export function Space() {
       return undefined;
     },
     [mx, allJoinedRooms]
+  );
+
+  const sortSpaceRoomItems = useCallback(
+    (_parentId: string, items: HierarchyItem[]): HierarchyItem[] => {
+      const sorted = [...items];
+      if (roomSortOrder === 'activity') {
+        sorted.sort((a, b) => factoryRoomIdByActivity(mx)(a.roomId, b.roomId));
+      } else if (roomSortOrder === 'az') {
+        sorted.sort((a, b) => factoryRoomIdByAtoZ(mx)(a.roomId, b.roomId));
+      } else if (roomSortOrder === 'unread') {
+        sorted.sort((a, b) =>
+          factoryRoomIdByUnreadFirst(
+            (id) => roomToUnread.get(id)?.highlight ?? 0,
+            (id) => roomToUnread.get(id)?.total ?? 0,
+            factoryRoomIdByActivity(mx)
+          )(a.roomId, b.roomId)
+        );
+      } else {
+        // Default: preserve space admin ordering (order key + timestamp)
+        sorted.sort((a, b) => byTsOldToNew(a.ts, b.ts));
+        sorted.sort((a, b) => byOrderKey(a.content.order, b.content.order));
+      }
+      return sorted;
+    },
+    [mx, roomSortOrder, roomToUnread]
   );
 
   const hierarchy = useSpaceJoinedHierarchy(
@@ -418,10 +488,7 @@ export function Space() {
       },
       [space.roomId, closedCategories, roomToUnread, selectedRoomId]
     ),
-    useCallback(
-      (sId) => closedCategories.has(makeNavCategoryId(space.roomId, sId)),
-      [closedCategories, space.roomId]
-    )
+    sortSpaceRoomItems
   );
 
   const virtualizer = useVirtualizer({

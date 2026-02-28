@@ -28,6 +28,7 @@ import {
   _ROOM_PATH,
   _SEARCH_PATH,
   _SERVER_PATH,
+  _UNREAD_PATH,
   CREATE_PATH,
 } from './paths';
 import {
@@ -44,7 +45,7 @@ import { Home, HomeRouteRoomProvider, HomeSearch } from './client/home';
 import { Direct, DirectCreate, DirectRouteRoomProvider } from './client/direct';
 import { RouteSpaceProvider, Space, SpaceRouteRoomProvider, SpaceSearch } from './client/space';
 import { Explore, FeaturedRooms, PublicRooms } from './client/explore';
-import { Notifications, Inbox, Invites } from './client/inbox';
+import { Notifications, Inbox, Invites, Unread } from './client/inbox';
 import { setAfterLoginRedirectPath } from './afterLoginRedirectPath';
 import { Room } from '../features/room';
 import { Lobby } from '../features/lobby';
@@ -287,6 +288,7 @@ export const createRouter = (clientConfig: ClientConfig, screenSize: ScreenSize)
               element={<WelcomePage />}
             />
           )}
+          <Route path={_UNREAD_PATH} element={<Unread />} />
           <Route path={_NOTIFICATIONS_PATH} element={<Notifications />} />
           <Route path={_INVITES_PATH} element={<Invites />} />
         </Route>
