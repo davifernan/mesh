@@ -19,7 +19,7 @@ export function HomeSearch() {
             {screenSize === ScreenSize.Mobile && (
               <BackRouteHandler>
                 {(onBack) => (
-                  <IconButton onClick={onBack}>
+                  <IconButton onClick={onBack} aria-label="Go back">
                     <Icon src={Icons.ArrowLeft} />
                   </IconButton>
                 )}
@@ -28,7 +28,7 @@ export function HomeSearch() {
           </Box>
           <Box justifyContent="Center" alignItems="Center" gap="200">
             {screenSize !== ScreenSize.Mobile && <Icon size="400" src={Icons.Search} />}
-            <Text size="H3" truncate>
+            <Text size="H3" as="h1" truncate>
               Message Search
             </Text>
           </Box>

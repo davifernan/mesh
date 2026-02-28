@@ -114,6 +114,9 @@ export function ReadTextFile({ body, mimeType, url, encInfo, renderViewer }: Rea
               <Modal
                 className={ModalWide}
                 size="500"
+                role="dialog"
+                aria-modal="true"
+                aria-label={body}
                 onContextMenu={(evt: any) => evt.stopPropagation()}
               >
                 {renderViewer({
@@ -203,6 +206,9 @@ export function ReadPdfFile({ body, mimeType, url, encInfo, renderViewer }: Read
               <Modal
                 className={ModalWide}
                 size="500"
+                role="dialog"
+                aria-modal="true"
+                aria-label={body}
                 onContextMenu={(evt: any) => evt.stopPropagation()}
               >
                 {renderViewer({

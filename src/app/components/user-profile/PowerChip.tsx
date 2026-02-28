@@ -61,16 +61,16 @@ function SelfDemoteAlert({ power, onCancel, onChange }: SelfDemoteAlertProps) {
             escapeDeactivates: stopPropagation,
           }}
         >
-          <Dialog variant="Surface">
+          <Dialog variant="Surface" role="dialog" aria-modal="true" aria-labelledby="self-demote-dialog-title">
             <Header
               style={{ padding: `0 ${config.space.S200} 0 ${config.space.S400}` }}
               variant="Surface"
               size="500"
             >
               <Box grow="Yes">
-                <Text size="H4">Self Demotion</Text>
+                <Text size="H4" as="h2" id="self-demote-dialog-title">Self Demotion</Text>
               </Box>
-              <IconButton size="300" onClick={onCancel} radii="300">
+              <IconButton size="300" onClick={onCancel} radii="300" aria-label="Close">
                 <Icon src={Icons.Cross} />
               </IconButton>
             </Header>
@@ -111,16 +111,16 @@ function SharedPowerAlert({ power, onCancel, onChange }: SharedPowerAlertProps) 
             escapeDeactivates: stopPropagation,
           }}
         >
-          <Dialog variant="Surface">
+          <Dialog variant="Surface" role="dialog" aria-modal="true" aria-labelledby="shared-power-dialog-title">
             <Header
               style={{ padding: `0 ${config.space.S200} 0 ${config.space.S400}` }}
               variant="Surface"
               size="500"
             >
               <Box grow="Yes">
-                <Text size="H4">Shared Power</Text>
+                <Text size="H4" as="h2" id="shared-power-dialog-title">Shared Power</Text>
               </Box>
-              <IconButton size="300" onClick={onCancel} radii="300">
+              <IconButton size="300" onClick={onCancel} radii="300" aria-label="Close">
                 <Icon src={Icons.Cross} />
               </IconButton>
             </Header>
@@ -235,7 +235,7 @@ export function PowerChip({ userId }: { userId: string }) {
               isKeyBackward: (evt: KeyboardEvent) => isKeyHotkey('arrowup', evt),
             }}
           >
-            <Menu>
+            <Menu role="menu">
               <Box
                 direction="Column"
                 gap="100"

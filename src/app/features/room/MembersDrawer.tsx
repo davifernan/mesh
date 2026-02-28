@@ -1,7 +1,9 @@
 import React, {
   ChangeEventHandler,
+  KeyboardEventHandler,
   MouseEventHandler,
   useCallback,
+  useEffect,
   useMemo,
   useRef,
   useState,
@@ -59,6 +61,7 @@ import { useSpaceOptionally } from '../../hooks/useSpace';
 import { ContainerColor } from '../../styles/ContainerColor.css';
 import { useFlattenPowerTagMembers, useGetMemberPowerTag } from '../../hooks/useMemberPowerTag';
 import { useRoomCreators } from '../../hooks/useRoomCreators';
+import { isKeyHotkey } from 'is-hotkey';
 
 type MemberDrawerHeaderProps = {
   room: Room;
@@ -70,7 +73,7 @@ function MemberDrawerHeader({ room }: MemberDrawerHeaderProps) {
     <Header className={css.MembersDrawerHeader} variant="Background" size="600">
       <Box grow="Yes" alignItems="Center" gap="200">
         <Box grow="Yes" alignItems="Center" gap="200">
-          <Text title={`${room.getJoinedMemberCount()} Members`} size="H5" truncate>
+          <Text title={`${room.getJoinedMemberCount()} Members`} size="H5" as="h2" truncate>
             {`${millify(room.getJoinedMemberCount())} Members`}
           </Text>
         </Box>
@@ -90,6 +93,7 @@ function MemberDrawerHeader({ room }: MemberDrawerHeaderProps) {
                 ref={triggerRef}
                 variant="Background"
                 onClick={() => setPeopleDrawer(false)}
+                aria-label="Close"
               >
                 <Icon src={Icons.Cross} />
               </IconButton>
@@ -109,6 +113,9 @@ type MemberItemProps = {
   onClick: MouseEventHandler<HTMLButtonElement>;
   pressed?: boolean;
   typing?: boolean;
+  focused?: boolean;
+  optionId?: string;
+  tabIndex?: number;
 };
 function MemberItem({
   mx,
@@ -118,6 +125,9 @@ function MemberItem({
   onClick,
   pressed,
   typing,
+  focused,
+  optionId,
+  tabIndex: tabIndexProp,
 }: MemberItemProps) {
   const name =
     getMemberDisplayName(room, member.userId) ?? getMxIdLocalPart(member.userId) ?? member.userId;
@@ -128,9 +138,12 @@ function MemberItem({
 
   return (
     <MenuItem
+      id={optionId}
+      role="option"
       style={{ padding: `0 ${config.space.S200}` }}
-      aria-pressed={pressed}
+      aria-selected={pressed || focused}
       data-user-id={member.userId}
+      tabIndex={tabIndexProp ?? -1}
       variant="Background"
       radii="400"
       onClick={onClick}
@@ -244,11 +257,110 @@ export function MembersDrawer({ room, members }: MembersDrawerProps) {
     openUserRoomProfile(room.roomId, space?.roomId, userId, btn.getBoundingClientRect(), 'Left');
   };
 
+  // Keyboard navigation: only member items (skip power-tag label rows).
+  const memberIndices = useMemo(
+    () =>
+      PLTagOrRoomMember.reduce<number[]>((acc, item, i) => {
+        if ('userId' in item) acc.push(i);
+        return acc;
+      }, []),
+    [PLTagOrRoomMember]
+  );
+  const [focusedVirtIndex, setFocusedVirtIndex] = useState(-1);
+
+  // Keep focusedVirtIndex valid when list shrinks (e.g. search filter).
+  useEffect(() => {
+    if (focusedVirtIndex >= PLTagOrRoomMember.length) setFocusedVirtIndex(-1);
+  }, [PLTagOrRoomMember.length, focusedVirtIndex]);
+
+  const focusMember = useCallback(
+    (idx: number) => {
+      setFocusedVirtIndex(idx);
+      virtualizer.scrollToIndex(idx, { align: 'auto' });
+      const member = PLTagOrRoomMember[idx];
+      if (member && 'userId' in member) {
+        const { userId } = member;
+        requestAnimationFrame(() =>
+          requestAnimationFrame(() => {
+            const btn = document.querySelector<HTMLElement>(`[data-user-id="${userId}"]`);
+            btn?.focus({ preventScroll: true });
+          })
+        );
+      }
+    },
+    [PLTagOrRoomMember, virtualizer]
+  );
+
+  const handleListKeyDown: KeyboardEventHandler<HTMLDivElement> = useCallback(
+    (evt) => {
+      if (memberIndices.length === 0) return;
+      // Only handle keys from a focused member button (or the listbox container itself).
+      const target = evt.target as HTMLElement;
+      const currentUserId = target.getAttribute('data-user-id');
+      if (!currentUserId) return;
+
+      const isDown = isKeyHotkey('arrowdown', evt as unknown as KeyboardEvent);
+      const isUp = isKeyHotkey('arrowup', evt as unknown as KeyboardEvent);
+      const isHome = isKeyHotkey('home', evt as unknown as KeyboardEvent);
+      const isEnd = isKeyHotkey('end', evt as unknown as KeyboardEvent);
+
+      if (isDown || isUp || isHome || isEnd) {
+        evt.preventDefault();
+        const currentIdx = PLTagOrRoomMember.findIndex(
+          (m) => 'userId' in m && m.userId === currentUserId
+        );
+        const currentPos = currentIdx >= 0 ? memberIndices.indexOf(currentIdx) : -1;
+        let nextPos: number;
+        if (isHome) nextPos = 0;
+        else if (isEnd) nextPos = memberIndices.length - 1;
+        else if (isDown) nextPos = currentPos < 0 ? 0 : Math.min(currentPos + 1, memberIndices.length - 1);
+        else nextPos = currentPos < 0 ? memberIndices.length - 1 : Math.max(currentPos - 1, 0);
+        focusMember(memberIndices[nextPos]);
+        return;
+      }
+
+      // Typing redirects to the search bar — focus the input and inject the character.
+      if (evt.key.length === 1 && !evt.ctrlKey && !evt.altKey && !evt.metaKey) {
+        evt.preventDefault();
+        const input = searchInputRef.current;
+        if (input) {
+          input.focus();
+          const key = evt.key;
+          requestAnimationFrame(() => {
+            if (document.activeElement === input) {
+              input.setRangeText(key, input.selectionStart ?? 0, input.selectionEnd ?? 0, 'end');
+              input.dispatchEvent(new Event('input', { bubbles: true }));
+            }
+          });
+        }
+      }
+    },
+    [memberIndices, PLTagOrRoomMember, focusMember]
+  );
+
   return (
     <Box
+      id="cinny-members-panel"
+      role="region"
+      aria-label="Members panel"
+      tabIndex={-1}
       className={classNames(css.MembersDrawer, ContainerColor({ variant: 'Background' }))}
       shrink="No"
       direction="Column"
+      style={
+        isFullWidth
+          ? { flex: 1, minWidth: 0, overflow: 'hidden' }
+          : { width: `${width}px` }
+      }
+      onFocus={(evt) => {
+        // F6 (supertab) focuses this container directly — redirect immediately to the first
+        // member button so the user can navigate the list right away with arrow keys.
+        if (evt.target !== evt.currentTarget) return;
+        const firstMember = evt.currentTarget.querySelector<HTMLElement>(
+          '[data-user-id][tabindex="0"]'
+        );
+        firstMember?.focus();
+      }}
     >
       <MemberDrawerHeader room={room} />
       <Box className={css.MemberDrawerContentBase} grow="Yes">
@@ -378,10 +490,20 @@ export function MembersDrawer({ room, members }: MembersDrawerProps) {
 
             <Box className={css.MembersGroup} direction="Column" gap="100">
               <div
-                style={{
-                  position: 'relative',
-                  height: virtualizer.getTotalSize(),
+                role="listbox"
+                aria-label="Members"
+                aria-orientation="vertical"
+                onKeyDown={handleListKeyDown}
+                onFocus={(evt) => {
+                  // Sync focusedVirtIndex when any member button receives focus.
+                  const userId = (evt.target as HTMLElement).getAttribute('data-user-id');
+                  if (!userId) return;
+                  const idx = PLTagOrRoomMember.findIndex(
+                    (m) => 'userId' in m && m.userId === userId
+                  );
+                  if (idx >= 0) setFocusedVirtIndex(idx);
                 }}
+                style={{ position: 'relative', height: virtualizer.getTotalSize() }}
               >
                 {virtualizer.getVirtualItems().map((vItem) => {
                   const tagOrMember = PLTagOrRoomMember[vItem.index];
@@ -402,6 +524,13 @@ export function MembersDrawer({ room, members }: MembersDrawerProps) {
                     );
                   }
 
+                  const isFocused = focusedVirtIndex === vItem.index;
+                  // Roving tabindex: first member starts as tabIndex=0 (Tab entry point),
+                  // then whichever member last had focus keeps tabIndex=0.
+                  const memberTabIndex =
+                    focusedVirtIndex >= 0
+                      ? isFocused ? 0 : -1
+                      : vItem.index === memberIndices[0] ? 0 : -1;
                   return (
                     <div
                       style={{
@@ -422,6 +551,9 @@ export function MembersDrawer({ room, members }: MembersDrawerProps) {
                         typing={typingMembers.some(
                           (receipt) => receipt.userId === tagOrMember.userId
                         )}
+                        focused={isFocused}
+                        optionId={`member-option-${tagOrMember.userId}`}
+                        tabIndex={memberTabIndex}
                       />
                     </div>
                   );

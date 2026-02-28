@@ -57,7 +57,7 @@ export const DatePicker = forwardRef<HTMLDivElement, DatePickerProps>(
     const minDay = dayjs(min).date();
     const maxDay = dayjs(max).date();
     return (
-      <Menu className={css.PickerMenu} ref={ref}>
+      <Menu role="dialog" aria-label="Date picker" className={css.PickerMenu} ref={ref}>
         <Box direction="Row" gap="200" className={css.PickerContainer}>
           <PickerColumn title="Day">
             {Array.from(Array(daysInMonth(selectedMonth, selectedYear)).keys())

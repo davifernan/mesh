@@ -186,6 +186,7 @@ export function AdditionalCreatorInput({
                 }}
               >
                 <Menu
+                  role="menu"
                   style={{
                     width: '100vw',
                     maxWidth: toRem(300),

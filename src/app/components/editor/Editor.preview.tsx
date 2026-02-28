@@ -23,7 +23,7 @@ export function EditorPreview() {
 
   return (
     <>
-      <IconButton variant="SurfaceVariant" onClick={() => setOpen(!open)}>
+      <IconButton variant="SurfaceVariant" onClick={() => setOpen(!open)} aria-label="Open editor preview" aria-pressed={open}>
         <Icon src={Icons.BlockQuote} />
       </IconButton>
       <Overlay open={open} backdrop={<OverlayBackdrop />}>
@@ -36,13 +36,13 @@ export function EditorPreview() {
               escapeDeactivates: stopPropagation,
             }}
           >
-            <Modal size="500">
+            <Modal role="dialog" aria-modal="true" size="500">
               <div style={{ padding: config.space.S400 }}>
                 <CustomEditor
                   editor={editor}
                   placeholder="Send a message..."
                   before={
-                    <IconButton variant="SurfaceVariant" size="300" radii="300">
+                    <IconButton variant="SurfaceVariant" size="300" radii="300" aria-label="Attach file">
                       <Icon src={Icons.PlusCircle} />
                     </IconButton>
                   }
@@ -54,13 +54,14 @@ export function EditorPreview() {
                         radii="300"
                         onClick={() => setToolbar(!toolbar)}
                         aria-pressed={toolbar}
+                        aria-label="Toggle formatting toolbar"
                       >
                         <Icon src={toolbar ? Icons.AlphabetUnderline : Icons.Alphabet} />
                       </IconButton>
-                      <IconButton variant="SurfaceVariant" size="300" radii="300">
+                      <IconButton variant="SurfaceVariant" size="300" radii="300" aria-label="Insert emoji">
                         <Icon src={Icons.Smile} />
                       </IconButton>
-                      <IconButton variant="SurfaceVariant" size="300" radii="300">
+                      <IconButton variant="SurfaceVariant" size="300" radii="300" aria-label="Send message">
                         <Icon src={Icons.Send} />
                       </IconButton>
                     </>

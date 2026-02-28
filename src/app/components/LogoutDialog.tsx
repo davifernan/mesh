@@ -33,7 +33,7 @@ export const LogoutDialog = forwardRef<HTMLDivElement, LogoutDialogProps>(
     const ongoingLogout = logoutState.status === AsyncStatus.Loading;
 
     return (
-      <Dialog variant="Surface" ref={ref}>
+      <Dialog variant="Surface" ref={ref} role="dialog" aria-modal="true" aria-labelledby="logout-dialog-title">
         <Header
           style={{
             padding: `0 ${config.space.S200} 0 ${config.space.S400}`,
@@ -43,7 +43,7 @@ export const LogoutDialog = forwardRef<HTMLDivElement, LogoutDialogProps>(
           size="500"
         >
           <Box grow="Yes">
-            <Text size="H4">Logout</Text>
+            <Text size="H4" as="h2" id="logout-dialog-title">Logout</Text>
           </Box>
         </Header>
         <Box style={{ padding: config.space.S400 }} direction="Column" gap="400">

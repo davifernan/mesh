@@ -99,7 +99,7 @@ export function UsageSwitcher({ usage, onChange, canEdit }: UsageSwitcherProps) 
               escapeDeactivates: stopPropagation,
             }}
           >
-            <Menu>
+            <Menu role="menu">
               <UsageSelector
                 selected={usage}
                 onChange={(usg) => {

@@ -314,7 +314,7 @@ export function DeviceVerificationOptions() {
               escapeDeactivates: stopPropagation,
             }}
           >
-            <Menu>
+            <Menu role="menu">
               <Box direction="Column" gap="100" style={{ padding: config.space.S100 }}>
                 <MenuItem
                   variant="Critical"

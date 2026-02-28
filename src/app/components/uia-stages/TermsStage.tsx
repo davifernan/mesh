@@ -18,7 +18,7 @@ function TermsErrorDialog({
     <Dialog>
       <Box style={{ padding: config.space.S400 }} direction="Column" gap="400">
         <Box direction="Column" gap="100">
-          <Text size="H4">{title}</Text>
+          <Text size="H4" as="h2">{title}</Text>
           <Text>{message}</Text>
         </Box>
         <Button variant="Critical" onClick={onRetry}>

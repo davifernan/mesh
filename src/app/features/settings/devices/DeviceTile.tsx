@@ -292,6 +292,8 @@ export function DeviceTile({
             outlined={deleted}
             radii="300"
             onClick={() => setDetails(!details)}
+            aria-label={details ? 'Hide device details' : 'Show device details'}
+            aria-expanded={details}
           >
             <Icon size="50" src={details ? Icons.ChevronBottom : Icons.ChevronRight} />
           </IconButton>

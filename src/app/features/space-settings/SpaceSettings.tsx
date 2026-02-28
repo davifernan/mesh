@@ -111,13 +111,13 @@ export function SpaceSettings({ initialPage, requestClose }: SpaceSettingsProps)
                     )}
                   />
                 </Avatar>
-                <Text size="H4" truncate>
+                <Text size="H4" as="h1" truncate>
                   {roomName}
                 </Text>
               </Box>
               <Box shrink="No">
                 {screenSize === ScreenSize.Mobile && (
-                  <IconButton onClick={requestClose} variant="Background">
+                  <IconButton onClick={requestClose} variant="Background" aria-label="Close">
                     <Icon src={Icons.Cross} />
                   </IconButton>
                 )}

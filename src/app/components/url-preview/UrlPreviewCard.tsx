@@ -161,6 +161,7 @@ export const UrlPreviewHolder = as<'div'>(({ children, ...props }, ref) => {
                 size="300"
                 outlined
                 onClick={handleScrollBack}
+                aria-label="Scroll previews left"
               >
                 <Icon size="300" src={Icons.ArrowLeft} />
               </IconButton>
@@ -179,6 +180,7 @@ export const UrlPreviewHolder = as<'div'>(({ children, ...props }, ref) => {
                   size="300"
                   outlined
                   onClick={handleScrollFront}
+                  aria-label="Scroll previews right"
                 >
                   <Icon size="300" src={Icons.ArrowRight} />
                 </IconButton>

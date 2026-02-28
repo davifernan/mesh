@@ -84,7 +84,7 @@ export function AddServer() {
               escapeDeactivates: stopPropagation,
             }}
           >
-            <Dialog variant="Surface">
+            <Dialog variant="Surface" role="dialog" aria-modal="true" aria-labelledby="add-server-dialog-title">
               <Header
                 style={{
                   padding: `0 ${config.space.S200} 0 ${config.space.S400}`,
@@ -94,9 +94,9 @@ export function AddServer() {
                 size="500"
               >
                 <Box grow="Yes">
-                  <Text size="H4">Add Server</Text>
+                  <Text size="H4" as="h2" id="add-server-dialog-title">Add Server</Text>
                 </Box>
-                <IconButton size="300" onClick={() => setDialog(false)} radii="300">
+                <IconButton size="300" onClick={() => setDialog(false)} radii="300" aria-label="Close">
                   <Icon src={Icons.Cross} />
                 </IconButton>
               </Header>
@@ -172,7 +172,7 @@ export function Explore() {
       <PageNavHeader>
         <Box grow="Yes" gap="300">
           <Box grow="Yes">
-            <Text size="H4" truncate>
+            <Text size="H4" as="h1" truncate>
               Explore Community
             </Text>
           </Box>

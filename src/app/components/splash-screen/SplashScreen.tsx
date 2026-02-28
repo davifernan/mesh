@@ -20,8 +20,8 @@ export function SplashScreen({ children }: SplashScreenProps) {
         alignItems="Center"
         justifyContent="Center"
       >
-        <Text size="H2" align="Center">
-          Cinny
+        <Text size="H2" as="h1" align="Center">
+          Wally
         </Text>
       </Box>
     </Box>

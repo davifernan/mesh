@@ -13,6 +13,7 @@ type PowerSelectorProps = {
 export const PowerSelector = forwardRef<HTMLDivElement, PowerSelectorProps>(
   ({ powerLevelTags, value, onChange }, ref) => (
     <Menu
+      role="menu"
       ref={ref}
       style={{
         maxHeight: '75vh',

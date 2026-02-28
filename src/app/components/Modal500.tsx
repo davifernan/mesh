@@ -19,7 +19,7 @@ export function Modal500({ requestClose, children }: Modal500Props) {
             escapeDeactivates: stopPropagation,
           }}
         >
-          <Modal size="500" variant="Background">
+          <Modal size="500" variant="Background" role="dialog" aria-modal="true">
             {children}
           </Modal>
         </FocusTrap>

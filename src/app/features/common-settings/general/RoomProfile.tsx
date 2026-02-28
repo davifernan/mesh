@@ -310,7 +310,7 @@ export function RoomProfile({ permissions }: RoomProfileProps) {
           <Box gap="400">
             <Box grow="Yes" direction="Column" gap="300">
               <Box direction="Column" gap="100">
-                <Text className={BreakWord} size="H5">
+                <Text className={BreakWord} size="H5" as="h3">
                   {name ?? 'Unknown'}
                 </Text>
                 {topic && (

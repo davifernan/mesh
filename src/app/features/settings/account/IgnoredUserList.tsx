@@ -72,6 +72,7 @@ function IgnoreUserInput({ userList }: { userList: string[] }) {
                 size="300"
                 radii="300"
                 variant="Secondary"
+                aria-label="Clear user ID"
               >
                 <Icon src={Icons.Cross} size="100" />
               </IconButton>

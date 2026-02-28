@@ -189,7 +189,7 @@ function ThirdPartyProtocolsSelector({
             escapeDeactivates: stopPropagation,
           }}
         >
-          <Menu variant="Surface">
+          <Menu role="menu" variant="Surface">
             <Box
               direction="Column"
               gap="100"
@@ -285,7 +285,7 @@ function LimitButton({ limit, onLimitChange }: LimitButtonProps) {
             escapeDeactivates: stopPropagation,
           }}
         >
-          <Menu variant="Surface">
+          <Menu role="menu" variant="Surface">
             <Box direction="Column" gap="400" style={{ padding: config.space.S300 }}>
               <Box direction="Column" gap="100">
                 <Text size="L400">Presets</Text>
@@ -487,7 +487,7 @@ export function PublicRooms() {
 
             <Box grow="No" justifyContent="Center" alignItems="Center" gap="200">
               {screenSize !== ScreenSize.Mobile && <Icon size="400" src={Icons.Search} />}
-              <Text size="H3" truncate>
+              <Text as="h1" size="H3" truncate>
                 Search
               </Text>
             </Box>
@@ -499,7 +499,7 @@ export function PublicRooms() {
               {screenSize === ScreenSize.Mobile && (
                 <BackRouteHandler>
                   {(onBack) => (
-                    <IconButton onClick={onBack}>
+                    <IconButton onClick={onBack} aria-label="Go back">
                       <Icon src={Icons.ArrowLeft} />
                     </IconButton>
                   )}
@@ -508,7 +508,7 @@ export function PublicRooms() {
             </Box>
             <Box grow="Yes" justifyContent="Center" alignItems="Center" gap="200">
               {screenSize !== ScreenSize.Mobile && <Icon size="400" src={Icons.Server} />}
-              <Text size="H3" truncate>
+              <Text as="h1" size="H3" truncate>
                 {server}
               </Text>
             </Box>
@@ -532,9 +532,9 @@ export function PublicRooms() {
                 <Box direction="Column" gap="400">
                   <Box direction="Column" gap="300">
                     {isSearch ? (
-                      <Text size="H4">{`Results for "${serverSearchParams.term}"`}</Text>
+                      <Text as="h2" size="H4">{`Results for "${serverSearchParams.term}"`}</Text>
                     ) : (
-                      <Text size="H4">Popular Communities</Text>
+                      <Text as="h2" size="H4">Popular Communities</Text>
                     )}
                     <Box gap="200">
                       {roomTypeFilters.map((filter) => (

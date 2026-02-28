@@ -29,7 +29,7 @@ export function UIAFlowOverlay({
   return (
     <Overlay open backdrop={<OverlayBackdrop />}>
       <FocusTrap focusTrapOptions={{ initialFocus: false, escapeDeactivates: false }}>
-        <Box style={{ height: '100%' }} direction="Column" grow="Yes" gap="400">
+        <Box role="dialog" aria-modal="true" style={{ height: '100%' }} direction="Column" grow="Yes" gap="400">
           <Box grow="Yes" direction="Column" alignItems="Center" justifyContent="Center">
             {children}
           </Box>
@@ -59,6 +59,7 @@ export function UIAFlowOverlay({
                   onClick={onCancel}
                   radii="Pill"
                   outlined
+                  aria-label="Close"
                 >
                   <Icon size="50" src={Icons.Cross} />
                 </IconButton>

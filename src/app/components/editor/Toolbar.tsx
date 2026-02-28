@@ -155,7 +155,7 @@ export function HeadingBlockButton() {
             escapeDeactivates: stopPropagation,
           }}
         >
-          <Menu style={{ padding: config.space.S100 }}>
+          <Menu role="menu" style={{ padding: config.space.S100 }}>
             <Box gap="100">
               <TooltipProvider
                 tooltip={<BtnTooltip text="Heading 1" shortCode={`${modKey} + 1`} />}
@@ -167,6 +167,7 @@ export function HeadingBlockButton() {
                     onClick={() => handleMenuSelect(1)}
                     size="400"
                     radii="300"
+                    aria-label="Heading 1"
                   >
                     <Icon size="200" src={Icons.Heading1} />
                   </IconButton>
@@ -182,6 +183,7 @@ export function HeadingBlockButton() {
                     onClick={() => handleMenuSelect(2)}
                     size="400"
                     radii="300"
+                    aria-label="Heading 2"
                   >
                     <Icon size="200" src={Icons.Heading2} />
                   </IconButton>
@@ -197,6 +199,7 @@ export function HeadingBlockButton() {
                     onClick={() => handleMenuSelect(3)}
                     size="400"
                     radii="300"
+                    aria-label="Heading 3"
                   >
                     <Icon size="200" src={Icons.Heading3} />
                   </IconButton>
@@ -244,6 +247,7 @@ export function ExitFormatting({ tooltip }: ExitFormattingProps) {
           onClick={handleClick}
           size="400"
           radii="300"
+          aria-label="Exit formatting"
         >
           <Text size="B400">{`Exit ${KeySymbol.Hyper}`}</Text>
         </IconButton>

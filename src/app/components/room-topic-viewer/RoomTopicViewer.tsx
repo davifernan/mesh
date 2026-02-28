@@ -17,16 +17,18 @@ export const RoomTopicViewer = as<
     size="300"
     flexHeight
     className={classNames(css.ModalFlex, className)}
+    role="dialog"
+    aria-modal="true"
     {...props}
     ref={ref}
   >
     <Header className={css.ModalHeader} variant="Surface" size="500">
       <Box grow="Yes">
-        <Text size="H4" truncate>
+        <Text size="H4" as="h2" truncate>
           {name}
         </Text>
       </Box>
-      <IconButton size="300" onClick={requestClose} radii="300">
+      <IconButton size="300" onClick={requestClose} radii="300" aria-label="Close">
         <Icon src={Icons.Cross} />
       </IconButton>
     </Header>

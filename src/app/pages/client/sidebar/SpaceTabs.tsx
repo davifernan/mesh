@@ -147,7 +147,7 @@ const SpaceMenu = forwardRef<HTMLDivElement, SpaceMenuProps>(
     };
 
     return (
-      <Menu ref={ref} style={{ maxWidth: toRem(160), width: '100vw' }}>
+      <Menu role="menu" ref={ref} style={{ maxWidth: toRem(160), width: '100vw' }}>
         {invitePrompt && room && (
           <InviteUserPrompt
             room={room}
@@ -390,6 +390,7 @@ type SpaceTabProps = {
   onDragging: (dragItem?: SidebarDraggable) => void;
   disabled?: boolean;
   onUnpin?: (roomId: string) => void;
+  keyShortcut?: string;
 };
 function SpaceTab({
   space,
@@ -399,6 +400,7 @@ function SpaceTab({
   onDragging,
   disabled,
   onUnpin,
+  keyShortcut,
 }: SpaceTabProps) {
   const mx = useMatrixClient();
   const useAuthentication = useMediaAuthentication();
@@ -446,6 +448,8 @@ function SpaceTab({
             {(triggerRef) => (
               <SidebarAvatar
                 as="button"
+                aria-label={`${space.name} space`}
+                aria-keyshortcuts={keyShortcut}
                 data-id={space.roomId}
                 ref={triggerRef}
                 size={folder ? '300' : '400'}
@@ -522,7 +526,13 @@ function OpenedSpaceFolder({ folder, onClose, children }: OpenedSpaceFolderProps
     >
       <SidebarFolderDropTarget ref={aboveTargetRef} position="Top" />
       <SidebarAvatar size="300">
-        <IconButton data-id={folder.id} size="300" variant="Background" onClick={onClose}>
+        <IconButton
+          data-id={folder.id}
+          size="300"
+          variant="Background"
+          onClick={onClose}
+          aria-label={`Collapse ${folder.name || 'folder'}`}
+        >
           <Icon size="400" src={Icons.ChevronTop} filled />
         </IconButton>
       </SidebarAvatar>
@@ -571,7 +581,7 @@ function ClosedSpaceFolder({
         >
           <SidebarItemTooltip tooltip={disabled ? undefined : tooltipName}>
             {(tooltipRef) => (
-              <SidebarFolder data-id={folder.id} as="button" ref={tooltipRef} onClick={onOpen}>
+              <SidebarFolder data-id={folder.id} as="button" aria-label={`${tooltipName} folder, collapsed`} ref={tooltipRef} onClick={onOpen}>
                 {folder.content.map((sId) => {
                   const space = mx.getRoom(sId);
                   if (!space) return null;
@@ -797,6 +807,19 @@ export function SpaceTabs({ scrollRef }: SpaceTabsProps) {
     [mx, sidebarItems, orphanSpaces, localEchoSidebarItem]
   );
 
+  // Build index map for flat (non-folder) spaces — used for Alt+1-9 aria-keyshortcuts
+  const flatSpaceKeyMap = useMemo(() => {
+    const map = new Map<string, string>();
+    let idx = 0;
+    sidebarItems.forEach((item) => {
+      if (typeof item === 'string' && idx < 9) {
+        map.set(item, `Alt+${idx + 1}`);
+        idx += 1;
+      }
+    });
+    return map;
+  }, [sidebarItems]);
+
   if (sidebarItems.length === 0) return null;
   return (
     <>
@@ -857,6 +880,7 @@ export function SpaceTabs({ scrollRef }: SpaceTabsProps) {
               onDragging={setDraggingItem}
               disabled={typeof draggingItem === 'string' ? draggingItem === space.roomId : false}
               onUnpin={orphanSpaces.includes(space.roomId) ? undefined : handleUnpin}
+              keyShortcut={flatSpaceKeyMap.get(item)}
             />
           );
         })}

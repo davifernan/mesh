@@ -111,7 +111,7 @@ function ErrorDialog({
               escapeDeactivates: stopPropagation,
             }}
           >
-            <Dialog variant="Surface">
+            <Dialog variant="Surface" role="dialog" aria-modal="true" aria-label="Error">
               <Box style={{ padding: config.space.S400 }} direction="Column" gap="400">
                 <Box direction="Column" gap="100">
                   <Text>{title}</Text>

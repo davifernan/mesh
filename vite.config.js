@@ -14,6 +14,10 @@ import buildConfig from './build.config';
 const copyFiles = {
   targets: [
     {
+      src: 'node_modules/@element-hq/element-call-embedded/dist/*',
+      dest: 'public/element-call',
+    },
+    {
       src: 'node_modules/pdfjs-dist/build/pdf.worker.min.mjs',
       dest: '',
       rename: 'pdf.worker.min.js',
@@ -126,6 +130,10 @@ export default defineConfig({
     copyPublicDir: false,
     rollupOptions: {
       plugins: [inject({ Buffer: ['buffer', 'Buffer'] })],
+      input: {
+        main: path.resolve(__dirname, 'index.html'),
+        widget: path.resolve(__dirname, 'widget.html'),
+      },
     },
   },
 });

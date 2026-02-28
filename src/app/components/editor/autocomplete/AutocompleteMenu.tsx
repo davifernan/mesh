@@ -37,7 +37,7 @@ export function AutocompleteMenu({ headerContent, requestClose, children }: Auto
             escapeDeactivates: stopPropagation,
           }}
         >
-          <Menu className={css.AutocompleteMenu}>
+          <Menu role="listbox" className={css.AutocompleteMenu}>
             <Header className={css.AutocompleteMenuHeader} size="400">
               {headerContent}
             </Header>

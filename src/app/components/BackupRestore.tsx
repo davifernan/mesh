@@ -204,6 +204,7 @@ export function BackupRestoreTile({ crypto }: BackupRestoreTileProps) {
                 }}
               >
                 <Menu
+                  role="menu"
                   style={{
                     padding: config.space.S100,
                   }}

@@ -26,7 +26,7 @@ import React, {
   useState,
 } from 'react';
 import { isKeyHotkey } from 'is-hotkey';
-import { useAtom, useAtomValue } from 'jotai';
+import { useAtom, useAtomValue, useSetAtom } from 'jotai';
 import { Room } from 'matrix-js-sdk';
 import { useDirects, useOrphanSpaces, useRooms, useSpaces } from '../../state/hooks/roomList';
 import { useMatrixClient } from '../../hooks/useMatrixClient';
@@ -44,17 +44,24 @@ import {
   getDirectRoomAvatarUrl,
   getRoomAvatarUrl,
   guessPerfectParent,
+  getOrphanParents,
 } from '../../utils/room';
 import { highlightText, makeHighlightRegex } from '../../plugins/react-custom-html-parser';
 import { factoryRoomIdByActivity } from '../../utils/sort';
 import { nameInitials } from '../../utils/common';
 import { useRoomNavigate } from '../../hooks/useRoomNavigate';
 import { useListFocusIndex } from '../../hooks/useListFocusIndex';
-import { getMxIdLocalPart, getMxIdServer, guessDmRoomUserId } from '../../utils/matrix';
+import { getMxIdLocalPart, getMxIdServer, guessDmRoomUserId, getCanonicalAliasOrRoomId } from '../../utils/matrix';
+import {
+  getHomeRoomPath,
+  getDirectRoomPath,
+  getSpacePath,
+  getSpaceRoomPath,
+} from '../../pages/pathUtils';
 import { roomToParentsAtom } from '../../state/room/roomToParents';
 import { roomToUnreadAtom } from '../../state/room/roomToUnread';
 import { UnreadBadge, UnreadBadgeCenter } from '../../components/unread-badge';
-import { searchModalAtom } from '../../state/searchModal';
+import { searchModalAtom, searchModalInitialCharAtom } from '../../state/searchModal';
 import { useKeyDown } from '../../hooks/useKeyDown';
 import { useMediaAuthentication } from '../../hooks/useMediaAuthentication';
 import { KeySymbol } from '../../utils/key-symbol';
@@ -144,6 +151,9 @@ export function Search({ requestClose }: SearchProps) {
 
   const [searchRoomType, setSearchRoomType] = useState<SearchRoomType>();
 
+  const initialChar = useAtomValue(searchModalInitialCharAtom);
+  const resetInitialChar = useSetAtom(searchModalInitialCharAtom);
+
   const allRoomsSet = useAllJoinedRoomsSet();
   const getRoom = useGetRoom(allRoomsSet);
 
@@ -153,6 +163,21 @@ export function Search({ requestClose }: SearchProps) {
   const rooms = useRooms(mx, allRoomsAtom, mDirects);
   const spaces = useSpaces(mx, allRoomsAtom);
   const directs = useDirects(mx, allRoomsAtom, mDirects);
+
+  const getRoomPath = useCallback(
+    (roomId: string, isSpace: boolean): string => {
+      const roomIdOrAlias = getCanonicalAliasOrRoomId(mx, roomId);
+      if (isSpace) return getSpacePath(roomIdOrAlias);
+      if (mDirects.has(roomId)) return getDirectRoomPath(roomIdOrAlias);
+      const orphanParents = getOrphanParents(roomToParents, roomId);
+      if (orphanParents.length > 0) {
+        const bestParent = guessPerfectParent(mx, roomId, orphanParents) ?? orphanParents[0];
+        return getSpaceRoomPath(getCanonicalAliasOrRoomId(mx, bestParent), roomIdOrAlias);
+      }
+      return getHomeRoomPath(roomIdOrAlias);
+    },
+    [mx, mDirects, roomToParents]
+  );
 
   const topActiveRooms = useTopActiveRooms(searchRoomType, rooms, directs, spaces);
   const targetRooms = useSearchTargetRooms(searchRoomType, rooms, directs, spaces);
@@ -173,6 +198,18 @@ export function Search({ requestClose }: SearchProps) {
   const [result, search, resetSearch] = useAsyncSearch(targetRooms, getTargetStr, SEARCH_OPTIONS);
   const roomsToRender = result ? result.items : topActiveRooms;
   const listFocus = useListFocusIndex(roomsToRender.length, 0);
+
+  // Inject a pre-typed character when the modal is opened by a keyboard shortcut
+  // (e.g. typing in the room list redirects here). Runs only on mount.
+  useEffect(() => {
+    if (!initialChar) return;
+    const input = inputRef.current;
+    if (!input) return;
+    input.value = initialChar;
+    resetInitialChar('');
+    search(initialChar);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const queryHighlighRegex = result?.query
     ? makeHighlightRegex(result.query.split(' '))
@@ -222,7 +259,8 @@ export function Search({ requestClose }: SearchProps) {
     }
   };
 
-  const handleRoomClick: MouseEventHandler<HTMLButtonElement> = (evt) => {
+  const handleRoomClick: MouseEventHandler<HTMLAnchorElement> = (evt) => {
+    evt.preventDefault();
     const target = evt.currentTarget;
     const roomId = target.getAttribute('data-room-id');
     const isSpace = target.getAttribute('data-space') === 'true';
@@ -257,7 +295,7 @@ export function Search({ requestClose }: SearchProps) {
             },
           }}
         >
-          <Modal size="400" style={{ maxHeight: toRem(400), borderRadius: config.radii.R500 }}>
+          <Modal size="400" style={{ maxHeight: toRem(400), borderRadius: config.radii.R500 }} role="dialog" aria-modal="true" aria-label="Search">
             <Box
               shrink="No"
               style={{ padding: config.space.S400, paddingBottom: 0 }}
@@ -265,6 +303,11 @@ export function Search({ requestClose }: SearchProps) {
             >
               <Input
                 ref={inputRef}
+                role="combobox"
+                aria-label="Search rooms and spaces"
+                aria-autocomplete="list"
+                aria-expanded={roomsToRender.length > 0}
+                aria-controls="search-results-list"
                 size="500"
                 variant="Background"
                 radii="400"
@@ -297,7 +340,7 @@ export function Search({ requestClose }: SearchProps) {
               )}
               {roomsToRender.length > 0 && (
                 <Scroll ref={scrollRef} size="300" hideTrack>
-                  <div style={{ padding: config.space.S400, paddingRight: config.space.S200 }}>
+                  <div id="search-results-list" role="listbox" aria-label="Search results" style={{ padding: config.space.S400, paddingRight: config.space.S200 }}>
                     {roomsToRender.map((roomId, index) => {
                       const room = getRoom(roomId);
                       if (!room) return null;
@@ -322,13 +365,15 @@ export function Search({ requestClose }: SearchProps) {
                       return (
                         <MenuItem
                           key={roomId}
-                          as="button"
+                          as="a"
+                          href={getRoomPath(roomId, room.isSpaceRoom())}
+                          role="option"
                           data-focus-index={index}
                           data-room-id={roomId}
                           data-space={room.isSpaceRoom()}
                           onClick={handleRoomClick}
                           variant={listFocus.index === index ? 'Primary' : 'Surface'}
-                          aria-pressed={listFocus.index === index}
+                          aria-selected={listFocus.index === index}
                           radii="400"
                           after={
                             <Box gap="100">

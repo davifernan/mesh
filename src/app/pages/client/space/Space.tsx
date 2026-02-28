@@ -6,7 +6,7 @@ import React, {
   useRef,
   useState,
 } from 'react';
-import { useAtom, useAtomValue } from 'jotai';
+import { useAtom, useAtomValue, useSetAtom } from 'jotai';
 import {
   Avatar,
   Box,
@@ -53,7 +53,8 @@ import { roomToUnreadAtom } from '../../../state/room/roomToUnread';
 import { useCategoryHandler } from '../../../hooks/useCategoryHandler';
 import { useNavToActivePathMapper } from '../../../hooks/useNavToActivePathMapper';
 import { useRoomName } from '../../../hooks/useRoomMeta';
-import { useSpaceJoinedHierarchy } from '../../../hooks/useSpaceHierarchy';
+import { HierarchyItem, useSpaceJoinedHierarchy } from '../../../hooks/useSpaceHierarchy';
+import { factoryRoomIdByActivity, factoryRoomIdByAtoZ, factoryRoomIdByUnreadFirst, byOrderKey, byTsOldToNew } from '../../../utils/sort';
 import { allRoomsAtom } from '../../../state/room-list/roomList';
 import { PageNav, PageNavContent, PageNavHeader } from '../../../components/page';
 import { usePowerLevels } from '../../../hooks/usePowerLevels';
@@ -76,6 +77,10 @@ import {
   getRoomNotificationMode,
   useRoomsNotificationPreferencesContext,
 } from '../../../hooks/useRoomsNotificationPreferences';
+import { CallNavStatus } from '../../../features/room-nav/RoomCallNavStatus';
+import { useRoomListKeyboard } from '../../../hooks/useRoomListKeyboard';
+import { RoomListbox } from '../../../components/room-listbox/RoomListbox';
+import { searchModalAtom, searchModalInitialCharAtom } from '../../../state/searchModal';
 import { useOpenSpaceSettings } from '../../../state/hooks/spaceSettings';
 import { useRoomNavigate } from '../../../hooks/useRoomNavigate';
 import { useRoomCreators } from '../../../hooks/useRoomCreators';
@@ -93,6 +98,7 @@ const SpaceMenu = forwardRef<HTMLDivElement, SpaceMenuProps>(({ room, requestClo
   const mx = useMatrixClient();
   const [hideActivity] = useSetting(settingsAtom, 'hideActivity');
   const [developerTools] = useSetting(settingsAtom, 'developerTools');
+  const [roomSortOrder, setRoomSortOrder] = useSetting(settingsAtom, 'roomSortOrder');
   const roomToParents = useAtomValue(roomToParentsAtom);
   const powerLevels = usePowerLevels(room);
   const creators = useRoomCreators(room);
@@ -138,7 +144,7 @@ const SpaceMenu = forwardRef<HTMLDivElement, SpaceMenuProps>(({ room, requestClo
   };
 
   return (
-    <Menu ref={ref} style={{ maxWidth: toRem(160), width: '100vw' }}>
+    <Menu role="menu" ref={ref} style={{ maxWidth: toRem(160), width: '100vw' }}>
       <Box direction="Column" gap="100" style={{ padding: config.space.S100 }}>
         {invitePrompt && room && (
           <InviteUserPrompt
@@ -149,6 +155,47 @@ const SpaceMenu = forwardRef<HTMLDivElement, SpaceMenuProps>(({ room, requestClo
             }}
           />
         )}
+        <MenuItem
+          onClick={() => setRoomSortOrder('admin')}
+          size="300"
+          after={roomSortOrder === 'admin' ? <Icon size="100" src={Icons.Check} /> : undefined}
+          radii="300"
+        >
+          <Text style={{ flexGrow: 1 }} as="span" size="T300" truncate>
+            Admin Order
+          </Text>
+        </MenuItem>
+        <MenuItem
+          onClick={() => setRoomSortOrder('activity')}
+          size="300"
+          after={roomSortOrder === 'activity' ? <Icon size="100" src={Icons.Check} /> : undefined}
+          radii="300"
+        >
+          <Text style={{ flexGrow: 1 }} as="span" size="T300" truncate>
+            Sort by Activity
+          </Text>
+        </MenuItem>
+        <MenuItem
+          onClick={() => setRoomSortOrder('az')}
+          size="300"
+          after={roomSortOrder === 'az' ? <Icon size="100" src={Icons.Check} /> : undefined}
+          radii="300"
+        >
+          <Text style={{ flexGrow: 1 }} as="span" size="T300" truncate>
+            Sort A-Z
+          </Text>
+        </MenuItem>
+        <MenuItem
+          onClick={() => setRoomSortOrder('unread')}
+          size="300"
+          after={roomSortOrder === 'unread' ? <Icon size="100" src={Icons.Check} /> : undefined}
+          radii="300"
+        >
+          <Text style={{ flexGrow: 1 }} as="span" size="T300" truncate>
+            Unread First
+          </Text>
+        </MenuItem>
+        <Line variant="Surface" size="300" />
         <MenuItem
           onClick={handleMarkAsRead}
           size="300"
@@ -266,7 +313,7 @@ function SpaceHeader() {
       <PageNavHeader>
         <Box alignItems="Center" grow="Yes" gap="300">
           <Box grow="Yes" alignItems="Center" gap="100">
-            <Text size="H4" truncate>
+            <Text size="H4" as="h1" truncate>
               {spaceName}
             </Text>
             {joinRules?.join_rule !== JoinRule.Public && <Icon src={Icons.Lock} size="50" />}
@@ -394,6 +441,8 @@ export function Space() {
 
   const [closedCategories, setClosedCategories] = useAtom(useClosedNavCategoriesAtom());
 
+  const [roomSortOrder] = useSetting(settingsAtom, 'roomSortOrder');
+
   const getRoom = useCallback(
     (rId: string) => {
       if (allJoinedRooms.has(rId)) {
@@ -402,6 +451,31 @@ export function Space() {
       return undefined;
     },
     [mx, allJoinedRooms]
+  );
+
+  const sortSpaceRoomItems = useCallback(
+    (_parentId: string, items: HierarchyItem[]): HierarchyItem[] => {
+      const sorted = [...items];
+      if (roomSortOrder === 'activity') {
+        sorted.sort((a, b) => factoryRoomIdByActivity(mx)(a.roomId, b.roomId));
+      } else if (roomSortOrder === 'az') {
+        sorted.sort((a, b) => factoryRoomIdByAtoZ(mx)(a.roomId, b.roomId));
+      } else if (roomSortOrder === 'unread') {
+        sorted.sort((a, b) =>
+          factoryRoomIdByUnreadFirst(
+            (id) => roomToUnread.get(id)?.highlight ?? 0,
+            (id) => roomToUnread.get(id)?.total ?? 0,
+            factoryRoomIdByActivity(mx)
+          )(a.roomId, b.roomId)
+        );
+      } else {
+        // Default: preserve space admin ordering (order key + timestamp)
+        sorted.sort((a, b) => byTsOldToNew(a.ts, b.ts));
+        sorted.sort((a, b) => byOrderKey(a.content.order, b.content.order));
+      }
+      return sorted;
+    },
+    [mx, roomSortOrder, roomToUnread]
   );
 
   const hierarchy = useSpaceJoinedHierarchy(
@@ -418,10 +492,7 @@ export function Space() {
       },
       [space.roomId, closedCategories, roomToUnread, selectedRoomId]
     ),
-    useCallback(
-      (sId) => closedCategories.has(makeNavCategoryId(space.roomId, sId)),
-      [closedCategories, space.roomId]
-    )
+    sortSpaceRoomItems
   );
 
   const virtualizer = useVirtualizer({
@@ -429,14 +500,39 @@ export function Space() {
     getScrollElement: () => scrollRef.current,
     estimateSize: () => 0,
     overscan: 10,
+    getItemKey: (index) => displayHierarchy[index]?.roomId ?? index,
+  });
+
+  const getToLink = (roomId: string) =>
+    getSpaceRoomPath(spaceIdOrAlias, getCanonicalAliasOrRoomId(mx, roomId));
+
+  const roomsOnly = useMemo(
+    () =>
+      displayHierarchy
+        .filter(({ roomId }) => {
+          const r = mx.getRoom(roomId);
+          return r && !r.isSpaceRoom();
+        })
+        .map(({ roomId }) => roomId),
+    [displayHierarchy, mx]
+  );
+
+  const { navigateRoom } = useRoomNavigate();
+
+  const setSearchModal = useSetAtom(searchModalAtom);
+  const setSearchInitialChar = useSetAtom(searchModalInitialCharAtom);
+
+  const keyboardNav = useRoomListKeyboard({
+    items: roomsOnly,
+    selectedRoomId,
+    virtualizer,
+    onNavigate: (roomId) => navigateRoom(roomId),
+    onTypeChar: (key) => { setSearchInitialChar(key); setSearchModal(true); },
   });
 
   const handleCategoryClick = useCategoryHandler(setClosedCategories, (categoryId) =>
     closedCategories.has(categoryId)
   );
-
-  const getToLink = (roomId: string) =>
-    getSpaceRoomPath(spaceIdOrAlias, getCanonicalAliasOrRoomId(mx, roomId));
 
   return (
     <PageNav>
@@ -489,51 +585,90 @@ export function Space() {
               position: 'relative',
             }}
           >
-            {virtualizer.getVirtualItems().map((vItem) => {
-              const { roomId } = hierarchy[vItem.index] ?? {};
-              const room = mx.getRoom(roomId);
-              if (!room) return null;
+            <RoomListbox
+              id="cinny-room-listbox"
+              aria-label="Space room list"
+              items={roomsOnly}
+              focusedIndex={keyboardNav.focusedIndex}
+              onKeyDown={keyboardNav.handleKeyDown}
+              onFocus={keyboardNav.handleFocus}
+            >
+              {virtualizer.getVirtualItems().map((vItem) => {
+                const { roomId } = displayHierarchy[vItem.index] ?? {};
 
-              if (room.isSpaceRoom()) {
-                const categoryId = makeNavCategoryId(space.roomId, roomId);
+                // Virtual "Unread" group header — not a real room
+                if (roomId === VIRTUAL_UNREAD_ID) {
+                  const categoryId = makeNavCategoryId(space.roomId, VIRTUAL_UNREAD_ID);
+                  return (
+                    <VirtualTile
+                      virtualItem={vItem}
+                      key={vItem.key}
+                      ref={virtualizer.measureElement}
+                    >
+                      <div style={{ paddingTop: vItem.index === 0 ? undefined : config.space.S400 }}>
+                        <NavCategoryHeader>
+                          <RoomNavCategoryButton
+                            data-category-id={categoryId}
+                            onClick={handleCategoryClick}
+                            closed={closedCategories.has(categoryId)}
+                          >
+                            Unread
+                          </RoomNavCategoryButton>
+                        </NavCategoryHeader>
+                      </div>
+                    </VirtualTile>
+                  );
+                }
 
+                const room = mx.getRoom(roomId);
+                if (!room) return null;
+
+                if (room.isSpaceRoom()) {
+                  const categoryId = makeNavCategoryId(space.roomId, roomId);
+
+                  return (
+                    <VirtualTile
+                      virtualItem={vItem}
+                      key={vItem.key}
+                      ref={virtualizer.measureElement}
+                    >
+                      <div style={{ paddingTop: vItem.index === 0 ? undefined : config.space.S400 }}>
+                        <NavCategoryHeader>
+                          <RoomNavCategoryButton
+                            data-category-id={categoryId}
+                            onClick={handleCategoryClick}
+                            closed={closedCategories.has(categoryId)}
+                          >
+                            {roomId === space.roomId ? 'Rooms' : room?.name}
+                          </RoomNavCategoryButton>
+                        </NavCategoryHeader>
+                      </div>
+                    </VirtualTile>
+                  );
+                }
+
+                const focused = roomsOnly.indexOf(roomId) === keyboardNav.focusedIndex;
                 return (
-                  <VirtualTile
-                    virtualItem={vItem}
-                    key={vItem.index}
-                    ref={virtualizer.measureElement}
-                  >
-                    <div style={{ paddingTop: vItem.index === 0 ? undefined : config.space.S400 }}>
-                      <NavCategoryHeader>
-                        <RoomNavCategoryButton
-                          data-category-id={categoryId}
-                          onClick={handleCategoryClick}
-                          closed={closedCategories.has(categoryId)}
-                        >
-                          {roomId === space.roomId ? 'Rooms' : room?.name}
-                        </RoomNavCategoryButton>
-                      </NavCategoryHeader>
-                    </div>
+                  <VirtualTile virtualItem={vItem} key={vItem.key} ref={virtualizer.measureElement}>
+                    <RoomNavItem
+                      room={room}
+                      selected={selectedRoomId === roomId}
+                      focused={focused}
+                      optionId={`room-option-${roomId}`}
+                      tabIndex={-1}
+                      showAvatar={mDirects.has(roomId)}
+                      direct={mDirects.has(roomId)}
+                      linkPath={getToLink(roomId)}
+                      notificationMode={getRoomNotificationMode(notificationPreferences, room.roomId)}
+                    />
                   </VirtualTile>
                 );
-              }
-
-              return (
-                <VirtualTile virtualItem={vItem} key={vItem.index} ref={virtualizer.measureElement}>
-                  <RoomNavItem
-                    room={room}
-                    selected={selectedRoomId === roomId}
-                    showAvatar={mDirects.has(roomId)}
-                    direct={mDirects.has(roomId)}
-                    linkPath={getToLink(roomId)}
-                    notificationMode={getRoomNotificationMode(notificationPreferences, room.roomId)}
-                  />
-                </VirtualTile>
-              );
-            })}
+              })}
+            </RoomListbox>
           </NavCategory>
         </Box>
       </PageNavContent>
+      <CallNavStatus space={space} />
     </PageNav>
   );
 }

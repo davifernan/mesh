@@ -161,19 +161,19 @@ export function InviteUserPrompt({ room, requestClose }: InviteUserProps) {
             escapeDeactivates: stopPropagation,
           }}
         >
-          <Dialog>
+          <Dialog role="dialog" aria-modal="true" aria-labelledby="invite-user-dialog-title">
             <Box grow="Yes" direction="Column">
               <Header
                 size="500"
                 style={{ padding: `0 ${config.space.S200} 0 ${config.space.S400}` }}
               >
                 <Box grow="Yes">
-                  <Text size="H4" truncate>
+                  <Text size="H4" as="h2" truncate id="invite-user-dialog-title">
                     Invite
                   </Text>
                 </Box>
                 <Box shrink="No">
-                  <IconButton size="300" radii="300" onClick={requestClose}>
+                  <IconButton size="300" radii="300" onClick={requestClose} aria-label="Close">
                     <Icon src={Icons.Cross} />
                   </IconButton>
                 </Box>
@@ -215,7 +215,7 @@ export function InviteUserPrompt({ room, requestClose }: InviteUserProps) {
                         }}
                       >
                         <Box style={{ position: 'relative' }}>
-                          <Menu style={{ position: 'absolute', top: 0, zIndex: 1, width: '100%' }}>
+                          <Menu role="listbox" aria-label="User suggestions" style={{ position: 'absolute', top: 0, zIndex: 1, width: '100%' }}>
                             <Scroll size="300" style={{ maxHeight: toRem(100) }}>
                               <div style={{ padding: config.space.S100 }}>
                                 {result.items.map((userId) => {

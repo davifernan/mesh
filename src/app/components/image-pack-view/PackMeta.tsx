@@ -60,7 +60,7 @@ export function ImagePackProfile({ meta, canEdit, onEdit }: ImagePackProfileProp
     <Box gap="400">
       <Box grow="Yes" direction="Column" gap="300">
         <Box direction="Column" gap="100">
-          <Text className={BreakWord} size="H5">
+          <Text className={BreakWord} size="H5" as="h3">
             {meta.name ?? 'Unknown'}
           </Text>
           {meta.attribution && (

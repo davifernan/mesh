@@ -503,6 +503,8 @@ export function EmojiBoard({
       }}
     >
       <EmojiBoardLayout
+        role="dialog"
+        aria-label="Emoji and sticker picker"
         header={
           <Box direction="Column" gap="200">
             {onTabChange && <EmojiBoardTabs tab={tab} onTabChange={onTabChange} />}

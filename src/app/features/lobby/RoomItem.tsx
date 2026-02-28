@@ -145,7 +145,7 @@ function RoomProfileError({ roomId, suggested, inaccessibleRoom, via }: RoomProf
       </Avatar>
       <Box grow="Yes" direction="Column" className={css.ErrorNameContainer}>
         <Box gap="200" alignItems="Center">
-          <Text size="H5" truncate>
+          <Text size="H5" as="h3" truncate>
             Unknown
           </Text>
           {suggested && (
@@ -207,7 +207,7 @@ function RoomProfile({
       </Avatar>
       <Box grow="Yes" direction="Column">
         <Box gap="200" alignItems="Center">
-          <Text size="H5" truncate>
+          <Text size="H5" as="h3" truncate>
             {name}
           </Text>
           {suggested && (

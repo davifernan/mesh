@@ -47,7 +47,7 @@ function CreateRoomModal({ state }: CreateRoomModalProps) {
               escapeDeactivates: stopPropagation,
             }}
           >
-            <Modal size="300" flexHeight>
+            <Modal size="300" flexHeight role="dialog" aria-modal="true" aria-labelledby="create-room-dialog-title">
               <Box direction="Column">
                 <Header
                   size="500"
@@ -57,10 +57,10 @@ function CreateRoomModal({ state }: CreateRoomModalProps) {
                   }}
                 >
                   <Box grow="Yes">
-                    <Text size="H4">New Room</Text>
+                    <Text size="H4" as="h2" id="create-room-dialog-title">New Room</Text>
                   </Box>
                   <Box shrink="No">
-                    <IconButton size="300" radii="300" onClick={closeDialog}>
+                    <IconButton size="300" radii="300" onClick={closeDialog} aria-label="Close">
                       <Icon src={Icons.Cross} />
                     </IconButton>
                   </Box>

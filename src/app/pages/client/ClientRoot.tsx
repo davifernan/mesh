@@ -13,7 +13,12 @@ import {
   Spinner,
   Text,
 } from 'folds';
-import { HttpApiEvent, HttpApiEventHandlerMap, MatrixClient } from 'matrix-js-sdk';
+import {
+  HttpApiEvent,
+  HttpApiEventHandlerMap,
+  MatrixClient,
+  validateAuthMetadata,
+} from 'matrix-js-sdk';
 import FocusTrap from 'focus-trap-react';
 import React, { MouseEventHandler, ReactNode, useCallback, useEffect, useState } from 'react';
 import {
@@ -24,17 +29,36 @@ import {
   startClient,
 } from '../../../client/initMatrix';
 import { SplashScreen } from '../../components/splash-screen';
-import { ServerConfigsLoader } from '../../components/ServerConfigsLoader';
 import { CapabilitiesProvider } from '../../hooks/useCapabilities';
 import { MediaConfigProvider } from '../../hooks/useMediaConfig';
 import { MatrixClientProvider } from '../../hooks/useMatrixClient';
-import { SpecVersions } from './SpecVersions';
 import { AsyncStatus, useAsyncCallback } from '../../hooks/useAsyncCallback';
 import { useSyncState } from '../../hooks/useSyncState';
 import { stopPropagation } from '../../utils/keyboard';
 import { SyncStatus } from './SyncStatus';
 import { AuthMetadataProvider } from '../../hooks/useAuthMetadata';
 import { getFallbackSession } from '../../state/sessions';
+import { specVersions, SpecVersions as SpecVersionsData } from '../../cs-api';
+import { SpecVersionsProvider } from '../../hooks/useSpecVersions';
+import type { ServerConfigs } from '../../components/ServerConfigsLoader';
+
+async function prefetchServerConfigs(mx: MatrixClient): Promise<ServerConfigs> {
+  const [capsResult, mediaResult, authResult] = await Promise.allSettled([
+    mx.getCapabilities(),
+    mx.getMediaConfig(),
+    mx.getAuthMetadata(),
+  ]);
+  const capabilities = capsResult.status === 'fulfilled' ? capsResult.value : undefined;
+  const mediaConfig = mediaResult.status === 'fulfilled' ? mediaResult.value : undefined;
+  const authMetadataRaw = authResult.status === 'fulfilled' ? authResult.value : undefined;
+  let authMetadata;
+  try {
+    authMetadata = validateAuthMetadata(authMetadataRaw);
+  } catch {
+    // ignore — authMetadata stays undefined
+  }
+  return { capabilities, mediaConfig, authMetadata };
+}
 
 function ClientRootLoading() {
   return (
@@ -68,6 +92,8 @@ function ClientRootOptions({ mx }: { mx?: MatrixClient }) {
       variant="Background"
       fill="None"
       onClick={handleToggle}
+      aria-label="More options"
+      aria-pressed={!!menuAnchor}
     >
       <Icon size="200" src={Icons.VerticalDots} />
       <PopOut
@@ -87,7 +113,7 @@ function ClientRootOptions({ mx }: { mx?: MatrixClient }) {
               escapeDeactivates: stopPropagation,
             }}
           >
-            <Menu>
+            <Menu role="menu">
               <Box direction="Column" gap="100" style={{ padding: config.space.S100 }}>
                 {mx && (
                   <MenuItem onClick={() => clearCacheAndReload(mx)} size="300" radii="300">
@@ -127,8 +153,16 @@ const useLogoutListener = (mx?: MatrixClient) => {
     const handleLogout: HttpApiEventHandlerMap[HttpApiEvent.SessionLoggedOut] = async () => {
       mx?.stopClient();
       await mx?.clearStores();
-      window.localStorage.clear();
-      window.location.reload();
+      const slot = sessionStorage.getItem('cinny-account-slot');
+      if (slot !== null) {
+        // Secondary account session expired — remove it and return to main
+        removeSecondarySession(parseInt(slot, 10));
+        sessionStorage.removeItem('cinny-account-slot');
+        window.location.assign('/');
+      } else {
+        window.localStorage.clear();
+        window.location.reload();
+      }
     };
 
     mx?.on(HttpApiEvent.SessionLoggedOut, handleLogout);
@@ -145,6 +179,17 @@ export function ClientRoot({ children }: ClientRootProps) {
   const [loading, setLoading] = useState(true);
   const { baseUrl } = getFallbackSession() ?? {};
 
+  // Fetch spec versions in parallel with initClient — children use empty fallback until resolved
+  const [specVersionsData, setSpecVersionsData] = useState<SpecVersionsData>({ versions: [] });
+  useEffect(() => {
+    if (!baseUrl) return;
+    specVersions(fetch, baseUrl)
+      .then(setSpecVersionsData)
+      .catch(() => {
+        // keep empty fallback — features degrade gracefully, sync failure will surface if server is down
+      });
+  }, [baseUrl]);
+
   const [loadState, loadMatrix] = useAsyncCallback<MatrixClient, Error, []>(
     useCallback(() => {
       const session = getFallbackSession();
@@ -158,6 +203,15 @@ export function ClientRoot({ children }: ClientRootProps) {
   const [startState, startMatrix] = useAsyncCallback<void, Error, [MatrixClient]>(
     useCallback((m) => startClient(m), [])
   );
+
+  // Start server config fetches as soon as mx is available — before /sync completes
+  const [serverConfigs, setServerConfigs] = useState<ServerConfigs>({});
+  useEffect(() => {
+    if (!mx) return;
+    prefetchServerConfigs(mx).then(setServerConfigs).catch(() => {
+      // keep empty fallback
+    });
+  }, [mx]);
 
   useLogoutListener(mx);
 
@@ -176,14 +230,14 @@ export function ClientRoot({ children }: ClientRootProps) {
   useSyncState(
     mx,
     useCallback((state) => {
-      if (state === 'PREPARED') {
+      if (state === 'PREPARED' || state === 'SYNCING') {
         setLoading(false);
       }
     }, [])
   );
 
   return (
-    <SpecVersions baseUrl={baseUrl!}>
+    <SpecVersionsProvider value={specVersionsData}>
       {mx && <SyncStatus mx={mx} />}
       {loading && <ClientRootOptions mx={mx} />}
       {(loadState.status === AsyncStatus.Error || startState.status === AsyncStatus.Error) && (
@@ -202,6 +256,15 @@ export function ClientRoot({ children }: ClientRootProps) {
                     Retry
                   </Text>
                 </Button>
+                <Button
+                  variant="Secondary"
+                  fill="Soft"
+                  onClick={mx ? () => clearCacheAndReload(mx) : clearLoginData}
+                >
+                  <Text as="span" size="B400">
+                    Clear Cache
+                  </Text>
+                </Button>
               </Box>
             </Dialog>
           </Box>
@@ -211,19 +274,15 @@ export function ClientRoot({ children }: ClientRootProps) {
         <ClientRootLoading />
       ) : (
         <MatrixClientProvider value={mx}>
-          <ServerConfigsLoader>
-            {(serverConfigs) => (
-              <CapabilitiesProvider value={serverConfigs.capabilities ?? {}}>
-                <MediaConfigProvider value={serverConfigs.mediaConfig ?? {}}>
-                  <AuthMetadataProvider value={serverConfigs.authMetadata}>
-                    {children}
-                  </AuthMetadataProvider>
-                </MediaConfigProvider>
-              </CapabilitiesProvider>
-            )}
-          </ServerConfigsLoader>
+          <CapabilitiesProvider value={serverConfigs.capabilities ?? {}}>
+            <MediaConfigProvider value={serverConfigs.mediaConfig ?? {}}>
+              <AuthMetadataProvider value={serverConfigs.authMetadata}>
+                {children}
+              </AuthMetadataProvider>
+            </MediaConfigProvider>
+          </CapabilitiesProvider>
         </MatrixClientProvider>
       )}
-    </SpecVersions>
+    </SpecVersionsProvider>
   );
 }

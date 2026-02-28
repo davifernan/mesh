@@ -60,7 +60,7 @@ export function CreateTab() {
                   escapeDeactivates: stopPropagation,
                 }}
               >
-                <Menu>
+                <Menu role="menu">
                   <Box direction="Column">
                     <SequenceCard
                       style={{ padding: config.space.S300 }}
@@ -106,6 +106,7 @@ export function CreateTab() {
               as="button"
               ref={triggerRef}
               outlined
+              aria-label="Add Space"
               onClick={handleMenu}
             >
               <Icon src={Icons.Plus} />

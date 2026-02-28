@@ -7,10 +7,11 @@ import {
   Room,
 } from 'matrix-js-sdk';
 import { RoomJoinRulesEventContent } from 'matrix-js-sdk/lib/types';
-import { CreateRoomKind } from './CreateRoomKindSelector';
 import { RoomType, StateEvent } from '../../../types/matrix/room';
 import { getViaServers } from '../../plugins/via-servers';
 import { getMxIdServer } from '../../utils/matrix';
+import { IPowerLevels } from '../../hooks/usePowerLevels';
+import { CreateRoomKind } from './types';
 
 export const createRoomCreationContent = (
   type: RoomType | undefined,
@@ -86,6 +87,44 @@ export const createRoomEncryptionState = () => ({
   },
 });
 
+export const createRoomCallState = () => ({
+  type: 'org.matrix.msc3401.call',
+  state_key: '',
+  content: {},
+});
+
+export const createPowerLevelContentOverrides = (
+  base: IPowerLevels,
+  overrides: Partial<IPowerLevels>
+): IPowerLevels => ({
+  ...base,
+  ...overrides,
+  ...(base.events || overrides.events
+    ? {
+        events: {
+          ...base.events,
+          ...overrides.events,
+        },
+      }
+    : {}),
+  ...(base.users || overrides.users
+    ? {
+        users: {
+          ...base.users,
+          ...overrides.users,
+        },
+      }
+    : {}),
+  ...(base.notifications || overrides.notifications
+    ? {
+        notifications: {
+          ...base.notifications,
+          ...overrides.notifications,
+        },
+      }
+    : {}),
+});
+
 export type CreateRoomData = {
   version: string;
   type?: RoomType;
@@ -98,6 +137,7 @@ export type CreateRoomData = {
   knock: boolean;
   allowFederation: boolean;
   additionalCreators?: string[];
+  powerLevelContentOverrides?: IPowerLevels;
 };
 export const createRoom = async (mx: MatrixClient, data: CreateRoomData): Promise<string> => {
   const initialState: ICreateRoomStateEvent[] = [];
@@ -110,7 +150,22 @@ export const createRoom = async (mx: MatrixClient, data: CreateRoomData): Promis
     initialState.push(createRoomParentState(data.parent));
   }
 
+  if (data.type === RoomType.Call) {
+    initialState.push(createRoomCallState());
+  }
+
   initialState.push(createRoomJoinRulesState(data.kind, data.parent, data.knock));
+
+  // For call rooms, set MSC3401 power levels at creation time (avoids a separate state event call)
+  const callPowerLevels: IPowerLevels | undefined =
+    data.type === RoomType.Call
+      ? createPowerLevelContentOverrides(data.powerLevelContentOverrides ?? {}, {
+          events: {
+            'org.matrix.msc3401.call': 100,
+            'org.matrix.msc3401.call.member': 0,
+          },
+        })
+      : data.powerLevelContentOverrides;
 
   const options: ICreateRoomOpts = {
     room_version: data.version,
@@ -123,6 +178,7 @@ export const createRoom = async (mx: MatrixClient, data: CreateRoomData): Promis
       data.additionalCreators
     ),
     initial_state: initialState,
+    ...(callPowerLevels ? { power_level_content_override: callPowerLevels } : {}),
   };
 
   if (data.type === RoomType.Space) {

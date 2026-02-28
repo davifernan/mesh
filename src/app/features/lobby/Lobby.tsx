@@ -1,7 +1,7 @@
-import React, { MouseEventHandler, useCallback, useMemo, useRef, useState } from 'react';
+import React, { KeyboardEventHandler, MouseEventHandler, useCallback, useMemo, useRef, useState } from 'react';
 import { Box, Chip, Icon, IconButton, Icons, Line, Scroll, Spinner, Text, config } from 'folds';
 import { useVirtualizer } from '@tanstack/react-virtual';
-import { useAtom, useAtomValue } from 'jotai';
+import { useAtom, useAtomValue, useSetAtom } from 'jotai';
 import { useNavigate } from 'react-router-dom';
 import { JoinRule, RestrictedAllowType, Room } from 'matrix-js-sdk';
 import { RoomJoinRulesEventContent } from 'matrix-js-sdk/lib/types';
@@ -56,6 +56,8 @@ import { useGetRoom } from '../../hooks/useGetRoom';
 import { AsyncStatus, useAsyncCallback } from '../../hooks/useAsyncCallback';
 import { getRoomPermissionsAPI } from '../../hooks/useRoomPermissions';
 import { getRoomCreatorsForRoomId } from '../../hooks/useRoomCreators';
+import { isKeyHotkey } from 'is-hotkey';
+import { searchModalAtom, searchModalInitialCharAtom } from '../../state/searchModal';
 
 const useCanDropLobbyItem = (
   space: Room,
@@ -151,6 +153,8 @@ const useCanDropLobbyItem = (
 export function Lobby() {
   const navigate = useNavigate();
   const mx = useMatrixClient();
+  const setSearchModal = useSetAtom(searchModalAtom);
+  const setSearchInitialChar = useSetAtom(searchModalInitialCharAtom);
   const mDirects = useAtomValue(mDirectAtom);
   const allRooms = useAtomValue(allRoomsAtom);
   const allJoinedRooms = useMemo(() => new Set(allRooms), [allRooms]);
@@ -408,6 +412,71 @@ export function Lobby() {
     closedCategories.has(categoryId)
   );
 
+  // Flat list of room IDs in lobby order (open categories only), paired with the
+  // virtualizer index of the SpaceHierarchy that contains them.
+  type LobbyNavItem = { roomId: string; virtIndex: number };
+  const lobbyNavItems = useMemo<LobbyNavItem[]>(() => {
+    const items: LobbyNavItem[] = [];
+    hierarchy.forEach((item, virtIndex) => {
+      const catId = makeLobbyCategoryId(space.roomId, item.space.roomId);
+      if (!closedCategories.has(catId) && item.rooms) {
+        item.rooms.forEach((r) => items.push({ roomId: r.roomId, virtIndex }));
+      }
+    });
+    return items;
+  }, [hierarchy, closedCategories, space.roomId]);
+
+  const handleLobbyKeyDown: KeyboardEventHandler<HTMLElement> = useCallback(
+    (evt) => {
+      if (lobbyNavItems.length === 0) return;
+      // Only intercept keys when focus is on the lobby container or a room-nav button.
+      const target = evt.target as HTMLElement;
+      const isRoomButton = target.hasAttribute('data-room-id');
+      if (!isRoomButton && target !== evt.currentTarget) return;
+
+      // Printable char: redirect to global search modal with the typed character
+      if (evt.key.length === 1 && !evt.ctrlKey && !evt.altKey && !evt.metaKey) {
+        evt.preventDefault();
+        setSearchInitialChar(evt.key);
+        setSearchModal(true);
+        return;
+      }
+
+      const isDown = isKeyHotkey('arrowdown', evt as unknown as KeyboardEvent);
+      const isUp = isKeyHotkey('arrowup', evt as unknown as KeyboardEvent);
+      const isHome = isKeyHotkey('home', evt as unknown as KeyboardEvent);
+      const isEnd = isKeyHotkey('end', evt as unknown as KeyboardEvent);
+      if (!isDown && !isUp && !isHome && !isEnd) return;
+
+      // Find which lobby room is currently focused (by data-room-id attribute).
+      const focused = document.activeElement as HTMLElement | null;
+      const currentRoomId = focused?.getAttribute('data-room-id') ?? null;
+      const currentIdx = currentRoomId
+        ? lobbyNavItems.findIndex((i) => i.roomId === currentRoomId)
+        : -1;
+
+      let nextIdx: number;
+      if (isHome) nextIdx = 0;
+      else if (isEnd) nextIdx = lobbyNavItems.length - 1;
+      else if (isDown) nextIdx = currentIdx < 0 ? 0 : Math.min(currentIdx + 1, lobbyNavItems.length - 1);
+      else nextIdx = currentIdx < 0 ? lobbyNavItems.length - 1 : Math.max(currentIdx - 1, 0);
+
+      evt.preventDefault();
+      const item = lobbyNavItems[nextIdx];
+      virtualizer.scrollToIndex(item.virtIndex, { align: 'auto' });
+      // Wait two frames for the virtualizer to render the target item, then focus it.
+      requestAnimationFrame(() =>
+        requestAnimationFrame(() => {
+          const btn = document.querySelector<HTMLElement>(
+            `[data-room-id="${item.roomId}"]`
+          );
+          btn?.focus();
+        })
+      );
+    },
+    [lobbyNavItems, virtualizer, setSearchModal, setSearchInitialChar]
+  );
+
   const handleOpenRoom: MouseEventHandler<HTMLButtonElement> = (evt) => {
     const rId = evt.currentTarget.getAttribute('data-room-id');
     if (!rId) return;
@@ -435,7 +504,15 @@ export function Lobby() {
             showProfile={!onTop}
             powerLevels={roomsPowerLevels.get(space.roomId) ?? {}}
           />
-          <Box style={{ position: 'relative' }} grow="Yes">
+          <Box
+            id="cinny-lobby"
+            role="region"
+            aria-label="Space lobby"
+            tabIndex={-1}
+            style={{ position: 'relative' }}
+            grow="Yes"
+            onKeyDown={handleLobbyKeyDown}
+          >
             <Scroll ref={scrollRef} hideTrack visibility="Hover">
               <PageContent>
                 <PageContentCenter>

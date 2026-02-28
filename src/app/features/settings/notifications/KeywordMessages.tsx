@@ -80,6 +80,7 @@ function KeywordInput() {
                 size="300"
                 radii="300"
                 variant="Secondary"
+                aria-label="Clear keyword"
               >
                 <Icon src={Icons.Cross} size="100" />
               </IconButton>
@@ -118,7 +119,7 @@ function KeywordCross({ pushRule }: PushRulesProps) {
 
   const removing = removeState.status === AsyncStatus.Loading;
   return (
-    <IconButton onClick={remove} size="300" radii="Pill" variant="Secondary" disabled={removing}>
+    <IconButton onClick={remove} size="300" radii="Pill" variant="Secondary" disabled={removing} aria-label="Remove keyword">
       {removing ? <Spinner size="100" /> : <Icon src={Icons.Cross} size="100" />}
     </IconButton>
   );

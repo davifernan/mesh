@@ -58,7 +58,7 @@ function UsernameHint({ server }: { server: string }) {
             escapeDeactivates: stopPropagation,
           }}
         >
-          <Menu>
+          <Menu role="dialog" aria-label="Login format hints">
             <Header size="300" style={{ padding: `0 ${config.space.S200}` }}>
               <Text size="L400">Hint</Text>
             </Header>
@@ -98,6 +98,7 @@ function UsernameHint({ server }: { server: string }) {
         variant="Background"
         size="300"
         radii="300"
+        aria-label="Username format help"
         aria-pressed={!!anchor}
       >
         <Icon style={{ opacity: config.opacity.P300 }} size="100" src={Icons.Info} />
@@ -199,10 +200,11 @@ export function PasswordLoginForm({ defaultUsername, defaultEmail }: PasswordLog
   return (
     <Box as="form" onSubmit={handleSubmit} direction="Inherit" gap="400">
       <Box direction="Column" gap="100">
-        <Text as="label" size="L400" priority="300">
+        <Text as="label" htmlFor="login-username" size="L400" priority="300">
           Username
         </Text>
         <Input
+          id="login-username"
           defaultValue={defaultUsername ?? defaultEmail}
           style={{ paddingRight: config.space.S300 }}
           name="usernameInput"
@@ -224,10 +226,10 @@ export function PasswordLoginForm({ defaultUsername, defaultEmail }: PasswordLog
         )}
       </Box>
       <Box direction="Column" gap="100">
-        <Text as="label" size="L400" priority="300">
+        <Text as="label" htmlFor="login-password" size="L400" priority="300">
           Password
         </Text>
-        <PasswordInput name="passwordInput" variant="Background" size="500" outlined required />
+        <PasswordInput id="login-password" name="passwordInput" variant="Background" size="500" outlined required />
         <Box alignItems="Start" justifyContent="SpaceBetween" gap="200">
           {loginState.status === AsyncStatus.Error && (
             <>

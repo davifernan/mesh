@@ -28,6 +28,8 @@ export const PasswordInput = forwardRef<HTMLInputElement, PasswordInputProps>(
                   variant={visible ? 'Warning' : variant}
                   size="300"
                   radii="300"
+                  aria-label={visible ? 'Hide password' : 'Show password'}
+                  aria-pressed={visible}
                 >
                   <Icon
                     style={{ opacity: config.opacity.P300 }}
