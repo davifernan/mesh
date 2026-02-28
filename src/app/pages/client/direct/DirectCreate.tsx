@@ -44,7 +44,7 @@ export function DirectCreate() {
           <Box grow="Yes" alignItems="Center" gap="200">
             <BackRouteHandler>
               {(onBack) => (
-                <IconButton onClick={onBack}>
+                <IconButton onClick={onBack} aria-label="Go back">
                   <Icon src={Icons.ArrowLeft} />
                 </IconButton>
               )}

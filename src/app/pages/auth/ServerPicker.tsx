@@ -79,6 +79,7 @@ export function ServerPicker({
 
   return (
     <Input
+      id="auth-server-input"
       ref={serverInputRef}
       style={{ paddingRight: config.space.S200 }}
       variant={allowCustomServer ? 'Background' : 'Surface'}
@@ -107,7 +108,7 @@ export function ServerPicker({
                   escapeDeactivates: stopPropagation,
                 }}
               >
-                <Menu>
+                <Menu role="listbox" aria-label="Homeserver List">
                   <Header size="300" style={{ padding: `0 ${config.space.S200}` }}>
                     <Text size="L400">Homeserver List</Text>
                   </Header>
@@ -132,6 +133,7 @@ export function ServerPicker({
               onClick={handleOpenServerMenu}
               variant={allowCustomServer ? 'Background' : 'Surface'}
               size="300"
+              aria-label="Select homeserver"
               aria-pressed={!!serverMenuAnchor}
               radii="300"
             >

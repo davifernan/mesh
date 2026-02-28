@@ -111,7 +111,7 @@ export function RoomEncryption({ permissions }: RoomEncryptionProps) {
                   escapeDeactivates: stopPropagation,
                 }}
               >
-                <Dialog variant="Surface">
+                <Dialog variant="Surface" role="dialog" aria-modal="true" aria-labelledby="enable-encryption-dialog-title">
                   <Header
                     style={{
                       padding: `0 ${config.space.S200} 0 ${config.space.S400}`,
@@ -121,9 +121,9 @@ export function RoomEncryption({ permissions }: RoomEncryptionProps) {
                     size="500"
                   >
                     <Box grow="Yes">
-                      <Text size="H4">Enable Encryption</Text>
+                      <Text size="H4" as="h2" id="enable-encryption-dialog-title">Enable Encryption</Text>
                     </Box>
-                    <IconButton size="300" onClick={() => setPrompt(false)} radii="300">
+                    <IconButton size="300" onClick={() => setPrompt(false)} radii="300" aria-label="Close">
                       <Icon src={Icons.Cross} />
                     </IconButton>
                   </Header>

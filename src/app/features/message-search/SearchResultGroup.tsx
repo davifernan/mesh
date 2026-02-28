@@ -207,7 +207,7 @@ export function SearchResultGroup({
               )}
             />
           </Avatar>
-          <Text size="H4" truncate>
+          <Text size="H4" as="h3" truncate>
             {room.name}
           </Text>
         </Box>

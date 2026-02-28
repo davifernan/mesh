@@ -93,7 +93,7 @@ function RoomUpgradeDialog({ requestClose }: { requestClose: () => void }) {
             escapeDeactivates: stopPropagation,
           }}
         >
-          <Dialog variant="Surface">
+          <Dialog variant="Surface" role="dialog" aria-modal="true" aria-labelledby="room-upgrade-dialog-title">
             <Header
               style={{
                 padding: `0 ${config.space.S200} 0 ${config.space.S400}`,
@@ -103,9 +103,9 @@ function RoomUpgradeDialog({ requestClose }: { requestClose: () => void }) {
               size="500"
             >
               <Box grow="Yes">
-                <Text size="H4">{room.isSpaceRoom() ? 'Space Upgrade' : 'Room Upgrade'}</Text>
+                <Text size="H4" as="h2" id="room-upgrade-dialog-title">{room.isSpaceRoom() ? 'Space Upgrade' : 'Room Upgrade'}</Text>
               </Box>
-              <IconButton size="300" onClick={requestClose} radii="300">
+              <IconButton size="300" onClick={requestClose} radii="300" aria-label="Close">
                 <Icon src={Icons.Cross} />
               </IconButton>
             </Header>

@@ -216,7 +216,7 @@ export const SpaceHierarchy = forwardRef<HTMLDivElement, SpaceHierarchyProps>(
                 justifyContent="Center"
                 gap="100"
               >
-                <Text size="H5" align="Center">
+                <Text size="H5" as="h3" align="Center">
                   No Rooms
                 </Text>
                 <Text align="Center" size="T300" priority="300">

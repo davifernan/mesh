@@ -15,12 +15,12 @@ export function Account({ requestClose }: AccountProps) {
       <PageHeader outlined={false}>
         <Box grow="Yes" gap="200">
           <Box grow="Yes" alignItems="Center" gap="200">
-            <Text size="H3" truncate>
+            <Text size="H3" as="h1" truncate>
               Account
             </Text>
           </Box>
           <Box shrink="No">
-            <IconButton onClick={requestClose} variant="Surface">
+            <IconButton onClick={requestClose} variant="Surface" aria-label="Close">
               <Icon src={Icons.Cross} />
             </IconButton>
           </Box>

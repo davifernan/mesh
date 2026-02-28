@@ -289,7 +289,7 @@ export const DeviceVerificationSetup = forwardRef<HTMLDivElement, DeviceVerifica
     const [recoveryKey, setRecoveryKey] = useState<string>();
 
     return (
-      <Dialog ref={ref}>
+      <Dialog ref={ref} role="dialog" aria-modal="true" aria-labelledby="setup-verification-dialog-title">
         <Header
           style={{
             padding: `0 ${config.space.S200} 0 ${config.space.S400}`,
@@ -299,9 +299,9 @@ export const DeviceVerificationSetup = forwardRef<HTMLDivElement, DeviceVerifica
           size="500"
         >
           <Box grow="Yes">
-            <Text size="H4">Setup Device Verification</Text>
+            <Text size="H4" as="h2" id="setup-verification-dialog-title">Setup Device Verification</Text>
           </Box>
-          <IconButton size="300" radii="300" onClick={onCancel}>
+          <IconButton size="300" radii="300" onClick={onCancel} aria-label="Close">
             <Icon src={Icons.Cross} />
           </IconButton>
         </Header>
@@ -324,7 +324,7 @@ export const DeviceVerificationReset = forwardRef<HTMLDivElement, DeviceVerifica
     const [reset, setReset] = useState(false);
 
     return (
-      <Dialog ref={ref}>
+      <Dialog ref={ref} role="dialog" aria-modal="true" aria-labelledby="reset-verification-dialog-title">
         <Header
           style={{
             padding: `0 ${config.space.S200} 0 ${config.space.S400}`,
@@ -334,9 +334,9 @@ export const DeviceVerificationReset = forwardRef<HTMLDivElement, DeviceVerifica
           size="500"
         >
           <Box grow="Yes">
-            <Text size="H4">Reset Device Verification</Text>
+            <Text size="H4" as="h2" id="reset-verification-dialog-title">Reset Device Verification</Text>
           </Box>
-          <IconButton size="300" radii="300" onClick={onCancel}>
+          <IconButton size="300" radii="300" onClick={onCancel} aria-label="Close">
             <Icon src={Icons.Cross} />
           </IconButton>
         </Header>

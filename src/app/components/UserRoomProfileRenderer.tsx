@@ -34,7 +34,7 @@ function UserRoomProfileContextMenu({ state }: { state: UserRoomProfileState }) 
             escapeDeactivates: stopPropagation,
           }}
         >
-          <Menu style={{ width: toRem(340) }}>
+          <Menu role="menu" style={{ width: toRem(340) }}>
             <SpaceProvider value={space ?? null}>
               <RoomProvider value={room}>
                 <UserRoomProfile userId={userId} />

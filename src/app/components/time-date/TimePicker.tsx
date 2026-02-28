@@ -60,7 +60,7 @@ export const TimePicker = forwardRef<HTMLDivElement, TimePickerProps>(
     const maxDay = inSameDay(max, value);
 
     return (
-      <Menu className={css.PickerMenu} ref={ref}>
+      <Menu role="dialog" aria-label="Time picker" className={css.PickerMenu} ref={ref}>
         <Box direction="Row" gap="200" className={css.PickerContainer}>
           <PickerColumn title="Hour">
             {hour24Clock

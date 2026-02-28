@@ -96,7 +96,7 @@ export function JumpToTime({ onCancel, onSubmit }: JumpToTimeProps) {
             escapeDeactivates: stopPropagation,
           }}
         >
-          <Dialog variant="Surface">
+          <Dialog variant="Surface" role="dialog" aria-modal="true" aria-labelledby="jump-to-time-dialog-title">
             <Header
               style={{
                 padding: `0 ${config.space.S200} 0 ${config.space.S400}`,
@@ -106,9 +106,9 @@ export function JumpToTime({ onCancel, onSubmit }: JumpToTimeProps) {
               size="500"
             >
               <Box grow="Yes">
-                <Text size="H4">Jump to Time</Text>
+                <Text size="H4" as="h2" id="jump-to-time-dialog-title">Jump to Time</Text>
               </Box>
-              <IconButton size="300" onClick={onCancel} radii="300">
+              <IconButton size="300" onClick={onCancel} radii="300" aria-label="Close">
                 <Icon src={Icons.Cross} />
               </IconButton>
             </Header>

@@ -59,7 +59,7 @@ type ThemeSelectorProps = {
 };
 const ThemeSelector = as<'div', ThemeSelectorProps>(
   ({ themeNames, themes, selected, onSelect, ...props }, ref) => (
-    <Menu {...props} ref={ref}>
+    <Menu role="menu" {...props} ref={ref}>
       <Box direction="Column" gap="100" style={{ padding: config.space.S100 }}>
         {themes.map((theme) => (
           <MenuItem
@@ -468,7 +468,7 @@ function DateHint({ hasChanges, handleReset }: DateHintProps) {
             escapeDeactivates: stopPropagation,
           }}
         >
-          <Menu style={{ maxHeight: '85vh', overflowY: 'auto' }}>
+          <Menu role="menu" style={{ maxHeight: '85vh', overflowY: 'auto' }}>
             <Header size="300" style={{ padding: `0 ${config.space.S200}` }}>
               <Text size="L400">Formatting</Text>
             </Header>
@@ -590,6 +590,7 @@ function DateHint({ hasChanges, handleReset }: DateHintProps) {
           variant="Secondary"
           size="300"
           radii="300"
+          aria-label="Reset date format"
         >
           <Icon src={Icons.Cross} size="100" />
         </IconButton>
@@ -601,6 +602,7 @@ function DateHint({ hasChanges, handleReset }: DateHintProps) {
           variant="Secondary"
           size="300"
           radii="300"
+          aria-label="Date format information"
           aria-pressed={!!anchor}
         >
           <Icon style={{ opacity: config.opacity.P300 }} size="100" src={Icons.Info} />
@@ -728,7 +730,7 @@ function PresetDateFormat({ value, onChange }: PresetDateFormatProps) {
               escapeDeactivates: stopPropagation,
             }}
           >
-            <Menu>
+            <Menu role="menu">
               <Box direction="Column" gap="100" style={{ padding: config.space.S100 }}>
                 {dateFormatItems.map((item) => (
                   <MenuItem
@@ -877,7 +879,7 @@ function SelectMessageLayout() {
               escapeDeactivates: stopPropagation,
             }}
           >
-            <Menu>
+            <Menu role="menu">
               <Box direction="Column" gap="100" style={{ padding: config.space.S100 }}>
                 {messageLayoutItems.map((item) => (
                   <MenuItem
@@ -946,7 +948,7 @@ function SelectMessageSpacing() {
               escapeDeactivates: stopPropagation,
             }}
           >
-            <Menu>
+            <Menu role="menu">
               <Box direction="Column" gap="100" style={{ padding: config.space.S100 }}>
                 {messageSpacingItems.map((item) => (
                   <MenuItem
@@ -1076,12 +1078,12 @@ export function General({ requestClose }: GeneralProps) {
       <PageHeader outlined={false}>
         <Box grow="Yes" gap="200">
           <Box grow="Yes" alignItems="Center" gap="200">
-            <Text size="H3" truncate>
+            <Text as="h1" size="H3" truncate>
               General
             </Text>
           </Box>
           <Box shrink="No">
-            <IconButton onClick={requestClose} variant="Surface">
+            <IconButton onClick={requestClose} variant="Surface" aria-label="Close">
               <Icon src={Icons.Cross} />
             </IconButton>
           </Box>

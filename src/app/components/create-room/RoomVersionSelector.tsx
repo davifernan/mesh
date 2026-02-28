@@ -67,7 +67,7 @@ export function RoomVersionSelector({
                   escapeDeactivates: stopPropagation,
                 }}
               >
-                <Menu>
+                <Menu role="menu">
                   <Box
                     direction="Column"
                     gap="200"

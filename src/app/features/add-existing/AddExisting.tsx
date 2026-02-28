@@ -188,7 +188,7 @@ export function AddExistingModal({ parentId, space, requestClose }: AddExistingM
             escapeDeactivates: stopPropagation,
           }}
         >
-          <Modal size="300">
+          <Modal size="300" role="dialog" aria-modal="true" aria-labelledby="add-existing-dialog-title">
             <Box grow="Yes" direction="Column">
               <Header
                 size="500"
@@ -198,10 +198,10 @@ export function AddExistingModal({ parentId, space, requestClose }: AddExistingM
                 }}
               >
                 <Box grow="Yes">
-                  <Text size="H4">Add Existing</Text>
+                  <Text size="H4" as="h2" id="add-existing-dialog-title">Add Existing</Text>
                 </Box>
                 <Box shrink="No">
-                  <IconButton size="300" radii="300" onClick={requestClose}>
+                  <IconButton size="300" radii="300" onClick={requestClose} aria-label="Close">
                     <Icon src={Icons.Cross} />
                   </IconButton>
                 </Box>

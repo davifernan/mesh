@@ -256,12 +256,12 @@ export function DeviceVerification({ request, onExit }: DeviceVerificationProps)
             escapeDeactivates: false,
           }}
         >
-          <Dialog variant="Surface">
+          <Dialog variant="Surface" role="dialog" aria-modal="true" aria-labelledby="device-verification-dialog-title">
             <Header style={DialogHeaderStyles} variant="Surface" size="500">
               <Box grow="Yes">
-                <Text size="H4">Device Verification</Text>
+                <Text size="H4" as="h2" id="device-verification-dialog-title">Device Verification</Text>
               </Box>
-              <IconButton size="300" radii="300" onClick={handleCancel}>
+              <IconButton size="300" radii="300" onClick={handleCancel} aria-label="Close">
                 <Icon src={Icons.Cross} />
               </IconButton>
             </Header>

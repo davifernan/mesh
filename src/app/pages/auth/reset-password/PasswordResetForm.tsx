@@ -53,7 +53,7 @@ function ResetPasswordComplete({ email }: { email?: string }) {
     <Overlay open backdrop={<OverlayBackdrop />}>
       <OverlayCenter>
         <FocusTrap>
-          <Dialog>
+          <Dialog role="dialog" aria-modal="true" aria-label="Password reset successful">
             <Box style={{ padding: config.space.S400 }} direction="Column" gap="400">
               <Text>
                 Password has been reset successfully. Please login with your new password.
@@ -170,10 +170,11 @@ export function PasswordResetForm({ defaultEmail }: PasswordResetFormProps) {
         Homeserver <strong>{server}</strong> will send you an email to let you reset your password.
       </Text>
       <Box direction="Column" gap="100">
-        <Text as="label" size="L400" priority="300">
+        <Text as="label" htmlFor="reset-email" size="L400" priority="300">
           Email
         </Text>
         <Input
+          id="reset-email"
           defaultValue={defaultEmail}
           type="email"
           name="emailInput"
@@ -192,10 +193,11 @@ export function PasswordResetForm({ defaultEmail }: PasswordResetFormProps) {
         {(match, doMatch, passRef, confPassRef) => (
           <>
             <Box direction="Column" gap="100">
-              <Text as="label" size="L400" priority="300">
+              <Text as="label" htmlFor="reset-new-password" size="L400" priority="300">
                 New Password
               </Text>
               <PasswordInput
+                id="reset-new-password"
                 ref={passRef}
                 onChange={doMatch}
                 name="passwordInput"
@@ -206,10 +208,11 @@ export function PasswordResetForm({ defaultEmail }: PasswordResetFormProps) {
               />
             </Box>
             <Box direction="Column" gap="100">
-              <Text as="label" size="L400" priority="300">
+              <Text as="label" htmlFor="reset-confirm-password" size="L400" priority="300">
                 Confirm Password
               </Text>
               <PasswordInput
+                id="reset-confirm-password"
                 ref={confPassRef}
                 onChange={doMatch}
                 name="confirmPasswordInput"

@@ -328,7 +328,7 @@ export const getReactCustomHtmlParser = (
 
         if (name === 'h1') {
           return (
-            <Text {...props} className={css.Heading} size="H2">
+            <Text {...props} as="h1" className={css.Heading} size="H2">
               {domToReact(children, opts)}
             </Text>
           );
@@ -336,7 +336,7 @@ export const getReactCustomHtmlParser = (
 
         if (name === 'h2') {
           return (
-            <Text {...props} className={css.Heading} size="H3">
+            <Text {...props} as="h2" className={css.Heading} size="H3">
               {domToReact(children, opts)}
             </Text>
           );
@@ -344,7 +344,7 @@ export const getReactCustomHtmlParser = (
 
         if (name === 'h3') {
           return (
-            <Text {...props} className={css.Heading} size="H4">
+            <Text {...props} as="h3" className={css.Heading} size="H4">
               {domToReact(children, opts)}
             </Text>
           );
@@ -352,7 +352,7 @@ export const getReactCustomHtmlParser = (
 
         if (name === 'h4') {
           return (
-            <Text {...props} className={css.Heading} size="H4">
+            <Text {...props} as="h4" className={css.Heading} size="H4">
               {domToReact(children, opts)}
             </Text>
           );
@@ -360,7 +360,7 @@ export const getReactCustomHtmlParser = (
 
         if (name === 'h5') {
           return (
-            <Text {...props} className={css.Heading} size="H5">
+            <Text {...props} as="h5" className={css.Heading} size="H5">
               {domToReact(children, opts)}
             </Text>
           );
@@ -368,7 +368,7 @@ export const getReactCustomHtmlParser = (
 
         if (name === 'h6') {
           return (
-            <Text {...props} className={css.Heading} size="H6">
+            <Text {...props} as="h6" className={css.Heading} size="H6">
               {domToReact(children, opts)}
             </Text>
           );

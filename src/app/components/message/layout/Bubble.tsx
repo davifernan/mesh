@@ -9,6 +9,7 @@ type BubbleArrowProps = {
 function BubbleLeftArrow({ variant }: BubbleArrowProps) {
   return (
     <svg
+      aria-hidden="true"
       className={css.BubbleLeftArrow}
       width="9"
       height="8"

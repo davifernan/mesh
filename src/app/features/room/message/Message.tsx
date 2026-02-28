@@ -79,6 +79,8 @@ import { MemberPowerTag, StateEvent } from '../../../../types/matrix/room';
 import { PowerIcon } from '../../../components/power';
 import colorMXID from '../../../../util/colorMXID';
 import { getPowerTagIconSrc } from '../../../hooks/useMemberPowerTag';
+import { useSetAtom } from 'jotai';
+import { openThreadIdAtom } from '../ThreadsDrawer';
 
 export type ReactionHandler = (keyOrMxc: string, shortcode: string) => void;
 
@@ -156,7 +158,7 @@ export const MessageAllReactionItem = as<
               escapeDeactivates: stopPropagation,
             }}
           >
-            <Modal variant="Surface" size="300">
+            <Modal variant="Surface" size="300" role="dialog" aria-modal="true" aria-label="View Reactions">
               <ReactionViewer
                 room={room}
                 relations={relations}
@@ -210,7 +212,7 @@ export const MessageReadReceiptItem = as<
               escapeDeactivates: stopPropagation,
             }}
           >
-            <Modal variant="Surface" size="300">
+            <Modal variant="Surface" size="300" role="dialog" aria-modal="true" aria-label="Read Receipts">
               <EventReaders room={room} eventId={eventId} requestClose={handleClose} />
             </Modal>
           </FocusTrap>
@@ -288,7 +290,7 @@ export const MessageSourceCodeItem = as<
               escapeDeactivates: stopPropagation,
             }}
           >
-            <Modal variant="Surface" size="500">
+            <Modal variant="Surface" size="500" role="dialog" aria-modal="true" aria-label="Source Code">
               <TextViewer
                 name="Source Code"
                 langName="json"
@@ -442,7 +444,7 @@ export const MessageDeleteItem = as<
               escapeDeactivates: stopPropagation,
             }}
           >
-            <Dialog variant="Surface">
+            <Dialog variant="Surface" role="dialog" aria-modal="true" aria-labelledby="delete-message-dialog-title">
               <Header
                 style={{
                   padding: `0 ${config.space.S200} 0 ${config.space.S400}`,
@@ -452,9 +454,9 @@ export const MessageDeleteItem = as<
                 size="500"
               >
                 <Box grow="Yes">
-                  <Text size="H4">Delete Message</Text>
+                  <Text size="H4" as="h2" id="delete-message-dialog-title">Delete Message</Text>
                 </Box>
-                <IconButton size="300" onClick={handleClose} radii="300">
+                <IconButton size="300" onClick={handleClose} radii="300" aria-label="Close">
                   <Icon src={Icons.Cross} />
                 </IconButton>
               </Header>
@@ -572,7 +574,7 @@ export const MessageReportItem = as<
               escapeDeactivates: stopPropagation,
             }}
           >
-            <Dialog variant="Surface">
+            <Dialog variant="Surface" role="dialog" aria-modal="true" aria-labelledby="report-message-dialog-title">
               <Header
                 style={{
                   padding: `0 ${config.space.S200} 0 ${config.space.S400}`,
@@ -582,9 +584,9 @@ export const MessageReportItem = as<
                 size="500"
               >
                 <Box grow="Yes">
-                  <Text size="H4">Report Message</Text>
+                  <Text size="H4" as="h2" id="report-message-dialog-title">Report Message</Text>
                 </Box>
-                <IconButton size="300" onClick={handleClose} radii="300">
+                <IconButton size="300" onClick={handleClose} radii="300" aria-label="Close">
                   <Icon src={Icons.Cross} />
                 </IconButton>
               </Header>
@@ -723,6 +725,7 @@ export const Message = as<'div', MessageProps>(
     const mx = useMatrixClient();
     const useAuthentication = useMediaAuthentication();
     const senderId = mEvent.getSender() ?? '';
+    const setOpenThreadId = useSetAtom(openThreadIdAtom);
 
     const [hover, setHover] = useState(false);
     const { hoverProps } = useHover({ onHoverChange: setHover });
@@ -837,6 +840,26 @@ export const Message = as<'div', MessageProps>(
       </Box>
     );
 
+    const handleKeyDown = useCallback(
+      (evt: React.KeyboardEvent<HTMLDivElement>) => {
+        if (edit) return;
+        const noMod = !evt.ctrlKey && !evt.altKey && !evt.metaKey && !evt.shiftKey;
+        if (evt.key === 'r' && noMod) {
+          const replyBtn = (evt.currentTarget as HTMLElement).querySelector(
+            '[aria-label="Reply"]'
+          ) as HTMLElement | null;
+          replyBtn?.click();
+        }
+        if (evt.key === 'e' && noMod) {
+          const editBtn = (evt.currentTarget as HTMLElement).querySelector(
+            '[aria-label="Edit message"]'
+          ) as HTMLElement | null;
+          editBtn?.click();
+        }
+      },
+      [edit]
+    );
+
     const handleContextMenu: MouseEventHandler<HTMLDivElement> = (evt) => {
       if (evt.altKey || !window.getSelection()?.isCollapsed || edit) return;
       const tag = (evt.target as any).tagName;
@@ -882,6 +905,8 @@ export const Message = as<'div', MessageProps>(
           [css.MessageBaseBubbleCollapsed]: messageLayout === MessageLayout.Bubble && collapse,
         })}
         tabIndex={0}
+        data-timeline-message=""
+        data-event-id={mEvent.getId()}
         space={messageSpacing}
         collapse={collapse}
         highlight={highlight}
@@ -889,6 +914,7 @@ export const Message = as<'div', MessageProps>(
         {...props}
         {...hoverProps}
         {...focusWithinProps}
+        onKeyDown={handleKeyDown}
         ref={ref}
       >
         {!edit && (hover || !!menuAnchor || !!emojiBoardAnchor) && (
@@ -925,6 +951,7 @@ export const Message = as<'div', MessageProps>(
                       variant="SurfaceVariant"
                       size="300"
                       radii="300"
+                      aria-label="Add reaction"
                       aria-pressed={!!emojiBoardAnchor}
                     >
                       <Icon src={Icons.SmilePlus} size="100" />
@@ -937,26 +964,29 @@ export const Message = as<'div', MessageProps>(
                   variant="SurfaceVariant"
                   size="300"
                   radii="300"
+                  aria-label="Reply"
                 >
                   <Icon src={Icons.ReplyArrow} size="100" />
                 </IconButton>
-                {!isThreadedMessage && (
-                  <IconButton
-                    onClick={(ev) => onReplyClick(ev, true)}
-                    data-event-id={mEvent.getId()}
-                    variant="SurfaceVariant"
-                    size="300"
-                    radii="300"
-                  >
-                    <Icon src={Icons.ThreadPlus} size="100" />
-                  </IconButton>
-                )}
+                <IconButton
+                  onClick={() => {
+                    const targetId = isThreadedMessage ? mEvent.threadRootId : mEvent.getId();
+                    if (targetId) setOpenThreadId(targetId);
+                  }}
+                  variant="SurfaceVariant"
+                  size="300"
+                  radii="300"
+                  aria-label="Open thread"
+                >
+                  <Icon src={Icons.ThreadPlus} size="100" />
+                </IconButton>
                 {canEditEvent(mx, mEvent) && onEditId && (
                   <IconButton
                     onClick={() => onEditId(mEvent.getId())}
                     variant="SurfaceVariant"
                     size="300"
                     radii="300"
+                    aria-label="Edit message"
                   >
                     <Icon src={Icons.Pencil} size="100" />
                   </IconButton>
@@ -977,7 +1007,7 @@ export const Message = as<'div', MessageProps>(
                         escapeDeactivates: stopPropagation,
                       }}
                     >
-                      <Menu>
+                      <Menu role="menu">
                         {canSendReaction && (
                           <MessageQuickReactions
                             onReaction={(key, shortcode) => {
@@ -1030,27 +1060,25 @@ export const Message = as<'div', MessageProps>(
                               Reply
                             </Text>
                           </MenuItem>
-                          {!isThreadedMessage && (
-                            <MenuItem
-                              size="300"
-                              after={<Icon src={Icons.ThreadPlus} size="100" />}
-                              radii="300"
-                              data-event-id={mEvent.getId()}
-                              onClick={(evt: any) => {
-                                onReplyClick(evt, true);
-                                closeMenu();
-                              }}
+                          <MenuItem
+                            size="300"
+                            after={<Icon src={Icons.ThreadPlus} size="100" />}
+                            radii="300"
+                            onClick={() => {
+                              const targetId = isThreadedMessage ? mEvent.threadRootId : mEvent.getId();
+                              if (targetId) setOpenThreadId(targetId);
+                              closeMenu();
+                            }}
+                          >
+                            <Text
+                              className={css.MessageMenuItemText}
+                              as="span"
+                              size="T300"
+                              truncate
                             >
-                              <Text
-                                className={css.MessageMenuItemText}
-                                as="span"
-                                size="T300"
-                                truncate
-                              >
-                                Reply in Thread
-                              </Text>
-                            </MenuItem>
-                          )}
+                              Open Thread
+                            </Text>
+                          </MenuItem>
                           {canEditEvent(mx, mEvent) && onEditId && (
                             <MenuItem
                               size="300"
@@ -1122,6 +1150,7 @@ export const Message = as<'div', MessageProps>(
                     size="300"
                     radii="300"
                     onClick={handleOpenMenu}
+                    aria-label="More message actions"
                     aria-pressed={!!menuAnchor}
                   >
                     <Icon src={Icons.VerticalDots} size="100" />
@@ -1210,6 +1239,7 @@ export const Event = as<'div', EventProps>(
       <MessageBase
         className={classNames(css.MessageBase, className)}
         tabIndex={0}
+        data-timeline-message=""
         space={messageSpacing}
         autoCollapse
         highlight={highlight}
@@ -1239,7 +1269,7 @@ export const Event = as<'div', EventProps>(
                         escapeDeactivates: stopPropagation,
                       }}
                     >
-                      <Menu {...props} ref={ref}>
+                      <Menu role="menu" {...props} ref={ref}>
                         <Box direction="Column" gap="100" className={css.MessageMenuGroup}>
                           {!hideReadReceipts && (
                             <MessageReadReceiptItem
@@ -1288,6 +1318,7 @@ export const Event = as<'div', EventProps>(
                     size="300"
                     radii="300"
                     onClick={handleOpenMenu}
+                    aria-label="More message actions"
                     aria-pressed={!!menuAnchor}
                   >
                     <Icon src={Icons.VerticalDots} size="100" />

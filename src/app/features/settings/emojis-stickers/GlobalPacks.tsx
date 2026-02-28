@@ -231,7 +231,7 @@ function GlobalPackSelector({
                     margin: 'auto',
                   }}
                 >
-                  <Text size="H5" align="Center">
+                  <Text size="H5" as="h3" align="Center">
                     No Packs
                   </Text>
                   <Text size="T200" align="Center">
@@ -373,6 +373,7 @@ export function GlobalPacks({ onViewPack }: GlobalPacksProps) {
                   variant="Critical"
                   onClick={() => handleUndoRemove(address)}
                   disabled={applyingChanges}
+                  aria-label="Undo remove"
                 >
                   <Icon src={Icons.Plus} size="100" />
                 </IconButton>
@@ -383,6 +384,7 @@ export function GlobalPacks({ onViewPack }: GlobalPacksProps) {
                   variant="Secondary"
                   onClick={() => handleRemove(address)}
                   disabled={applyingChanges}
+                  aria-label="Remove"
                 >
                   <Icon src={Icons.Cross} size="100" />
                 </IconButton>
@@ -460,6 +462,7 @@ export function GlobalPacks({ onViewPack }: GlobalPacksProps) {
                       }}
                     >
                       <Menu
+                        role="menu"
                         style={{
                           display: 'flex',
                           maxWidth: toRem(400),

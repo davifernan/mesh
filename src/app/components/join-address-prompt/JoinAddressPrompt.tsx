@@ -71,7 +71,7 @@ export function JoinAddressPrompt({ onOpen, onCancel }: JoinAddressProps) {
             escapeDeactivates: stopPropagation,
           }}
         >
-          <Dialog variant="Surface">
+          <Dialog variant="Surface" role="dialog" aria-modal="true" aria-labelledby="join-address-dialog-title">
             <Header
               style={{
                 padding: `0 ${config.space.S200} 0 ${config.space.S400}`,
@@ -80,9 +80,9 @@ export function JoinAddressPrompt({ onOpen, onCancel }: JoinAddressProps) {
               size="500"
             >
               <Box grow="Yes">
-                <Text size="H4">Join with Address</Text>
+                <Text size="H4" as="h2" id="join-address-dialog-title">Join with Address</Text>
               </Box>
-              <IconButton size="300" onClick={onCancel} radii="300">
+              <IconButton size="300" onClick={onCancel} radii="300" aria-label="Close">
                 <Icon src={Icons.Cross} />
               </IconButton>
             </Header>

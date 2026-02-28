@@ -50,7 +50,7 @@ export function CreatorChip() {
             isKeyBackward: (evt: KeyboardEvent) => isKeyHotkey('arrowup', evt),
           }}
         >
-          <Menu>
+          <Menu role="menu">
             <div style={{ padding: config.space.S100 }}>
               <MenuItem
                 variant="Surface"

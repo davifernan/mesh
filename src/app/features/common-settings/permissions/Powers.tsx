@@ -58,6 +58,7 @@ function PeekPermissions({ powerLevels, power, permissionGroups, children }: Pee
           }}
         >
           <Menu
+            role="menu"
             style={{
               maxHeight: '75vh',
               maxWidth: toRem(300),

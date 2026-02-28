@@ -37,7 +37,7 @@ function EmailErrorDialog({
         gap="400"
       >
         <Box direction="Column" gap="100">
-          <Text size="H4">{title}</Text>
+          <Text size="H4" as="h2">{title}</Text>
           <Text>{message}</Text>
           <Text as="label" size="L400" style={{ paddingTop: config.space.S400 }}>
             Email
@@ -140,7 +140,7 @@ export function EmailStageDialog({
       <Dialog>
         <Box style={{ padding: config.space.S400 }} direction="Column" gap="400">
           <Box direction="Column" gap="100">
-            <Text size="H4">Verification Request Sent</Text>
+            <Text size="H4" as="h2">Verification Request Sent</Text>
             <Text>{`Please check your email "${emailTokenState.data.email}" and validate before continuing further.`}</Text>
 
             {errorCode && (

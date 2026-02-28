@@ -93,12 +93,14 @@ export function DirectTab() {
   };
   return (
     <SidebarItem active={directSelected}>
-      <SidebarItemTooltip tooltip="Direct Messages">
+      <SidebarItemTooltip tooltip="Direct Messages (Alt+D)">
         {(triggerRef) => (
           <SidebarAvatar
             as="button"
             ref={triggerRef}
             outlined
+            aria-label="Direct Messages"
+            aria-keyshortcuts="Alt+D"
             onClick={handleDirectClick}
             onContextMenu={handleContextMenu}
           >

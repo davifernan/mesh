@@ -262,7 +262,7 @@ export function MessageSearch({
       {vItems.length > 0 && (
         <Box direction="Column" gap="300">
           <Box direction="Column" gap="200">
-            <Text size="H5">{`Results for "${msgSearchParams.term}"`}</Text>
+            <Text size="H5" as="h2">{`Results for "${msgSearchParams.term}"`}</Text>
             <Line size="300" variant="Surface" />
           </Box>
           <div

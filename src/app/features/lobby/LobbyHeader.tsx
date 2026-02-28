@@ -65,7 +65,7 @@ const LobbyMenu = forwardRef<HTMLDivElement, LobbyMenuProps>(
     };
 
     return (
-      <Menu ref={ref} style={{ maxWidth: toRem(160), width: '100vw' }}>
+      <Menu role="menu" ref={ref} style={{ maxWidth: toRem(160), width: '100vw' }}>
         {invitePrompt && (
           <InviteUserPrompt
             room={space}
@@ -165,7 +165,7 @@ export function LobbyHeader({ showProfile, powerLevels }: LobbyHeaderProps) {
             <Box shrink="No">
               <BackRouteHandler>
                 {(onBack) => (
-                  <IconButton onClick={onBack}>
+                  <IconButton onClick={onBack} aria-label="Go back">
                     <Icon src={Icons.ArrowLeft} />
                   </IconButton>
                 )}
@@ -173,7 +173,7 @@ export function LobbyHeader({ showProfile, powerLevels }: LobbyHeaderProps) {
             </Box>
             <Box grow="Yes" justifyContent="Center">
               {showProfile && (
-                <Text size="H3" truncate>
+                <Text as="h1" size="H3" truncate>
                   {name}
                 </Text>
               )}
@@ -193,7 +193,7 @@ export function LobbyHeader({ showProfile, powerLevels }: LobbyHeaderProps) {
                       renderFallback={() => <Text size="H4">{nameInitials(name)}</Text>}
                     />
                   </Avatar>
-                  <Text size="H3" truncate>
+                  <Text as="h1" size="H3" truncate>
                     {name}
                   </Text>
                 </>
@@ -218,7 +218,7 @@ export function LobbyHeader({ showProfile, powerLevels }: LobbyHeaderProps) {
               }
             >
               {(triggerRef) => (
-                <IconButton ref={triggerRef} onClick={() => setPeopleDrawer((drawer) => !drawer)}>
+                <IconButton ref={triggerRef} onClick={() => setPeopleDrawer((drawer) => !drawer)} aria-label="Members" aria-keyshortcuts="Alt+P">
                   <Icon size="400" src={Icons.User} />
                 </IconButton>
               )}

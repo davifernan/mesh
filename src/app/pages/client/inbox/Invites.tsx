@@ -429,7 +429,7 @@ function KnownInvites({
 }: KnownInvitesProps) {
   return (
     <Box direction="Column" gap="200">
-      <Text size="H4">Primary</Text>
+      <Text as="h2" size="H4">Primary</Text>
       {invites.length > 0 ? (
         <Box direction="Column" gap="100">
           {invites.map((invite) => (
@@ -488,7 +488,7 @@ function UnknownInvites({
   return (
     <Box direction="Column" gap="200">
       <Box gap="200" justifyContent="SpaceBetween" alignItems="Center">
-        <Text size="H4">Public</Text>
+        <Text as="h2" size="H4">Public</Text>
         <Box>
           {invites.length > 0 && (
             <Chip
@@ -585,7 +585,7 @@ function SpamInvites({
 
   return (
     <Box direction="Column" gap="200">
-      <Text size="H4">Spam</Text>
+      <Text as="h2" size="H4">Spam</Text>
       {invites.length > 0 ? (
         <Box direction="Column" gap="100">
           <SequenceCard
@@ -753,7 +753,7 @@ export function Invites() {
             {screenSize === ScreenSize.Mobile && (
               <BackRouteHandler>
                 {(onBack) => (
-                  <IconButton onClick={onBack}>
+                  <IconButton onClick={onBack} aria-label="Go back">
                     <Icon src={Icons.ArrowLeft} />
                   </IconButton>
                 )}
@@ -762,7 +762,7 @@ export function Invites() {
           </Box>
           <Box alignItems="Center" gap="200">
             {screenSize !== ScreenSize.Mobile && <Icon size="400" src={Icons.Mail} />}
-            <Text size="H3" truncate>
+            <Text as="h1" size="H3" truncate>
               Invites
             </Text>
           </Box>

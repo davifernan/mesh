@@ -220,6 +220,7 @@ export function RoomPacks({ onViewPack }: RoomPacksProps) {
                     variant="Critical"
                     onClick={() => handleUndoRemove(address)}
                     disabled={applyingChanges}
+                    aria-label="Undo remove pack"
                   >
                     <Icon src={Icons.Plus} size="100" />
                   </IconButton>
@@ -230,6 +231,7 @@ export function RoomPacks({ onViewPack }: RoomPacksProps) {
                     variant="Secondary"
                     onClick={() => handleRemove(address)}
                     disabled={applyingChanges}
+                    aria-label="Remove pack"
                   >
                     <Icon src={Icons.Cross} size="100" />
                   </IconButton>
@@ -287,7 +289,7 @@ export function RoomPacks({ onViewPack }: RoomPacksProps) {
                 margin: 'auto',
               }}
             >
-              <Text size="H5" align="Center">
+              <Text size="H5" as="h3" align="Center">
                 No Packs
               </Text>
               <Text size="T200" align="Center">

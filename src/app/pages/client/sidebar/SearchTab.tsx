@@ -11,9 +11,9 @@ export function SearchTab() {
 
   return (
     <SidebarItem active={opened}>
-      <SidebarItemTooltip tooltip="Search">
+      <SidebarItemTooltip tooltip="Search (Ctrl+K)">
         {(triggerRef) => (
-          <SidebarAvatar as="button" ref={triggerRef} outlined onClick={open}>
+          <SidebarAvatar as="button" ref={triggerRef} outlined aria-label="Search" onClick={open}>
             <Icon src={Icons.Search} filled={opened} />
           </SidebarAvatar>
         )}

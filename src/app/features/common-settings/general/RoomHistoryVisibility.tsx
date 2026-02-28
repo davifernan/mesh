@@ -115,7 +115,7 @@ export function RoomHistoryVisibility({ permissions }: RoomHistoryVisibilityProp
                   escapeDeactivates: stopPropagation,
                 }}
               >
-                <Menu style={{ padding: config.space.S100 }}>
+                <Menu role="menu" style={{ padding: config.space.S100 }}>
                   {visibilityMenu.map((visibility) => (
                     <MenuItem
                       key={visibility}

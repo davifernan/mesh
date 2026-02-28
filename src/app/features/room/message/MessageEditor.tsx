@@ -293,6 +293,8 @@ export const MessageEditor = as<'div', MessageEditorProps>(
                     size="300"
                     radii="300"
                     onClick={() => setToolbar(!toolbar)}
+                    aria-label="Toggle formatting toolbar"
+                    aria-pressed={toolbar}
                   >
                     <Icon size="400" src={toolbar ? Icons.AlphabetUnderline : Icons.Alphabet} />
                   </IconButton>
