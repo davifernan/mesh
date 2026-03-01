@@ -705,11 +705,18 @@ export function RoomTimeline({ room, eventId, roomInputRef, editor, threadId }: 
         // keep paginating timeline and conditionally mark as read
         // otherwise we update timeline without paginating
         // so timeline can be updated with evt like: edits, reactions etc
+        if (threadId) {
+          // Thread mode: rebuild synthetic timeline from main room timeline
+          // (the new event is now in the main timeline, so getInitialTimeline picks it up).
+          setTimeline(getInitialTimeline(room, threadId));
+          if (atBottomRef.current) {
+            scrollToBottomRef.current.count += 1;
+            scrollToBottomRef.current.smooth = true;
+          }
+          return;
+        }
         if (atBottomRef.current) {
-          if (!threadId && document.hasFocus() && (!unreadInfo || mEvt.getSender() === mx.getUserId())) {
-            // Check if the document is in focus (user is actively viewing the app),
-            // and either there are no unread messages or the latest message is from the current user.
-            // If either condition is met, trigger the markAsRead function to send a read receipt.
+          if (document.hasFocus() && (!unreadInfo || mEvt.getSender() === mx.getUserId())) {
             requestAnimationFrame(() => markAsRead(mx, mEvt.getRoomId()!, hideActivity));
           }
 
