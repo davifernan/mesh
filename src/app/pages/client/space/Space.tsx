@@ -495,8 +495,62 @@ export function Space() {
     sortSpaceRoomItems
   );
 
+  // Virtual "Unread" group: when roomSortOrder==='unread' and the space has sub-spaces,
+  // hoist all unread rooms from every sub-space into a single group at the top.
+  // When a room becomes read, it disappears from the virtual group and returns to its sub-space.
+  const VIRTUAL_UNREAD_ID = '__virtual-unread__';
+  const displayHierarchy = useMemo((): HierarchyItem[] => {
+    if (roomSortOrder !== 'unread') return hierarchy;
+    // Only activate virtual group when there's more than one space section
+    const hasSubSpaces = hierarchy.some(
+      (item) => 'space' in item && item.space && item.roomId !== space.roomId
+    );
+    if (!hasSubSpaces) return hierarchy;
+
+    // Collect all unread non-space rooms from any sub-space
+    const unreadItems = hierarchy.filter(
+      (item) => !('space' in item && item.space) && roomToUnread.has(item.roomId)
+    );
+    if (unreadItems.length === 0) return hierarchy;
+
+    // Sort unread rooms: highlights first, then total, then activity
+    const sortFn = factoryRoomIdByUnreadFirst(
+      (id) => roomToUnread.get(id)?.highlight ?? 0,
+      (id) => roomToUnread.get(id)?.total ?? 0,
+      factoryRoomIdByActivity(mx)
+    );
+    const sortedUnread = [...unreadItems].sort((a, b) => sortFn(a.roomId, b.roomId));
+    const unreadSet = new Set(sortedUnread.map((i) => i.roomId));
+
+    // Virtual header item — roomId is a sentinel, not a real room
+    const virtualHeader = {
+      roomId: VIRTUAL_UNREAD_ID,
+      content: {},
+      ts: 0,
+      space: true,
+    } as unknown as HierarchyItem;
+
+    // When the virtual group is collapsed, hide its rooms too
+    const virtualGroupClosed = closedCategories.has(
+      makeNavCategoryId(space.roomId, VIRTUAL_UNREAD_ID)
+    );
+
+    // Remaining hierarchy: keep all space headers + read rooms.
+    // Sub-space headers whose rooms are all in the virtual group still appear —
+    // rooms will bounce back to them once read.
+    const remaining = hierarchy.filter(
+      (item) => 'space' in item && item.space ? true : !unreadSet.has(item.roomId)
+    );
+
+    return [
+      virtualHeader,
+      ...(virtualGroupClosed ? [] : sortedUnread),
+      ...remaining,
+    ];
+  }, [hierarchy, roomSortOrder, roomToUnread, mx, space.roomId, closedCategories]);
+
   const virtualizer = useVirtualizer({
-    count: hierarchy.length,
+    count: displayHierarchy.length,
     getScrollElement: () => scrollRef.current,
     estimateSize: () => 0,
     overscan: 10,

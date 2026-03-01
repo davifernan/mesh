@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { Box, Line } from 'folds';
+import { Box } from 'folds';
 import { useParams } from 'react-router-dom';
 import { isKeyHotkey } from 'is-hotkey';
 import { RoomView } from './RoomView';
@@ -176,6 +176,8 @@ export function Room() {
     )
   );
 
+  const anyRightPanel = isDrawer || isWidgetsDrawer || isThreadsDrawer;
+
   return (
     <PowerLevelsContextProvider value={powerLevels}>
       <Box grow="Yes">
@@ -236,8 +238,25 @@ export function Room() {
         </Box>
         {screenSize === ScreenSize.Desktop && isDrawer && (
           <>
-            <Line variant="Background" direction="Vertical" size="300" />
-            <MembersDrawer key={room.roomId} room={room} members={members} />
+            {!rightPanelFullWidth && (
+              <div
+                role="separator"
+                style={PANEL_DIVIDER_STYLE}
+                onPointerDown={handleMemberDividerPointerDown}
+              />
+            )}
+            <MembersDrawer
+              key={room.roomId}
+              room={room}
+              members={members}
+              width={memberPanelWidth}
+              isFullWidth={rightPanelFullWidth}
+              onToggleFullWidth={() => setRightPanelFullWidth((v) => {
+                const next = !v;
+                setToolbarItem('members', { defaultMode: next ? 'fullwidth' : 'sidebar' });
+                return next;
+              })}
+            />
           </>
         )}
         {screenSize === ScreenSize.Desktop && isWidgetsDrawer && (

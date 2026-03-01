@@ -26,6 +26,7 @@ import { useNavigate } from 'react-router-dom';
 import { EventTimeline, Room } from 'matrix-js-sdk';
 
 import { useStateEvent } from '../../hooks/useStateEvent';
+import { useRoomWidgets } from '../../hooks/useRoomWidgets';
 import { PageHeader } from '../../components/page';
 import { RoomAvatar, RoomIcon } from '../../components/room-avatar';
 import { UseStateProvider } from '../../components/UseStateProvider';
@@ -167,6 +168,39 @@ const RoomMenu = forwardRef<HTMLDivElement, RoomMenuProps>(({ room, requestClose
             requestClose();
           }}
         />
+      )}
+      {unpinnedItems && unpinnedItems.length > 0 && (
+        <>
+          <Box direction="Column" gap="100" style={{ padding: config.space.S100 }}>
+            {unpinnedItems.map((item) => (
+              <MenuItem
+                key={item.id}
+                size="300"
+                radii="300"
+                aria-pressed={item.active}
+                onClick={() => { item.onToggle(); requestClose(); }}
+                after={
+                  <Box gap="100" alignItems="Center">
+                    {item.iconSrc && <Icon size="100" src={item.iconSrc} />}
+                    <IconButton
+                      size="300"
+                      radii="300"
+                      onClick={(e) => { e.stopPropagation(); onPin?.(item.id); }}
+                      aria-label="Pin to toolbar"
+                    >
+                      <Icon src={Icons.Pin} size="100" />
+                    </IconButton>
+                  </Box>
+                }
+              >
+                <Text style={{ flexGrow: 1 }} as="span" size="T300" truncate>
+                  {item.label}
+                </Text>
+              </MenuItem>
+            ))}
+          </Box>
+          <Line variant="Surface" size="300" />
+        </>
       )}
       <Box direction="Column" gap="100" style={{ padding: config.space.S100 }}>
         <MenuItem
@@ -383,6 +417,86 @@ export function RoomViewHeader({ isIssueBoard, onToggleIssueBoard, isThreadsDraw
     : undefined;
 
   const [peopleDrawer, setPeopleDrawer] = useSetting(settingsAtom, 'isPeopleDrawer');
+
+  // Toolbar config — pins, ordering, defaultMode, widget shortcuts
+  const { config: toolbarConfig, getEffective, setItem: setToolbarItem, removeItem: removeToolbarItem } = useToolbarConfig();
+  const [ctxMenu, setCtxMenu] = useState<{ anchor: RectCords; id: ToolbarItemId } | null>(null);
+  const [, setActiveWidgetId] = useAtom(activeWidgetIdAtom);
+
+  const handleContextMenu = (id: ToolbarItemId) => (e: React.MouseEvent) => {
+    e.preventDefault();
+    setCtxMenu({ anchor: (e.currentTarget as HTMLElement).getBoundingClientRect(), id });
+  };
+
+  // Widget shortcut entries derived from config
+  type WidgetShortcutEntry = {
+    id: ToolbarItemId;
+    cfg: ReturnType<typeof getEffective>;
+    widget: (typeof roomWidgets)[number];
+  };
+  const widgetShortcutEntries: WidgetShortcutEntry[] = Object.entries(toolbarConfig)
+    .filter(([k]) => k.startsWith('widget:'))
+    .map(([id]) => {
+      const tid = id as ToolbarItemId;
+      return { id: tid, cfg: getEffective(tid), widget: roomWidgets.find((w) => `widget:${w.id}` === id) };
+    })
+    .filter((x): x is WidgetShortcutEntry => x.widget !== undefined)
+    .sort((a, b) => a.cfg.order - b.cfg.order);
+
+  // Unpinned panel items for overflow menu
+  const panelItems: UnpinnedItem[] = [
+    {
+      id: 'members' as ToolbarItemId,
+      label: peopleDrawer ? 'Hide Members' : 'Show Members',
+      iconSrc: Icons.User,
+      active: peopleDrawer,
+      onToggle: () => onTogglePeopleDrawer ? onTogglePeopleDrawer() : setPeopleDrawer((d) => !d),
+    },
+    {
+      id: 'threads' as ToolbarItemId,
+      label: isThreadsDrawer ? 'Hide Threads' : 'Show Threads',
+      iconSrc: Icons.Message,
+      active: isThreadsDrawer ?? false,
+      onToggle: () => onToggleThreadsDrawer?.(),
+    },
+    {
+      id: 'widgets' as ToolbarItemId,
+      label: isWidgetsDrawer ? 'Hide Widgets' : 'Show Widgets',
+      iconSrc: Icons.Category,
+      active: isWidgetsDrawer ?? false,
+      onToggle: () => onToggleWidgetsDrawer?.(),
+    },
+    {
+      id: 'issues' as ToolbarItemId,
+      label: isIssueBoard ? 'Show Chat' : 'Issue Tracker',
+      iconSrc: Icons.CheckTwice,
+      active: isIssueBoard ?? false,
+      onToggle: () => onToggleIssueBoard?.(),
+    },
+  ].filter((item) => {
+    if (screenSize !== ScreenSize.Desktop) return false;
+    if (getEffective(item.id).pinned) return false;
+    // Issues only appear if the room has a schema and user has rights
+    if (item.id === 'issues' && !showIssuesButton) return false;
+    // Threads/widgets need their toggle handlers
+    if (item.id === 'threads' && !onToggleThreadsDrawer) return false;
+    if (item.id === 'widgets' && !onToggleWidgetsDrawer) return false;
+    return true;
+  });
+
+  const unpinnedWidgetItems: UnpinnedItem[] = widgetShortcutEntries
+    .filter((x) => !x.cfg.pinned)
+    .map(({ id, cfg, widget }) => ({
+      id,
+      label: cfg.label ?? widget!.name,
+      active: isWidgetsDrawer ?? false,
+      onToggle: () => {
+        setActiveWidgetId(widget!.id);
+        onToggleWidgetsDrawer?.();
+      },
+    }));
+
+  const allUnpinnedItems = [...panelItems, ...unpinnedWidgetItems];
 
   const handleSearchClick = () => {
     const searchParams: _SearchPathSearchParams = {
@@ -693,8 +807,8 @@ export function RoomViewHeader({ isIssueBoard, onToggleIssueBoard, isThreadsDraw
             }
           />
 
-          {/* Members — Desktop, always enabled */}
-          {screenSize === ScreenSize.Desktop && (
+          {/* Members — Desktop, pinnable */}
+          {screenSize === ScreenSize.Desktop && getEffective('members').pinned && (
             <TooltipProvider
               position="Bottom"
               offset={4}

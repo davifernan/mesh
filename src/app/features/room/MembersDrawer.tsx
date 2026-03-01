@@ -65,8 +65,10 @@ import { isKeyHotkey } from 'is-hotkey';
 
 type MemberDrawerHeaderProps = {
   room: Room;
+  isFullWidth?: boolean;
+  onToggleFullWidth?: () => void;
 };
-function MemberDrawerHeader({ room }: MemberDrawerHeaderProps) {
+function MemberDrawerHeader({ room, isFullWidth, onToggleFullWidth }: MemberDrawerHeaderProps) {
   const setPeopleDrawer = useSetSetting(settingsAtom, 'isPeopleDrawer');
 
   return (
@@ -78,6 +80,15 @@ function MemberDrawerHeader({ room }: MemberDrawerHeaderProps) {
           </Text>
         </Box>
         <Box shrink="No" alignItems="Center">
+          {onToggleFullWidth && (
+            <IconButton
+              variant="Background"
+              onClick={onToggleFullWidth}
+              aria-label={isFullWidth ? 'Side by side' : 'Full width'}
+            >
+              <Icon src={isFullWidth ? Icons.ArrowGoRight : Icons.ArrowGoLeft} />
+            </IconButton>
+          )}
           <TooltipProvider
             position="Bottom"
             align="End"
@@ -188,8 +199,11 @@ const getRoomMemberStr: SearchItemStrGetter<RoomMember> = (m, query) =>
 type MembersDrawerProps = {
   room: Room;
   members: RoomMember[];
+  width?: number;
+  isFullWidth?: boolean;
+  onToggleFullWidth?: () => void;
 };
-export function MembersDrawer({ room, members }: MembersDrawerProps) {
+export function MembersDrawer({ room, members, width = 266, isFullWidth, onToggleFullWidth }: MembersDrawerProps) {
   const mx = useMatrixClient();
   const useAuthentication = useMediaAuthentication();
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -362,7 +376,7 @@ export function MembersDrawer({ room, members }: MembersDrawerProps) {
         firstMember?.focus();
       }}
     >
-      <MemberDrawerHeader room={room} />
+      <MemberDrawerHeader room={room} isFullWidth={isFullWidth} onToggleFullWidth={onToggleFullWidth} />
       <Box className={css.MemberDrawerContentBase} grow="Yes">
         <Scroll ref={scrollRef} variant="Background" size="300" visibility="Hover" hideTrack>
           <Box className={css.MemberDrawerContent} direction="Column" gap="200">
