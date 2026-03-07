@@ -263,6 +263,10 @@ export function PersistentCallContainer({ children }: PersistentCallContainerPro
                 width: '100%',
                 height: '100%',
                 border: 'none',
+                // Match BetterCord's main content background so the iframe
+                // doesn't flash white before BC-Call's CSS loads
+                backgroundColor: 'var(--background-header-primary)',
+                colorScheme: 'dark',
               }}
               title="Persistent Element Call"
               sandbox="allow-forms allow-scripts allow-same-origin allow-popups allow-modals allow-downloads"
