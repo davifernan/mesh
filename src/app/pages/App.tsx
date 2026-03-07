@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { Provider as JotaiProvider } from 'jotai';
 import { OverlayContainerProvider, PopOutContainerProvider, TooltipContainerProvider } from 'folds';
 import { RouterProvider } from 'react-router-dom';
@@ -14,6 +14,7 @@ import { createRouter } from './Router';
 import { ScreenSizeProvider, useScreenSize } from '../hooks/useScreenSize';
 import { useCompositionEndTracking } from '../hooks/useComposingCheck';
 import { setSessionOverride, getSessionForSlot } from '../state/sessions';
+import { ElectronTitlebar } from '../components/electron/ElectronTitlebar';
 
 // Detect secondary account slot from URL (browser router) or sessionStorage (hash router)
 const _slotMatch = window.location.pathname.match(/^\/account\/(\d+)(\/|$)/);
@@ -34,14 +35,35 @@ const _basename = _slotMatch ? `/account/${_accountSlot}/` : undefined;
 
 const queryClient = new QueryClient();
 
+/**
+ * When Electron titlebar is present, push the root container down so nothing
+ * is obscured behind the titlebar. On macOS only a small drag-region renders
+ * (28px) so we only need padding on Windows/Linux (32px).
+ */
+function useElectronRootPadding() {
+  useEffect(() => {
+    const electron = window.electron;
+    if (!electron) return;
+    const isMac = electron.platform === 'darwin';
+    const root = document.getElementById('root');
+    if (!root) return;
+    root.style.paddingTop = isMac ? '38px' : '32px';
+    return () => {
+      root.style.paddingTop = '';
+    };
+  }, []);
+}
+
 function App() {
   const screenSize = useScreenSize();
   useCompositionEndTracking();
+  useElectronRootPadding();
 
   const portalContainer = document.getElementById('portalContainer') ?? undefined;
 
   return (
     <IconContext.Provider value={{ weight: 'fill', color: 'currentColor' }}>
+    <ElectronTitlebar />
     <TooltipContainerProvider value={portalContainer}>
       <PopOutContainerProvider value={portalContainer}>
         <OverlayContainerProvider value={portalContainer}>

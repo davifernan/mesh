@@ -460,10 +460,10 @@ export function createWindow(): BrowserWindow {
 		minHeight: MIN_WINDOW_HEIGHT,
 		show: false,
 		backgroundColor: '#1a1a1a',
-		titleBarStyle: isMac ? 'hidden' : 'hidden',
-		trafficLightPosition: isMac ? {x: 9, y: 9} : undefined,
+		titleBarStyle: isMac ? 'hiddenInset' : 'hidden',
+		trafficLightPosition: isMac ? {x: 16, y: 11} : undefined,
 		titleBarOverlay: isWindows ? false : undefined,
-		frame: false,
+		frame: !isMac,
 		resizable: true,
 
 		webPreferences: {
@@ -650,6 +650,42 @@ export function createWindow(): BrowserWindow {
 	mainWindow.loadURL(appUrl).catch((error) => {
 		logger.error('Failed to load app URL:', error);
 	});
+
+	// Inject a drag region on macOS so the window can be moved.
+	// Only the left ~80px (traffic-light area + small buffer) is draggable.
+	// The rest of the top bar stays fully interactive (no pointer-event blocking).
+	const injectTitlebarCSS = (): void => {
+		if (!isMac) return;
+		webContents
+			.insertCSS(`
+				#bc-drag-region {
+					position: fixed !important;
+					top: 0 !important;
+					left: 0 !important;
+					width: 80px !important;
+					height: 38px !important;
+					-webkit-app-region: drag !important;
+					-webkit-user-select: none !important;
+					z-index: 2147483647 !important;
+					background: transparent !important;
+				}
+			`)
+			.catch((err: unknown) => log.warn('[TitlebarCSS] insertCSS failed:', err));
+
+		webContents
+			.executeJavaScript(`
+				(function() {
+					if (document.getElementById('bc-drag-region')) return;
+					const el = document.createElement('div');
+					el.id = 'bc-drag-region';
+					document.body.appendChild(el);
+				})();
+			`)
+			.catch((err: unknown) => log.warn('[TitlebarCSS] executeJavaScript failed:', err));
+	};
+
+	webContents.on('did-finish-load', injectTitlebarCSS);
+	webContents.on('did-navigate-in-page', injectTitlebarCSS);
 
 	webContents.on('will-navigate', (event, url) => {
 		if (!isTrustedOrigin(url)) {

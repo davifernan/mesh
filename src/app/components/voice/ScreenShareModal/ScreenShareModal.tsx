@@ -7,10 +7,10 @@ import * as css from './ScreenShareModal.css';
 type SSResolution = Settings['ssResolution'];
 type SSFps = Settings['ssFps'];
 
-const SS_RESOLUTIONS: SSResolution[] = ['720p', '1080p', '1440p', '2160p', 'source'];
+const SS_RESOLUTIONS: SSResolution[] = ['720p', '1080p', '1440p', '4k', 'source'];
 const SS_FPS: SSFps[] = [5, 15, 30, 60, 120];
 
-const SS_RESOLUTION_ORDER = ['720p', '1080p', '1440p', '2160p', 'source'];
+const SS_RESOLUTION_ORDER = ['720p', '1080p', '1440p', '4k', 'source'];
 
 function isResolutionAllowed(res: SSResolution, maxRes: string): boolean {
   const resIdx = SS_RESOLUTION_ORDER.indexOf(res);

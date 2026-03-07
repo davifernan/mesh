@@ -60,6 +60,11 @@ export function loadDesktopConfig(userDataPath: string): void {
 }
 
 export function getAppUrl(): string {
+	// BetterCord: allow overriding URL via env variable for dev mode
+	// Usage: BETTERCORD_APP_URL=http://localhost:8080 electron .
+	if (process.env.BETTERCORD_APP_URL) {
+		return process.env.BETTERCORD_APP_URL;
+	}
 	if (config.app_url) {
 		return config.app_url;
 	}

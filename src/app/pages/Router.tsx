@@ -74,6 +74,8 @@ import { IncomingCallNotification } from '../features/call/IncomingCallNotificat
 import { GlobalKeyboardShortcuts } from '../components/GlobalKeyboardShortcuts';
 import { getFallbackSession } from '../state/sessions';
 import { MobileBottomNav } from '../components/mobile-bottom-nav';
+import { ElectronUpdateBanner } from '../components/electron/ElectronUpdateBanner';
+import { ElectronScreensharePicker } from '../components/electron/ElectronScreensharePicker';
 
 export const createRouter = (clientConfig: ClientConfig, screenSize: ScreenSize, basePath?: string) => {
   const { hashRouter } = clientConfig;
@@ -173,6 +175,8 @@ export const createRouter = (clientConfig: ClientConfig, screenSize: ScreenSize,
                 </ClientRoomsNotificationPreferences>
               </ClientInitStorageAtom>
             </ClientRoot>
+            <ElectronUpdateBanner />
+            <ElectronScreensharePicker />
           </AuthRouteThemeManager>
         }
       >

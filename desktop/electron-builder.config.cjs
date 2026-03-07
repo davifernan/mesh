@@ -21,7 +21,7 @@ const isCanary = process.env.BUILD_CHANNEL === 'canary';
 
 const productName = isCanary ? 'BetterCord Canary' : 'BetterCord';
 const appId = isCanary ? 'com.bettercord.app.canary' : 'com.bettercord.app';
-const iconDir = 'icons'; // TODO: icons/ Ordner in build_resources/ mit BetterCord Icons befüllen
+const iconDir = isCanary ? 'icons-canary' : 'icons-stable';
 const packageName = isCanary ? 'bettercord_canary' : 'bettercord';
 
 /** @type {import('electron-builder').Configuration} */
@@ -120,7 +120,7 @@ module.exports = {
 	},
 
 	squirrelWindows: {
-		iconUrl: `https://DEINE-DOMAIN.com/icons/icon.ico`, // TODO: echte Domain eintragen
+		iconUrl: `https://chat.nilo.live/icons/icon.ico`,
 		name: packageName,
 	},
 
