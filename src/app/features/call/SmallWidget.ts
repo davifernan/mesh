@@ -98,6 +98,14 @@ export const getWidgetUrl = (
     params.set('skipLobby', String(setParams.skipLobby));
   }
 
+  // A/V quality constraints — only set when provided (avoids overriding EC defaults)
+  const avParams = ['audioBitrate', 'videoResolution', 'videoFps', 'ssResolution', 'ssFps'] as const;
+  for (const key of avParams) {
+    if (setParams[key] !== undefined) {
+      params.set(key, String(setParams[key]));
+    }
+  }
+
   const replacedParams = params.toString().replace(/%24/g, '$');
   url.search = `?${replacedParams}`;
 

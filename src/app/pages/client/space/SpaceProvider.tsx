@@ -7,10 +7,23 @@ import { useSelectedSpace } from '../../../hooks/router/useSelectedSpace';
 import { SpaceProvider } from '../../../hooks/useSpace';
 import { JoinBeforeNavigate } from '../../../features/join-before-navigate';
 import { useSearchParamsViaServers } from '../../../hooks/router/useSearchParamsViaServers';
+import { useSpaceAVSettings } from '../../../hooks/useSpaceAVSettings';
 
 type RouteSpaceProviderProps = {
   children: ReactNode;
 };
+
+function SpaceAVSettingsLoader({
+  spaceId,
+  children,
+}: {
+  spaceId: string;
+  children: ReactNode;
+}) {
+  useSpaceAVSettings(spaceId);
+  return <>{children}</>;
+}
+
 export function RouteSpaceProvider({ children }: RouteSpaceProviderProps) {
   const mx = useMatrixClient();
   const joinedSpaces = useSpaces(mx, allRoomsAtom);
@@ -27,7 +40,7 @@ export function RouteSpaceProvider({ children }: RouteSpaceProviderProps) {
 
   return (
     <SpaceProvider key={space.roomId} value={space}>
-      {children}
+      <SpaceAVSettingsLoader spaceId={space.roomId}>{children}</SpaceAVSettingsLoader>
     </SpaceProvider>
   );
 }

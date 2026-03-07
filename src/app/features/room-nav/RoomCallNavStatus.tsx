@@ -18,9 +18,11 @@ import {
   MicrophoneSlash,
   VideoCamera,
   VideoCameraSlash,
+  Monitor,
 } from '@phosphor-icons/react';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useAtomValue } from 'jotai';
+import { ScreenShareModal } from '../../components/voice/ScreenShareModal/ScreenShareModal';
 import { EventType } from 'matrix-js-sdk';
 import { MatrixRTCSessionManagerEvents } from 'matrix-js-sdk/lib/matrixrtc/MatrixRTCSessionManager';
 import { MatrixRTCSession } from 'matrix-js-sdk/lib/matrixrtc/MatrixRTCSession';
@@ -85,7 +87,10 @@ export function CallNavStatus() {
     toggleVideo,
     hangUp,
     setActiveCallRoomId,
+    sendWidgetAction,
   } = useCallState();
+
+  const [showSSModal, setShowSSModal] = useState(false);
   const { navigateRoom } = useRoomNavigate();
 
   const [incomingCalls, setIncomingCalls] = useState<IncomingCall[]>([]);
@@ -412,6 +417,16 @@ export function CallNavStatus() {
   // Active call — Fluxer-style voice connection panel
   return (
     <Box direction="Column" shrink="No">
+      {showSSModal && (
+        <ScreenShareModal
+          onConfirm={(_res, _fps, _audio) => {
+            setShowSSModal(false);
+            // Best-effort: tell EC to start screenshare
+            sendWidgetAction('io.element.screenshare_start', {}).catch(() => {});
+          }}
+          onCancel={() => setShowSSModal(false)}
+        />
+      )}
       <Line variant="Surface" size="300" />
       <div className={css.VoiceContainer}>
         {/* Status row: signal icon + status text + disconnect */}
@@ -471,8 +486,8 @@ export function CallNavStatus() {
           </button>
         </div>
 
-        {/* Media section: mute + video (2-column grid) */}
-        <div className={css.MediaSection}>
+        {/* Media section: mute + video + screenshare (3-column grid) */}
+        <div className={css.MediaSection} style={{ gridTemplateColumns: 'repeat(3, 1fr)' }}>
           <TooltipProvider
             position="Top"
             offset={4}
@@ -520,6 +535,23 @@ export function CallNavStatus() {
                 ) : (
                   <VideoCameraSlash size={20} weight="fill" />
                 )}
+              </button>
+            )}
+          </TooltipProvider>
+          <TooltipProvider
+            position="Top"
+            offset={4}
+            tooltip={<Tooltip><Text>Bildschirm teilen</Text></Tooltip>}
+          >
+            {(triggerRef) => (
+              <button
+                type="button"
+                className={css.MediaButton}
+                ref={triggerRef}
+                aria-label="Bildschirm teilen"
+                onClick={() => setShowSSModal(true)}
+              >
+                <Monitor size={20} weight="fill" />
               </button>
             )}
           </TooltipProvider>

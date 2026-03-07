@@ -17,6 +17,7 @@ import { Members } from '../common-settings/members';
 import { DeveloperTools } from '../common-settings/developer-tools';
 import { General } from './general';
 import { Permissions } from './permissions';
+import { SpaceAVSettings } from './SpaceAVSettings';
 
 type SpaceSettingsMenuItem = {
   page: SpaceSettingsPage;
@@ -46,6 +47,11 @@ const useSpaceSettingsMenuItems = (): SpaceSettingsMenuItem[] =>
         page: SpaceSettingsPage.EmojisStickersPage,
         name: 'Emojis & Stickers',
         icon: Icons.Smile,
+      },
+      {
+        page: SpaceSettingsPage.AVSettingsPage,
+        name: 'Voice & Video',
+        icon: Icons.Mic,
       },
       {
         page: SpaceSettingsPage.DeveloperToolsPage,
@@ -164,6 +170,9 @@ export function SpaceSettings({ initialPage, requestClose }: SpaceSettingsProps)
       )}
       {activePage === SpaceSettingsPage.EmojisStickersPage && (
         <EmojisStickers requestClose={handlePageRequestClose} />
+      )}
+      {activePage === SpaceSettingsPage.AVSettingsPage && (
+        <SpaceAVSettings requestClose={handlePageRequestClose} />
       )}
       {activePage === SpaceSettingsPage.DeveloperToolsPage && (
         <DeveloperTools requestClose={handlePageRequestClose} />

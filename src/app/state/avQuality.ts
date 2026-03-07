@@ -3,10 +3,10 @@ import { settingsAtom } from './settings';
 
 export interface SpaceAVSettings {
   maxAudioBitrate: 64 | 128 | 256 | 510;
-  maxVideoResolution: '360p' | '480p' | '720p' | '1080p';
-  maxVideoFps: 15 | 24 | 30;
-  maxSSResolution: '720p' | '1080p' | 'source';
-  maxSSFps: 5 | 15 | 30 | 60;
+  maxVideoResolution: '360p' | '480p' | '720p' | '1080p' | '1440p' | '2160p';
+  maxVideoFps: 15 | 24 | 30 | 60 | 120;
+  maxSSResolution: '720p' | '1080p' | '1440p' | '2160p' | 'source';
+  maxSSFps: 5 | 15 | 30 | 60 | 120;
   maxParticipants: number;
 }
 
@@ -21,8 +21,8 @@ export interface ChannelAVOverride {
 export const spaceAVSettingsAtom = atom<SpaceAVSettings | null>(null);
 export const channelAVOverrideAtom = atom<ChannelAVOverride | null>(null);
 
-const VIDEO_RESOLUTION_ORDER = ['360p', '480p', '720p', '1080p'];
-const SS_RESOLUTION_ORDER = ['720p', '1080p', 'source'];
+const VIDEO_RESOLUTION_ORDER = ['360p', '480p', '720p', '1080p', '1440p', '2160p'];
+const SS_RESOLUTION_ORDER = ['720p', '1080p', '1440p', '2160p', 'source'];
 
 function clampResolution<T extends string>(value: T, max: string, order: string[]): T {
   const valueIdx = order.indexOf(value);
