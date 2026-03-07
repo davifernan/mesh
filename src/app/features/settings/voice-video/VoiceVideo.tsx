@@ -212,53 +212,46 @@ function MicTestButton({ micDeviceId, speakerDeviceId }: MicTestProps) {
   useEffect(() => stop, [stop]);
 
   return (
-    <Box alignItems="Center" gap="200" style={{ marginTop: '8px' }}>
-      <button
-        type="button"
-        onClick={testing ? stop : () => void start()}
-        style={{
-          background: testing ? '#f23f43' : 'var(--bg-surface-low, #1e1f22)',
-          color: 'var(--text-normal, #dbdee1)',
-          border: '1px solid var(--background-modifier-accent, #3a3c40)',
-          borderRadius: '4px',
-          padding: '6px 14px',
-          fontSize: '13px',
-          cursor: 'pointer',
-          flexShrink: 0,
-        }}
-      >
-        {testing ? 'Stop Test' : 'Test Microphone'}
-      </button>
-      {testing && (
-        <Box alignItems="Center" gap="100" style={{ flex: 1 }}>
-          <div
-            style={{
-              flex: 1,
-              height: '6px',
-              background: 'var(--background-modifier-accent, #3a3c40)',
-              borderRadius: '3px',
-              overflow: 'hidden',
-            }}
-          >
-            <div
-              style={{
-                height: '100%',
-                width: `${volume}%`,
-                background: volume > 60 ? '#f23f43' : volume > 30 ? '#faa61a' : '#23a55a',
-                transition: 'width 0.05s ease',
-              }}
-            />
-          </div>
-          <Text size="T200" priority="300" style={{ flexShrink: 0, minWidth: '32px' }}>
-            {volume}%
-          </Text>
-        </Box>
-      )}
-      {testing && (
+    <Box direction="Column" gap="200" style={{ padding: '0 16px 14px' }}>
+      {/* Volume bar — always visible when testing */}
+      <div style={{
+        height: '4px',
+        borderRadius: '2px',
+        background: 'var(--background-modifier-accent, #3a3c40)',
+        overflow: 'hidden',
+        opacity: testing ? 1 : 0,
+        transition: 'opacity 0.2s',
+      }}>
+        <div style={{
+          height: '100%',
+          width: `${volume}%`,
+          background: volume > 70 ? '#f23f43' : volume > 40 ? '#faa61a' : '#23a55a',
+          transition: 'width 0.05s linear',
+          borderRadius: '2px',
+        }} />
+      </div>
+      <Box alignItems="Center" gap="300">
+        <button
+          type="button"
+          onClick={testing ? stop : () => void start()}
+          style={{
+            background: testing ? '#da373c22' : 'transparent',
+            color: testing ? '#f23f43' : 'var(--text-muted, #949cf7)',
+            border: `1px solid ${testing ? '#f23f43' : 'var(--background-modifier-accent, #3a3c40)'}`,
+            borderRadius: '3px',
+            padding: '5px 12px',
+            fontSize: '13px',
+            fontWeight: 500,
+            cursor: 'pointer',
+            whiteSpace: 'nowrap',
+          }}
+        >
+          {testing ? '⏹ Stop' : '▶ Test'}
+        </button>
         <Text size="T200" priority="300">
-          Speak — you hear yourself through the selected output
+          {testing ? 'Sprich — du hörst dich selbst über die ausgewählte Ausgabe' : 'Mikrofon testen'}
         </Text>
-      )}
+      </Box>
     </Box>
   );
 }
@@ -322,9 +315,7 @@ export function VoiceVideo({ requestClose }: VoiceVideoProps) {
                 />
               }
             />
-            <Box style={{ padding: '0 16px 12px' }}>
-              <MicTestButton micDeviceId={micDeviceId} speakerDeviceId={speakerDeviceId} />
-            </Box>
+            <MicTestButton micDeviceId={micDeviceId} speakerDeviceId={speakerDeviceId} />
           </SequenceCard>
           <SequenceCard className={SequenceCardStyle}>
             <SettingTile
