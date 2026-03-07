@@ -6,13 +6,18 @@ import { ContainerColor } from '../../styles/ContainerColor.css';
 export const Sidebar = style([
   DefaultReset,
   {
-    width: toRem(66),
-    backgroundColor: color.Background.Container,
-    borderRight: `${config.borderWidth.B300} solid ${color.Background.ContainerLine}`,
+    width: toRem(72),
+    backgroundColor: 'var(--background-tertiary)',
+    borderRight: 'none',
 
     display: 'flex',
     flexDirection: 'column',
-    color: color.Background.OnContainer,
+    color: 'var(--text-secondary)',
+    overflowY: 'auto',
+    overflowX: 'hidden',
+    scrollbarWidth: 'none',
+    // @ts-ignore
+    '::-webkit-scrollbar': { display: 'none' },
   },
 ]);
 
@@ -148,9 +153,24 @@ export type SidebarItemBadgeVariants = RecipeVariants<typeof SidebarItemBadge>;
 export const SidebarAvatar = recipe({
   base: [
     {
+      // Discord squircle: circle → squircle on hover/active
+      borderRadius: '50%',
+      transition: 'border-radius 150ms ease-out, background-color 150ms ease-out, color 150ms ease-out',
+      backgroundColor: 'var(--background-primary)',
+      color: 'var(--text-secondary)',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      overflow: 'hidden',
+      border: 'none',
       selectors: {
         'button&': {
           cursor: 'pointer',
+        },
+        '&:hover': {
+          borderRadius: '30%',
+          backgroundColor: 'var(--brand-primary)',
+          color: '#fff',
         },
       },
     },
@@ -161,21 +181,19 @@ export const SidebarAvatar = recipe({
         width: toRem(16),
         height: toRem(16),
         fontSize: toRem(10),
-        lineHeight: config.lineHeight.T200,
-        letterSpacing: config.letterSpacing.T200,
       },
       '300': {
         width: toRem(34),
         height: toRem(34),
       },
       '400': {
-        width: toRem(42),
-        height: toRem(42),
+        width: toRem(48),
+        height: toRem(48),
       },
     },
     outlined: {
       true: {
-        border: `${config.borderWidth.B300} solid ${color.Background.ContainerLine}`,
+        // No border needed in Discord style
       },
     },
   },

@@ -1,5 +1,6 @@
 import React from 'react';
 import { Icon, Icons } from 'folds';
+import { MagnifyingGlass } from '@phosphor-icons/react';
 import { useAtom } from 'jotai';
 import { SidebarAvatar, SidebarItem, SidebarItemTooltip } from '../../../components/sidebar';
 import { searchModalAtom } from '../../../state/searchModal';
@@ -14,7 +15,7 @@ export function SearchTab() {
       <SidebarItemTooltip tooltip="Search (Ctrl+K)">
         {(triggerRef) => (
           <SidebarAvatar as="button" ref={triggerRef} outlined aria-label="Search" onClick={open}>
-            <Icon src={Icons.Search} filled={opened} />
+            <MagnifyingGlass size={24} weight={opened ? 'fill' : 'regular'} />
           </SidebarAvatar>
         )}
       </SidebarItemTooltip>

@@ -1,6 +1,7 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Icon, Icons } from 'folds';
+import { Bell } from '@phosphor-icons/react';
 import { useAtomValue } from 'jotai';
 import {
   SidebarAvatar,
@@ -56,7 +57,7 @@ export function InboxTab() {
       <SidebarItemTooltip tooltip="Inbox (Alt+I)">
         {(triggerRef) => (
           <SidebarAvatar as="button" ref={triggerRef} outlined aria-label="Inbox" aria-keyshortcuts="Alt+I" onClick={handleInboxClick}>
-            <Icon src={Icons.Inbox} filled={inboxSelected} />
+            <Bell size={24} weight={inboxSelected ? 'fill' : 'regular'} />
           </SidebarAvatar>
         )}
       </SidebarItemTooltip>

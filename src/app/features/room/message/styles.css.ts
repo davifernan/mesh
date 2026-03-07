@@ -12,15 +12,16 @@ export const MessageOptionsBase = style([
   DefaultReset,
   {
     position: 'absolute',
-    top: toRem(-30),
-    right: 0,
+    top: toRem(-20),
+    right: toRem(16),
     zIndex: 1,
   },
 ]);
 export const MessageOptionsBar = style([
   DefaultReset,
   {
-    padding: config.space.S100,
+    padding: toRem(2),
+    gap: toRem(2),
   },
 ]);
 
