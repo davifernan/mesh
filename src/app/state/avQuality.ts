@@ -37,9 +37,11 @@ export const effectiveAVSettingsAtom = atom((get) => {
   const channel = get(channelAVOverrideAtom);
 
   const maxSSRes = (channel?.maxSSResolution ?? space?.maxSSResolution ?? 'source') as string;
-  const maxSSFps = channel?.maxSSFps ?? space?.maxSSFps ?? 60;
-  const maxVideoRes = (space?.maxVideoResolution ?? '1080p') as string;
-  const maxVideoFps = space?.maxVideoFps ?? 30;
+  const maxSSFps = channel?.maxSSFps ?? space?.maxSSFps ?? 120;
+  // When no space settings exist, don't cap video — let the user's own settings be the ceiling.
+  // A missing space config means "no server restriction", not "cap at 1080p/30fps".
+  const maxVideoRes = (space?.maxVideoResolution ?? '2160p') as string;
+  const maxVideoFps = space?.maxVideoFps ?? 120;
   const maxAudioBitrate = space?.maxAudioBitrate ?? 510;
 
   return {

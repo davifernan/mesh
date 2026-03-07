@@ -105,6 +105,19 @@ export const getWidgetUrl = (
       params.set(key, String(setParams[key]));
     }
   }
+  // Boolean audio processing flags — always set so BetterCord-Call respects user preferences
+  if (setParams.echoCancellation !== undefined) {
+    params.set('echoCancellation', String(setParams.echoCancellation));
+  }
+  if (setParams.noiseSuppression !== undefined) {
+    params.set('noiseSuppression', String(setParams.noiseSuppression));
+  }
+  if (setParams.autoGainControl !== undefined) {
+    params.set('autoGainControl', String(setParams.autoGainControl));
+  }
+  if (setParams.ssAudio !== undefined) {
+    params.set('ssAudio', String(setParams.ssAudio));
+  }
 
   const replacedParams = params.toString().replace(/%24/g, '$');
   url.search = `?${replacedParams}`;
