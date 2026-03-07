@@ -1,0 +1,152 @@
+/* BetterCord Design System — based on Fluxer/Discord CSS Tokens */
+
+@import '@fontsource/ibm-plex-sans/400.css';
+@import '@fontsource/ibm-plex-sans/500.css';
+@import '@fontsource/ibm-plex-sans/600.css';
+@import '@fontsource/ibm-plex-mono/400.css';
+
+:root {
+  /* === LAYOUT === */
+  --layout-guild-list-width: 4.5rem;
+  --layout-sidebar-width: 16.875rem;
+  --layout-header-height: 3.5rem;
+  --layout-user-area-height: 72px;
+  --mobile-bottom-nav-height: 60px;
+
+  /* === SPACING === */
+  --spacing-0: 0;
+  --spacing-1: 0.25rem;
+  --spacing-1-5: 0.375rem;
+  --spacing-2: 0.5rem;
+  --spacing-3: 0.75rem;
+  --spacing-4: 1rem;
+  --spacing-5: 1.25rem;
+  --spacing-6: 1.5rem;
+  --spacing-8: 2rem;
+  --spacing-10: 2.5rem;
+  --spacing-12: 3rem;
+  --spacing-16: 4rem;
+  --spacing-20: 5rem;
+  --spacing-24: 6rem;
+
+  /* === BORDER RADIUS === */
+  --radius-sm: 0.25rem;
+  --radius-md: 0.375rem;
+  --radius-lg: 0.5rem;
+  --radius-xl: 0.75rem;
+  --radius-2xl: 1rem;
+  --radius-full: 9999px;
+
+  /* === Z-INDEX === */
+  --z-index-base: 0;
+  --z-index-elevated-1: 10;
+  --z-index-elevated-2: 20;
+  --z-index-elevated-3: 30;
+  --z-index-modal: 10000;
+  --z-index-popout: 15000;
+  --z-index-overlay: 40000;
+  --z-index-tooltip: 45000;
+  --z-index-toast: 50000;
+  --z-index-contextmenu: 2147483647;
+
+  /* === BRAND === */
+  --brand-primary: #4641D9;
+  --focus-primary: #00b0f4;
+
+  /* === DARK THEME (default) === */
+  --background-primary: #313338;
+  --background-secondary: #2B2D31;
+  --background-tertiary: #1E1F22;
+  --background-floating: #111214;
+  --background-modifier-hover: rgba(255, 255, 255, 0.06);
+  --background-modifier-selected: rgba(255, 255, 255, 0.12);
+  --background-modifier-accent: rgba(255, 255, 255, 0.16);
+
+  --text-primary: #DBDEE1;
+  --text-secondary: #B5BAC1;
+  --text-muted: #80848E;
+  --text-link: #00AFF4;
+  --text-danger: #F23F43;
+
+  --user-area-divider-color: rgba(255, 255, 255, 0.06);
+  --panel-control-bg: #232428;
+
+  /* === MESSAGES === */
+  --message-avatar-size: 40px;
+  --message-gutter: 16px;
+  --chat-horizontal-padding: 16px;
+  --message-line-height: 1.375rem;
+  --message-mention-color: rgb(234 197 50);
+  --message-mention-bg: rgb(234 197 50 / 0.1);
+  --message-reply-color: rgb(59 130 246);
+  --message-reply-bg: rgb(59 130 246 / 0.1);
+
+  /* === STATUS === */
+  --status-online: #23A55A;
+  --status-idle: #F0B232;
+  --status-dnd: #F23F43;
+  --status-offline: #80848E;
+
+  /* === VOICE === */
+  --voice-surface-4: rgba(255, 255, 255, 0.1);
+  --voice-surface-5: rgba(255, 255, 255, 0.16);
+  --voice-status-success: #23A55A;
+  --voice-status-danger: #F23F43;
+  --voice-status-success-bg-solid: rgba(35, 165, 90, 0.2);
+  --voice-status-danger-bg-solid: rgba(242, 63, 67, 0.2);
+  --voice-status-danger-bg-strong-solid: rgba(242, 63, 67, 0.4);
+
+  /* === FONTS === */
+  --font-sans: 'IBM Plex Sans', sans-serif;
+  --font-mono: 'IBM Plex Mono', monospace;
+  --font-emoji: 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji', var(--font-sans), sans-serif;
+
+  /* === GUILD ICONS === */
+  --guild-icon-size: 44px;
+  --guild-icon-gap: var(--spacing-2);
+
+  /* === CONTENT PADDING === */
+  --content-padding: var(--spacing-4);
+  --content-padding-sm: var(--spacing-3);
+  --content-padding-lg: var(--spacing-6);
+  --layout-gap: var(--spacing-4);
+  --layout-gap-sm: var(--spacing-2);
+  --layout-gap-lg: var(--spacing-6);
+}
+
+.theme-light {
+  --background-primary: #FFFFFF;
+  --background-secondary: #F2F3F5;
+  --background-tertiary: #E3E5E8;
+  --background-floating: #FFFFFF;
+  --text-primary: #060607;
+  --text-secondary: #4E5058;
+  --text-muted: #80848E;
+  --panel-control-bg: #EBEDEF;
+}
+
+/* Apply BetterCord font globally */
+html {
+  font-family: var(--font-sans);
+  font-size: 16px;
+  line-height: 1.5;
+  font-optical-sizing: auto;
+}
+
+/* Reduced motion */
+html.reduced-motion * {
+  animation-duration: 0.01ms !important;
+  transition-duration: 0.01ms !important;
+}
+
+/* Mobile: no text-select */
+@media (max-width: 840px) {
+  html {
+    user-select: none;
+    -webkit-user-select: none;
+  }
+  input, textarea {
+    user-select: auto !important;
+    -webkit-user-select: auto !important;
+  }
+}

@@ -1,14 +1,15 @@
 {
-  "name": "Wally",
-  "short_name": "Wally",
-  "description": "A Cinny fork with Element Call, accessibility, and more",
+  "name": "BetterCord",
+  "short_name": "BetterCord",
+  "description": "Discord-Look. Matrix-Privatsphäre.",
   "dir": "auto",
-  "lang": "en-US",
+  "lang": "de-DE",
   "display": "standalone",
-  "orientation": "portrait",
+  "orientation": "any",
   "start_url": "./",
-  "background_color": "#fff",
-  "theme_color": "#fff",
+  "background_color": "#1E1F22",
+  "theme_color": "#4641D9",
+  "categories": ["social", "communication"],
   "icons": [
     {
       "src": "./public/android/android-chrome-36x36.png",
