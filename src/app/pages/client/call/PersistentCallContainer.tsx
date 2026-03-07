@@ -1,7 +1,6 @@
 import React, { createContext, ReactNode, useCallback, useEffect, useMemo, useRef } from 'react';
 import { MatrixRTCSession } from 'matrix-js-sdk/lib/matrixrtc/MatrixRTCSession';
 import { ClientWidgetApi } from 'matrix-widget-api';
-import { Box } from 'folds';
 import { useAtomValue } from 'jotai';
 import { useCallState } from './CallProvider';
 import {
@@ -236,52 +235,25 @@ export function PersistentCallContainer({ children }: PersistentCallContainerPro
 
   return (
     <CallRefContext.Provider value={memoizedIframeRef}>
-      <Box
-        grow="Yes"
-        style={{
-          minWidth: 0,
-          display: isMobile && isChatOpen ? 'none' : undefined,
-          width: isMobile && isChatOpen ? 0 : undefined,
-        }}
-      >
-        <Box
-          direction="Column"
+      {/* The iframe lives here purely to persist across route changes.
+          CallView.tsx teleports it via position:fixed onto its ghost div.
+          This box must stay in the DOM but take zero layout space. */}
+      <div style={{ width: 0, height: 0, overflow: 'hidden', flexShrink: 0 }}>
+        <iframe
+          ref={callIframeRef}
           style={{
-            position: 'relative',
-            zIndex: 0,
-            width: '100%',
-            height: '100%',
+            width: 1,
+            height: 1,
+            border: 'none',
+            backgroundColor: 'var(--background-header-primary)',
+            colorScheme: 'dark',
           }}
-        >
-          <Box
-            grow="Yes"
-            style={{
-              position: 'relative',
-            }}
-          >
-            <iframe
-              ref={callIframeRef}
-              style={{
-                position: 'absolute',
-                top: 0,
-                left: 0,
-                display: 'flex',
-                width: '100%',
-                height: '100%',
-                border: 'none',
-                // Match BetterCord's main content background so the iframe
-                // doesn't flash white before BC-Call's CSS loads
-                backgroundColor: 'var(--background-header-primary)',
-                colorScheme: 'dark',
-              }}
-              title="Persistent Element Call"
-              sandbox="allow-forms allow-scripts allow-same-origin allow-popups allow-modals allow-downloads"
-              allow="microphone; camera; display-capture; autoplay; clipboard-write;"
-              src="about:blank"
-            />
-          </Box>
-        </Box>
-      </Box>
+          title="Persistent Element Call"
+          sandbox="allow-forms allow-scripts allow-same-origin allow-popups allow-modals allow-downloads"
+          allow="microphone; camera; display-capture; autoplay; clipboard-write;"
+          src="about:blank"
+        />
+      </div>
       {children}
     </CallRefContext.Provider>
   );
