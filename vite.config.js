@@ -14,7 +14,9 @@ import buildConfig from './build.config';
 const copyFiles = {
   targets: [
     {
-      src: 'node_modules/@element-hq/element-call-embedded/dist/*',
+      // Use the local BetterCord-Call embedded build instead of upstream element-call-embedded.
+      // Run `yarn build:embedded` in BetterCord-Call first to populate dist/.
+      src: '../BetterCord-Call/dist/*',
       dest: 'public/element-call',
     },
     {
@@ -44,6 +46,48 @@ const copyFiles = {
     },
   ],
 };
+
+function serverBetterCordCall() {
+  const bcCallDist = path.resolve(__dirname, '../BetterCord-Call/dist');
+  return {
+    name: 'vite-plugin-serve-bettercord-call',
+    configureServer(server) {
+      server.middlewares.use((req, res, next) => {
+        const prefix = '/public/element-call';
+        if (!req.url?.startsWith(prefix)) return next();
+        const subPath = req.url.slice(prefix.length) || '/index.html';
+        // Strip query string for file lookup
+        const cleanPath = subPath.split('?')[0] || '/index.html';
+        const filePath = path.join(bcCallDist, cleanPath);
+        if (fs.existsSync(filePath) && fs.statSync(filePath).isFile()) {
+          const ext = path.extname(filePath);
+          const mimeTypes = {
+            '.html': 'text/html',
+            '.js': 'application/javascript',
+            '.css': 'text/css',
+            '.wasm': 'application/wasm',
+            '.json': 'application/json',
+            '.png': 'image/png',
+            '.svg': 'image/svg+xml',
+            '.ico': 'image/x-icon',
+          };
+          res.setHeader('Content-Type', mimeTypes[ext] ?? 'application/octet-stream');
+          res.setHeader('Cache-Control', 'no-cache');
+          fs.createReadStream(filePath).pipe(res);
+        } else {
+          // SPA fallback: serve index.html for deep routes
+          const indexPath = path.join(bcCallDist, 'index.html');
+          if (fs.existsSync(indexPath)) {
+            res.setHeader('Content-Type', 'text/html');
+            fs.createReadStream(indexPath).pipe(res);
+          } else {
+            next();
+          }
+        }
+      });
+    },
+  };
+}
 
 function serverMatrixSdkCryptoWasm(wasmFilePath) {
   return {
@@ -79,11 +123,12 @@ export default defineConfig({
     port: 8080,
     host: true,
     fs: {
-      // Allow serving files from one level up to the project root
+      // Allow serving files from one level up to the project root (needed for BC-Call dist)
       allow: ['..'],
     },
   },
   plugins: [
+    serverBetterCordCall(),
     serverMatrixSdkCryptoWasm('/node_modules/.vite/deps/pkg/matrix_sdk_crypto_wasm_bg.wasm'),
     topLevelAwait({
       // The export name of top-level await promise for each chunk module
