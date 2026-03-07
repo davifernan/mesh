@@ -1,7 +1,7 @@
 {
-  "name": "cinny",
-  "version": "4.10.5",
-  "description": "Yet another matrix client",
+  "name": "bettercord",
+  "version": "0.1.0",
+  "description": "Discord-Look. Matrix-Privatsphäre.",
   "main": "index.js",
   "type": "module",
   "engines": {
@@ -9,7 +9,7 @@
   },
   "scripts": {
     "start": "vite",
-    "build": "vite build",
+    "build": "node --max-old-space-size=6144 node_modules/.bin/vite build",
     "lint": "yarn check:eslint && yarn check:prettier",
     "check:eslint": "eslint src/*",
     "check:prettier": "prettier --check .",
@@ -25,7 +25,10 @@
     "@atlaskit/pragmatic-drag-and-drop": "1.7.7",
     "@atlaskit/pragmatic-drag-and-drop-auto-scroll": "1.3.0",
     "@atlaskit/pragmatic-drag-and-drop-hitbox": "1.1.0",
+    "@fontsource/ibm-plex-mono": "5.2.7",
+    "@fontsource/ibm-plex-sans": "5.2.8",
     "@fontsource/inter": "4.5.14",
+    "@phosphor-icons/react": "2.1.10",
     "@tanstack/react-query": "5.90.21",
     "@tanstack/react-query-devtools": "5.91.3",
     "@tanstack/react-virtual": "3.13.19",

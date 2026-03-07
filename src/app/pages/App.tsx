@@ -4,6 +4,7 @@ import { OverlayContainerProvider, PopOutContainerProvider, TooltipContainerProv
 import { RouterProvider } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
+import { IconContext } from '@phosphor-icons/react';
 
 import { ClientConfigLoader } from '../components/ClientConfigLoader';
 import { ClientConfigProvider } from '../hooks/useClientConfig';
@@ -40,6 +41,7 @@ function App() {
   const portalContainer = document.getElementById('portalContainer') ?? undefined;
 
   return (
+    <IconContext.Provider value={{ weight: 'fill', color: 'currentColor' }}>
     <TooltipContainerProvider value={portalContainer}>
       <PopOutContainerProvider value={portalContainer}>
         <OverlayContainerProvider value={portalContainer}>
@@ -67,6 +69,7 @@ function App() {
         </OverlayContainerProvider>
       </PopOutContainerProvider>
     </TooltipContainerProvider>
+    </IconContext.Provider>
   );
 }
 
