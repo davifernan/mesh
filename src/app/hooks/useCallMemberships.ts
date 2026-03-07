@@ -1,50 +1,60 @@
-import { MatrixClient } from 'matrix-js-sdk';
-import {
-  MatrixRTCSession,
-  MatrixRTCSessionEvent,
-} from 'matrix-js-sdk/lib/matrixrtc/MatrixRTCSession';
-import { CallMembership } from 'matrix-js-sdk/lib/matrixrtc/CallMembership';
-import { ClientEvent, MatrixEvent } from 'matrix-js-sdk';
+import { ClientEvent, MatrixClient, MatrixEvent } from 'matrix-js-sdk';
+import { Room } from 'matrix-js-sdk';
 import { useEffect, useState } from 'react';
 
-export const useCallMembers = (mx: MatrixClient, roomId: string): CallMembership[] => {
-  const [memberships, setMemberships] = useState<CallMembership[]>(() => {
+// Return user IDs of everyone with an active (non-empty) call.member state event.
+// We deliberately do NOT filter by expiry here — expiry is EC's concern, not the
+// sidebar's.  This avoids the "user disappears during membership renewal" flicker.
+function getActiveSenders(room: Room): string[] {
+  const senders = new Set<string>();
+  // Support both legacy (msc3401) and newer (msc4143) call member state types.
+  const types = [
+    'org.matrix.msc3401.call.member',
+    'org.matrix.msc4143.call.member',
+  ];
+  for (const type of types) {
+    const events: MatrixEvent[] = room.currentState.getStateEvents(type) ?? [];
+    for (const ev of events) {
+      const sender = ev.getSender();
+      if (!sender) continue;
+      const content = ev.getContent();
+      // Empty content = user explicitly left.  Non-empty = user is present.
+      if (content && Object.keys(content).length > 0) {
+        senders.add(sender);
+      }
+    }
+  }
+  return Array.from(senders);
+}
+
+export const useCallMembers = (mx: MatrixClient, roomId: string): string[] => {
+  const [senders, setSenders] = useState<string[]>(() => {
     const room = mx.getRoom(roomId);
-    return room ? MatrixRTCSession.callMembershipsForRoom(room) : [];
+    return room ? getActiveSenders(room) : [];
   });
 
   useEffect(() => {
     const room = mx.getRoom(roomId);
     if (!room) {
-      setMemberships([]);
+      setSenders([]);
       return undefined;
     }
 
-    const updateMemberships = () => {
-      setMemberships(MatrixRTCSession.callMembershipsForRoom(room));
+    // Re-compute whenever any call.member event arrives for this room
+    const handleEvent = (ev: MatrixEvent) => {
+      if (ev.getRoomId() !== roomId) return;
+      if (!ev.getType().includes('call.member')) return;
+      setSenders(getActiveSenders(room));
     };
 
-    const mxr = mx.matrixRTC.getRoomSession(room);
-    mxr.on(MatrixRTCSessionEvent.MembershipsChanged, updateMemberships);
+    // Sync initial state
+    setSenders(getActiveSenders(room));
 
-    // Fallback: also react to raw Matrix state events for call members
-    // in case MembershipsChanged doesn't fire (e.g. after expiry cleanup)
-    const handleRawEvent = (ev: MatrixEvent) => {
-      if (
-        ev.getRoomId() === roomId &&
-        (ev.getType() === 'org.matrix.msc3401.call.member' ||
-          ev.getType().includes('call.member'))
-      ) {
-        updateMemberships();
-      }
-    };
-    mx.on(ClientEvent.Event, handleRawEvent);
-
+    mx.on(ClientEvent.Event, handleEvent);
     return () => {
-      mxr.removeListener(MatrixRTCSessionEvent.MembershipsChanged, updateMemberships);
-      mx.removeListener(ClientEvent.Event, handleRawEvent);
+      mx.off(ClientEvent.Event, handleEvent);
     };
   }, [mx, roomId]);
 
-  return memberships;
+  return senders;
 };

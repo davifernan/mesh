@@ -530,11 +530,11 @@ export function RoomNavItem({
       </NavItem>
       {room.isCallRoom() && (
         <Box direction="Column" style={{ paddingLeft: config.space.S200 }}>
-          {callMemberships.map((callMembership) => (
+          {callMemberships.map((userId) => (
             <RoomNavUser
-              key={callMembership.membershipID}
+              key={userId}
               room={room}
-              callMembership={callMembership}
+              userId={userId}
             />
           ))}
         </Box>

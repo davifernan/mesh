@@ -121,6 +121,8 @@ export function CallProvider({ children }: CallProviderProps) {
   const [isChatOpen, setIsChatOpenState] = useState<boolean>(DEFAULT_CHAT_OPENED);
   const [isCallViewOpen, setIsCallViewOpenState] = useState<boolean>(false);
   const [isActiveCallReady, setIsActiveCallReady] = useState<boolean>(false);
+  const isActiveCallReadyRef = useRef(isActiveCallReady);
+  isActiveCallReadyRef.current = isActiveCallReady;
   const [speakingUsers, setSpeakingUsers] = useState<Set<string>>(new Set());
   const [participantStates, setParticipantStates] = useState<Map<string, { audioEnabled: boolean; videoEnabled: boolean }>>(new Map());
   const [screensharingUsers, setScreensharingUsers] = useState<Set<string>>(new Set());
@@ -341,7 +343,7 @@ export function CallProvider({ children }: CallProviderProps) {
 
     const handleHangup = (ev: CustomEvent) => {
       ev.preventDefault();
-      if (isActiveCallReady && ev.detail.widgetId === activeClientWidgetApi.widget.id) {
+      if (isActiveCallReadyRef.current && ev.detail.widgetId === activeClientWidgetApi.widget.id) {
         activeClientWidgetApi.transport.reply(ev.detail, {});
         setActiveCallRoomIdState(null);
         setActiveClientWidgetApi(null, null, null, null);
@@ -351,18 +353,14 @@ export function CallProvider({ children }: CallProviderProps) {
     };
 
     const handleMediaStateUpdate = (ev: CustomEvent<MediaStatePayload>) => {
-      if (!isActiveCallReady) return;
+      if (!isActiveCallReadyRef.current) return;
       ev.preventDefault();
 
       /* eslint-disable camelcase */
       const { audio_enabled, video_enabled } = ev.detail.data ?? {};
 
-      if (typeof audio_enabled === 'boolean' && audio_enabled !== isAudioEnabled) {
-        setIsAudioEnabledState(audio_enabled);
-      }
-      if (typeof video_enabled === 'boolean' && video_enabled !== isVideoEnabled) {
-        setIsVideoEnabledState(video_enabled);
-      }
+      if (typeof audio_enabled === 'boolean') setIsAudioEnabledState(audio_enabled);
+      if (typeof video_enabled === 'boolean') setIsVideoEnabledState(video_enabled);
       /* eslint-enable camelcase */
     };
 
@@ -444,13 +442,6 @@ export function CallProvider({ children }: CallProviderProps) {
       setIsActiveCallReady(true);
     };
 
-    void sendWidgetAction(WIDGET_MEDIA_STATE_UPDATE_ACTION, {
-      audio_enabled: isAudioEnabled,
-      video_enabled: isVideoEnabled,
-    }).catch(() => {
-      // Widget transport may reject while call/session setup is still in progress.
-    });
-
     activeClientWidgetApi.on(`action:${WIDGET_HANGUP_ACTION}`, handleHangup);
     activeClientWidgetApi.on(`action:${WIDGET_MEDIA_STATE_UPDATE_ACTION}`, handleMediaStateUpdate);
     activeClientWidgetApi.on(`action:${WIDGET_TILE_UPDATE}`, handleOnTileLayout);
@@ -467,9 +458,6 @@ export function CallProvider({ children }: CallProviderProps) {
       activeClientWidgetApi.off('action:io.bettercord.speaking', handleSpeaking as EventListener);
       activeClientWidgetApi.off('action:io.bettercord.participant_state', handleParticipantState as EventListener);
       activeClientWidgetApi.off('action:io.bettercord.screenshare_state', handleScreenshareState as EventListener);
-      setSpeakingUsers(new Set());
-      setParticipantStates(new Map());
-      setScreensharingUsers(new Set());
     };
   }, [
     activeClientWidgetIframeRef,
@@ -478,16 +466,30 @@ export function CallProvider({ children }: CallProviderProps) {
     activeClientWidgetApiRoomId,
     hangUp,
     isChatOpen,
-    isAudioEnabled,
-    isVideoEnabled,
-    isActiveCallReady,
     viewedRoomId,
     viewedCallRoomId,
     setViewedCallRoomId,
     activeClientWidget?.iframe?.contentDocument,
     activeClientWidget?.iframe?.contentWindow?.document,
-    sendWidgetAction,
   ]);
+
+  // Separate effect: sync mute state to EC whenever it changes (without re-registering listeners)
+  useEffect(() => {
+    if (!activeClientWidgetApi || !isActiveCallReady) return;
+    void activeClientWidgetApi.transport.send(WIDGET_MEDIA_STATE_UPDATE_ACTION as WidgetApiAction, {
+      audio_enabled: isAudioEnabled,
+      video_enabled: isVideoEnabled,
+    } as IWidgetApiRequestData).catch(() => {});
+  }, [isAudioEnabled, isVideoEnabled, isActiveCallReady, activeClientWidgetApi]);
+
+  // Clear real-time state only when call fully ends (activeCallRoomId → null)
+  useEffect(() => {
+    if (!activeCallRoomId) {
+      setSpeakingUsers(new Set());
+      setParticipantStates(new Map());
+      setScreensharingUsers(new Set());
+    }
+  }, [activeCallRoomId]);
 
   const toggleChat = useCallback(async () => {
     const newState = !isChatOpen;

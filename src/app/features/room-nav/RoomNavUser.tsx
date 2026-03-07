@@ -1,7 +1,6 @@
 import { Avatar, Badge, Box, Icon, Icons, Text } from 'folds';
 import React from 'react';
 import { Room } from 'matrix-js-sdk';
-import { CallMembership } from 'matrix-js-sdk/lib/matrixrtc/CallMembership';
 import { MicrophoneSlash, VideoCamera } from '@phosphor-icons/react';
 import { NavButton, NavItem, NavItemContent } from '../../components/nav';
 import { UserAvatar } from '../../components/user-avatar';
@@ -15,16 +14,15 @@ import { useSpaceOptionally } from '../../hooks/useSpace';
 
 type RoomNavUserProps = {
   room: Room;
-  callMembership: CallMembership;
+  userId: string;
 };
-export function RoomNavUser({ room, callMembership }: RoomNavUserProps) {
+export function RoomNavUser({ room, userId }: RoomNavUserProps) {
   const mx = useMatrixClient();
   const useAuthentication = useMediaAuthentication();
   const openProfile = useOpenUserRoomProfile();
   const space = useSpaceOptionally();
   const { isActiveCallReady, activeCallRoomId, speakingUsers, participantStates, screensharingUsers } = useCallState();
   const isActiveCall = isActiveCallReady && activeCallRoomId === room.roomId;
-  const userId = callMembership.sender ?? '';
   const avatarMxcUrl = getMemberAvatarMxc(room, userId);
   const avatarUrl = avatarMxcUrl
     ? mx.mxcUrlToHttp(avatarMxcUrl, 32, 32, 'crop', undefined, false, useAuthentication)
