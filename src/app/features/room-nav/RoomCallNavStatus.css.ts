@@ -43,8 +43,15 @@ export const SignalIconWrap = style({
   justifyContent: 'center',
   height: toRem(24),
   width: toRem(24),
-  color: 'var(--text-muted)',
   flexShrink: 0,
+});
+
+export const SignalConnected = style({
+  color: 'var(--status-online, #23a55a)',
+});
+
+export const SignalConnecting = style({
+  color: 'var(--text-muted)',
 });
 
 export const StatusLabel = style({
@@ -130,6 +137,47 @@ export const MediaSection = style({
   display: 'grid',
   gridTemplateColumns: 'repeat(2, 1fr)',
   gap: toRem(2),
+});
+
+export const MoreMenuWrap = style({
+  position: 'relative',
+});
+
+export const MoreMenu = style({
+  position: 'absolute',
+  bottom: `calc(100% + ${toRem(4)})`,
+  left: 0,
+  right: 0,
+  background: 'var(--background-floating, #111214)',
+  border: '1px solid var(--background-modifier-accent, #1e1f22)',
+  borderRadius: toRem(6),
+  padding: `${toRem(4)} 0`,
+  zIndex: 100,
+  minWidth: toRem(160),
+  boxShadow: '0 4px 16px rgba(0,0,0,0.4)',
+});
+
+export const MoreMenuItem = style({
+  display: 'flex',
+  alignItems: 'center',
+  gap: toRem(8),
+  width: '100%',
+  padding: `${toRem(6)} ${toRem(10)}`,
+  background: 'transparent',
+  border: 'none',
+  color: 'var(--interactive-normal)',
+  fontSize: toRem(13),
+  cursor: 'pointer',
+  textAlign: 'left',
+  selectors: {
+    '&:hover': {
+      background: 'var(--background-modifier-hover)',
+      color: 'var(--interactive-hover)',
+    },
+    '&[data-active=true]': {
+      color: 'var(--status-online, #23a55a)',
+    },
+  },
 });
 
 export const MediaButton = style({
