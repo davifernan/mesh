@@ -236,15 +236,21 @@ export function PersistentCallContainer({ children }: PersistentCallContainerPro
 
   return (
     <CallRefContext.Provider value={memoizedIframeRef}>
-      <Box grow="No">
+      <Box
+        grow="Yes"
+        style={{
+          minWidth: 0,
+          display: isMobile && isChatOpen ? 'none' : undefined,
+          width: isMobile && isChatOpen ? 0 : undefined,
+        }}
+      >
         <Box
           direction="Column"
           style={{
             position: 'relative',
             zIndex: 0,
-            display: isMobile && isChatOpen ? 'none' : 'flex',
-            width: isMobile && isChatOpen ? '0%' : '100%',
-            height: isMobile && isChatOpen ? '0%' : '100%',
+            width: '100%',
+            height: '100%',
           }}
         >
           <Box
