@@ -1,5 +1,6 @@
 import React from 'react';
 import { Icon, Icons } from 'folds';
+import { Compass } from '@phosphor-icons/react';
 import { useNavigate } from 'react-router-dom';
 import { useAtomValue } from 'jotai';
 import { SidebarAvatar, SidebarItem, SidebarItemTooltip } from '../../../components/sidebar';
@@ -55,7 +56,7 @@ export function ExploreTab() {
       <SidebarItemTooltip tooltip="Explore Community">
         {(triggerRef) => (
           <SidebarAvatar as="button" ref={triggerRef} outlined aria-label="Explore Community" onClick={handleExploreClick}>
-            <Icon src={Icons.Explore} filled={exploreSelected} />
+            <Compass size={24} weight={exploreSelected ? 'fill' : 'regular'} />
           </SidebarAvatar>
         )}
       </SidebarItemTooltip>

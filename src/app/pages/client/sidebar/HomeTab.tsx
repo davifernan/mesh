@@ -1,6 +1,7 @@
 import React, { MouseEventHandler, forwardRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Box, Icon, Icons, Line, Menu, MenuItem, PopOut, RectCords, Text, config, toRem } from 'folds';
+import { House } from '@phosphor-icons/react';
 import { useAtomValue } from 'jotai';
 import FocusTrap from 'focus-trap-react';
 import { useOrphanRooms } from '../../../state/hooks/roomList';
@@ -138,7 +139,7 @@ export function HomeTab() {
             onClick={handleHomeClick}
             onContextMenu={handleContextMenu}
           >
-            <Icon src={Icons.Home} filled={homeSelected} />
+            <House size={24} weight={homeSelected ? 'fill' : 'regular'} />
           </SidebarAvatar>
         )}
       </SidebarItemTooltip>

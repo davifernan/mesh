@@ -186,3 +186,134 @@ html.reduced-motion * {
     -webkit-user-select: auto !important;
   }
 }
+
+/* ============================================
+   Phase 4: Discord-style Message UI
+   ============================================ */
+
+/* Message row: remove old Cinny border-radius + add hover */
+[data-timeline-message] {
+  border-radius: 0 !important;
+  transition: background-color 100ms ease;
+  padding-left: 16px !important;
+  padding-right: 16px !important;
+}
+
+[data-timeline-message]:hover {
+  background-color: var(--background-modifier-hover) !important;
+}
+
+/* Message is "selected" (context menu open) = darker bg */
+[data-timeline-message]:focus-within {
+  background-color: var(--background-modifier-hover) !important;
+}
+
+/* Mention highlight: yellow left-border + tinted bg */
+[data-timeline-message][data-mention="true"] {
+  background-color: var(--message-mention-bg) !important;
+}
+[data-timeline-message][data-mention="true"]::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background: var(--message-mention-color);
+}
+
+/* Username: Discord medium-weight, colored */
+[data-timeline-message] [data-user-id] b,
+[data-timeline-message] [data-user-id] strong {
+  font-weight: 500;
+}
+
+/* Timestamp: muted, small */
+[data-timeline-message] time {
+  color: var(--text-muted) !important;
+  font-size: 0.75rem !important;
+}
+
+/* Message text body */
+[data-timeline-message] p,
+[data-timeline-message] [class*="MessageTextBody"] {
+  color: var(--text-primary);
+  font-size: 1rem;
+  line-height: 1.375rem;
+}
+
+/* Hover actions bar: Discord-style floating pill */
+[data-timeline-message] [role="menu"] {
+  background-color: var(--background-floating) !important;
+  border: 1px solid var(--background-modifier-accent) !important;
+  border-radius: 4px !important;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4) !important;
+  padding: 2px !important;
+}
+
+[data-timeline-message] [role="menu"] button {
+  border-radius: 4px !important;
+  width: 32px !important;
+  height: 32px !important;
+  color: var(--text-secondary) !important;
+}
+
+[data-timeline-message] [role="menu"] button:hover {
+  background-color: var(--background-modifier-hover) !important;
+  color: var(--text-primary) !important;
+}
+
+/* Reply spine */
+[class*="ReplyLine"],
+[class*="replyLine"] {
+  border-color: var(--text-muted) !important;
+}
+
+/* Message code blocks: Discord dark mono style */
+[data-timeline-message] code {
+  background-color: var(--background-secondary) !important;
+  border: none !important;
+  border-radius: 3px !important;
+  font-family: var(--font-mono) !important;
+  font-size: 0.875em !important;
+  padding: 0.2em 0.4em !important;
+  color: var(--text-primary) !important;
+}
+
+[data-timeline-message] pre > code {
+  padding: 0 !important;
+  background: transparent !important;
+}
+
+[data-timeline-message] pre {
+  background-color: var(--background-secondary) !important;
+  border: 1px solid var(--background-modifier-accent) !important;
+  border-radius: 4px !important;
+  padding: 0.5rem 1rem !important;
+  margin: 0.25rem 0 !important;
+}
+
+/* Reaction pills: Discord style */
+[data-timeline-message] [class*="Reaction"],
+[data-timeline-message] [class*="reaction"] {
+  background-color: var(--background-secondary) !important;
+  border: 1px solid var(--background-modifier-accent) !important;
+  border-radius: 8px !important;
+}
+
+/* Avatar in message: 40px, circular */
+[data-timeline-message] [class*="Avatar"] img,
+[data-timeline-message] [class*="Avatar"] [class*="avatar"] {
+  width: 40px !important;
+  height: 40px !important;
+  border-radius: 50% !important;
+}
+
+/* Grouped message (collapse=true): show timestamp on hover */
+[data-timeline-message] [class*="AvatarBase"] time {
+  opacity: 0;
+  transition: opacity 100ms ease;
+}
+[data-timeline-message]:hover [class*="AvatarBase"] time {
+  opacity: 1;
+}

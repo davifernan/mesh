@@ -1,5 +1,6 @@
 import React, { MouseEventHandler, useState } from 'react';
 import { Box, config, Icon, Icons, Menu, PopOut, RectCords, Text } from 'folds';
+import { Plus } from '@phosphor-icons/react';
 import FocusTrap from 'focus-trap-react';
 import { useNavigate } from 'react-router-dom';
 import { SidebarAvatar, SidebarItem, SidebarItemTooltip } from '../../../components/sidebar';
@@ -109,7 +110,7 @@ export function CreateTab() {
               aria-label="Add Space"
               onClick={handleMenu}
             >
-              <Icon src={Icons.Plus} />
+              <Plus size={22} weight="bold" />
             </SidebarAvatar>
             {joinAddress && (
               <JoinAddressPrompt
