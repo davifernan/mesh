@@ -1,5 +1,5 @@
 import { style } from '@vanilla-extract/css';
-import { config } from 'folds';
+import { config, toRem } from 'folds';
 
 export const Actions = style({
   padding: config.space.S200,
@@ -18,4 +18,143 @@ export const RoomButton = style({
 export const RoomName = style({
   flexGrow: 1,
   minWidth: 0,
+});
+
+/* --- Fluxer-style active call voice panel --- */
+
+export const VoiceContainer = style({
+  display: 'flex',
+  flexDirection: 'column',
+  gap: toRem(6),
+  padding: `${toRem(6)} ${toRem(8)}`,
+  flexShrink: 0,
+});
+
+export const StatusRow = style({
+  display: 'flex',
+  alignItems: 'center',
+  gap: toRem(4),
+  minWidth: 0,
+});
+
+export const SignalIconWrap = style({
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  height: toRem(24),
+  width: toRem(24),
+  color: 'var(--text-muted)',
+  flexShrink: 0,
+});
+
+export const StatusLabel = style({
+  flex: 1,
+  minWidth: 0,
+  fontWeight: 600,
+  fontSize: toRem(14),
+  lineHeight: toRem(18),
+  background: 'none',
+  border: 'none',
+  padding: 0,
+  textAlign: 'left',
+  cursor: 'pointer',
+  userSelect: 'none',
+  color: 'var(--text-normal)',
+});
+
+export const StatusConnected = style({
+  color: 'var(--status-online, #23a55a)',
+});
+
+export const StatusConnecting = style({
+  color: 'var(--text-muted)',
+});
+
+export const Controls = style({
+  display: 'flex',
+  alignItems: 'center',
+  gap: toRem(4),
+  flexShrink: 0,
+});
+
+export const ControlButton = style({
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  height: toRem(32),
+  width: toRem(32),
+  background: 'transparent',
+  color: 'var(--interactive-normal)',
+  border: 'none',
+  borderRadius: toRem(4),
+  cursor: 'pointer',
+  padding: 0,
+  flexShrink: 0,
+  selectors: {
+    '&:hover': {
+      background: 'var(--background-modifier-hover)',
+      color: 'var(--interactive-hover)',
+    },
+  },
+});
+
+export const ChannelSourceRow = style({
+  display: 'flex',
+  alignItems: 'center',
+  minWidth: 0,
+});
+
+export const ChannelSourceLink = style({
+  display: 'inline-flex',
+  alignItems: 'center',
+  minWidth: 0,
+  maxWidth: '100%',
+  border: 'none',
+  background: 'transparent',
+  padding: 0,
+  fontSize: toRem(12),
+  lineHeight: toRem(16),
+  color: 'var(--text-muted)',
+  cursor: 'pointer',
+  overflow: 'hidden',
+  textOverflow: 'ellipsis',
+  whiteSpace: 'nowrap',
+  selectors: {
+    '&:hover': {
+      textDecoration: 'underline',
+    },
+  },
+});
+
+export const MediaSection = style({
+  display: 'grid',
+  gridTemplateColumns: 'repeat(2, 1fr)',
+  gap: toRem(2),
+});
+
+export const MediaButton = style({
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  height: toRem(32),
+  width: '100%',
+  background: 'var(--background-modifier-hover)',
+  color: 'var(--interactive-normal)',
+  border: 'none',
+  borderRadius: toRem(4),
+  cursor: 'pointer',
+  padding: 0,
+  selectors: {
+    '&:hover': {
+      background: 'var(--background-modifier-selected)',
+      color: 'var(--interactive-hover)',
+    },
+    '&[data-active=true]': {
+      background: 'rgba(35, 165, 90, 0.15)',
+      color: 'var(--status-online, #23a55a)',
+    },
+    '&[data-muted=true]': {
+      color: 'var(--status-danger, #f23f42)',
+    },
+  },
 });

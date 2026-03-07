@@ -11,6 +11,14 @@ import {
   TooltipProvider,
   color,
 } from 'folds';
+import {
+  WifiHigh,
+  PhoneDisconnect,
+  Microphone,
+  MicrophoneSlash,
+  VideoCamera,
+  VideoCameraSlash,
+} from '@phosphor-icons/react';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useAtomValue } from 'jotai';
 import { EventType } from 'matrix-js-sdk';
@@ -401,105 +409,122 @@ export function CallNavStatus() {
     );
   }
 
-  // Active call
+  // Active call — Fluxer-style voice connection panel
   return (
     <Box direction="Column" shrink="No">
       <Line variant="Surface" size="300" />
-      <Box className={css.Actions} direction="Row" alignItems="Center" gap="100">
-        <Box className={css.RoomButtonWrap} grow="Yes">
+      <div className={css.VoiceContainer}>
+        {/* Status row: signal icon + status text + disconnect */}
+        <div className={css.StatusRow}>
+          <div className={css.SignalIconWrap}>
+            {isConnected ? (
+              <WifiHigh size={16} weight="fill" />
+            ) : (
+              <Spinner size="300" variant="Secondary" />
+            )}
+          </div>
+          <button
+            type="button"
+            className={`${css.StatusLabel} ${isConnected ? css.StatusConnected : css.StatusConnecting}`}
+            onClick={() => activeCallRoomId && navigateRoom(activeCallRoomId)}
+            aria-label="Go to voice channel"
+          >
+            {isConnected ? 'Voice Connected' : 'Connecting...'}
+          </button>
+          <div className={css.Controls}>
+            <TooltipProvider
+              position="Top"
+              offset={4}
+              tooltip={<Tooltip><Text>Hang Up</Text></Tooltip>}
+            >
+              {(triggerRef) => (
+                <button
+                  type="button"
+                  className={css.ControlButton}
+                  ref={triggerRef}
+                  aria-label="Hang up"
+                  onClick={() => {
+                    if (activeCallRoomId) {
+                      timedOutCalls.add(activeCallRoomId);
+                      hungUpCalls.add(activeCallRoomId);
+                      dismissedRef.current.add(activeCallRoomId);
+                    }
+                    hangUp();
+                  }}
+                >
+                  <PhoneDisconnect size={20} weight="fill" />
+                </button>
+              )}
+            </TooltipProvider>
+          </div>
+        </div>
+
+        {/* Channel source row: room name link */}
+        <div className={css.ChannelSourceRow}>
+          <button
+            type="button"
+            className={css.ChannelSourceLink}
+            onClick={() => activeCallRoomId && navigateRoom(activeCallRoomId)}
+            aria-label="Go to room"
+          >
+            {activeCallRoomId ? mx.getRoom(activeCallRoomId)?.name ?? activeCallRoomId : ''}
+          </button>
+        </div>
+
+        {/* Media section: mute + video (2-column grid) */}
+        <div className={css.MediaSection}>
           <TooltipProvider
             position="Top"
             offset={4}
-            tooltip={
-              <Tooltip>
-                <Text>Go to Room</Text>
-              </Tooltip>
-            }
+            tooltip={<Tooltip><Text>{isAudioEnabled ? 'Mute' : 'Unmute'}</Text></Tooltip>}
           >
             {(triggerRef) => (
-              <Chip
-                size="500"
-                fill="Soft"
-                as="button"
-                onClick={() => activeCallRoomId && navigateRoom(activeCallRoomId)}
+              <button
+                type="button"
+                className={css.MediaButton}
+                data-muted={!isAudioEnabled}
                 ref={triggerRef}
-                className={css.RoomButton}
+                aria-label={isAudioEnabled ? 'Mute microphone' : 'Unmute microphone'}
+                onClick={() => {
+                  toggleAudio();
+                  announce(isAudioEnabled ? 'Microphone muted' : 'Microphone unmuted');
+                }}
               >
-                {isConnected ? (
-                  <Icon size="300" src={Icons.VolumeHigh} style={{ color: color.Success.Main }} />
+                {isAudioEnabled ? (
+                  <Microphone size={20} weight="fill" />
                 ) : (
-                  <Spinner size="300" variant="Secondary" />
+                  <MicrophoneSlash size={20} weight="fill" />
                 )}
-                <Text
-                  as="span"
-                  size="L400"
-                  style={{ color: isConnected ? color.Success.Main : color.Warning.Main }}
-                >
-                  {isConnected ? 'Connected' : 'Connecting'}
-                </Text>
-              </Chip>
+              </button>
             )}
           </TooltipProvider>
-        </Box>
-        <TooltipProvider
-          position="Top"
-          offset={4}
-          tooltip={
-            <Tooltip>
-              <Text>Hang Up</Text>
-            </Tooltip>
-          }
-        >
-          {(triggerRef) => (
-            <IconButton
-              fill="None"
-              size="300"
-              ref={triggerRef}
-              aria-label="Hang up"
-              onClick={() => {
-                if (activeCallRoomId) {
-                  timedOutCalls.add(activeCallRoomId);
-                  hungUpCalls.add(activeCallRoomId);
-                  dismissedRef.current.add(activeCallRoomId);
-                }
-                hangUp();
-              }}
-            >
-              <Icon src={Icons.PhoneDown} />
-            </IconButton>
-          )}
-        </TooltipProvider>
-        <TooltipProvider
-          position="Top"
-          offset={4}
-          tooltip={
-            <Tooltip>
-              <Text>{!isAudioEnabled ? 'Unmute' : 'Mute'}</Text>
-            </Tooltip>
-          }
-        >
-          {(triggerRef) => (
-            <IconButton fill="None" size="300" ref={triggerRef} aria-label={isAudioEnabled ? 'Mute microphone' : 'Unmute microphone'} onClick={() => { toggleAudio(); announce(isAudioEnabled ? 'Microphone muted' : 'Microphone unmuted'); }}>
-              <Icon src={!isAudioEnabled ? Icons.MicMute : Icons.Mic} />
-            </IconButton>
-          )}
-        </TooltipProvider>
-        <TooltipProvider
-          position="Top"
-          offset={4}
-          tooltip={
-            <Tooltip>
-              <Text>{!isVideoEnabled ? 'Video On' : 'Video Off'}</Text>
-            </Tooltip>
-          }
-        >
-          {(triggerRef) => (
-            <IconButton fill="None" size="300" ref={triggerRef} aria-label={isVideoEnabled ? 'Turn off camera' : 'Turn on camera'} onClick={() => { toggleVideo(); announce(isVideoEnabled ? 'Camera off' : 'Camera on'); }}>
-              <Icon src={!isVideoEnabled ? Icons.VideoCameraMute : Icons.VideoCamera} />
-            </IconButton>
-          )}
-        </TooltipProvider>
-      </Box>
+          <TooltipProvider
+            position="Top"
+            offset={4}
+            tooltip={<Tooltip><Text>{isVideoEnabled ? 'Video Off' : 'Video On'}</Text></Tooltip>}
+          >
+            {(triggerRef) => (
+              <button
+                type="button"
+                className={css.MediaButton}
+                data-active={isVideoEnabled}
+                ref={triggerRef}
+                aria-label={isVideoEnabled ? 'Turn off camera' : 'Turn on camera'}
+                onClick={() => {
+                  toggleVideo();
+                  announce(isVideoEnabled ? 'Camera off' : 'Camera on');
+                }}
+              >
+                {isVideoEnabled ? (
+                  <VideoCamera size={20} weight="fill" />
+                ) : (
+                  <VideoCameraSlash size={20} weight="fill" />
+                )}
+              </button>
+            )}
+          </TooltipProvider>
+        </div>
+      </div>
     </Box>
   );
 }

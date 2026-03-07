@@ -7,13 +7,25 @@ import {
   Icon,
   IconButton,
   Icons,
-  IconSrc,
   MenuItem,
   Overlay,
   OverlayBackdrop,
   OverlayCenter,
   Text,
 } from 'folds';
+import {
+  UserCircle,
+  Bell,
+  Microphone,
+  Monitor,
+  SmileySticker,
+  Code,
+  Info,
+  Keyboard,
+  Sliders,
+  SignOut,
+} from '@phosphor-icons/react';
+import type { Icon as PhosphorIcon } from '@phosphor-icons/react';
 import FocusTrap from 'focus-trap-react';
 import { General } from './general';
 import { PageNav, PageNavContent, PageNavHeader, PageRoot } from '../../components/page';
@@ -30,6 +42,7 @@ import { EmojisStickers } from './emojis-stickers';
 import { DeveloperTools } from './developer-tools';
 import { About } from './about';
 import { KeyboardShortcuts } from './keyboard-shortcuts/KeyboardShortcuts';
+import { VoiceVideo } from './voice-video';
 import { UseStateProvider } from '../../components/UseStateProvider';
 import { stopPropagation } from '../../utils/keyboard';
 import { LogoutDialog } from '../../components/LogoutDialog';
@@ -38,6 +51,7 @@ export enum SettingsPages {
   GeneralPage,
   AccountPage,
   NotificationPage,
+  VoiceVideoPage,
   DevicesPage,
   EmojisStickersPage,
   DeveloperToolsPage,
@@ -48,55 +62,40 @@ export enum SettingsPages {
 type SettingsMenuItem = {
   page: SettingsPages;
   name: string;
-  icon: IconSrc;
+  PhosphorIcon: React.ComponentType<{ size?: number; weight?: 'regular' | 'bold' | 'fill' }>;
 };
 
-const useSettingsMenuItems = (): SettingsMenuItem[] =>
-  useMemo(
-    () => [
-      {
-        page: SettingsPages.GeneralPage,
-        name: 'General',
-        icon: Icons.Setting,
-      },
-      {
-        page: SettingsPages.AccountPage,
-        name: 'Account',
-        icon: Icons.User,
-      },
-      {
-        page: SettingsPages.NotificationPage,
-        name: 'Notifications',
-        icon: Icons.Bell,
-      },
-      {
-        page: SettingsPages.DevicesPage,
-        name: 'Devices',
-        icon: Icons.Monitor,
-      },
-      {
-        page: SettingsPages.EmojisStickersPage,
-        name: 'Emojis & Stickers',
-        icon: Icons.Smile,
-      },
-      {
-        page: SettingsPages.DeveloperToolsPage,
-        name: 'Developer Tools',
-        icon: Icons.Terminal,
-      },
-      {
-        page: SettingsPages.AboutPage,
-        name: 'About',
-        icon: Icons.Info,
-      },
-      {
-        page: SettingsPages.KeyboardShortcutsPage,
-        name: 'Keyboard Shortcuts',
-        icon: Icons.Alphabet,
-      },
+type SettingsMenuCategory = {
+  label: string;
+  items: SettingsMenuItem[];
+};
+
+const SETTINGS_CATEGORIES: SettingsMenuCategory[] = [
+  {
+    label: 'MY ACCOUNT',
+    items: [
+      { page: SettingsPages.AccountPage, name: 'Account', PhosphorIcon: UserCircle },
     ],
-    []
-  );
+  },
+  {
+    label: 'APP SETTINGS',
+    items: [
+      { page: SettingsPages.GeneralPage, name: 'General', PhosphorIcon: Sliders },
+      { page: SettingsPages.NotificationPage, name: 'Notifications', PhosphorIcon: Bell },
+      { page: SettingsPages.VoiceVideoPage, name: 'Voice & Video', PhosphorIcon: Microphone },
+      { page: SettingsPages.EmojisStickersPage, name: 'Emojis & Stickers', PhosphorIcon: SmileySticker },
+    ],
+  },
+  {
+    label: 'ADVANCED',
+    items: [
+      { page: SettingsPages.DevicesPage, name: 'Devices', PhosphorIcon: Monitor },
+      { page: SettingsPages.KeyboardShortcutsPage, name: 'Keyboard Shortcuts', PhosphorIcon: Keyboard },
+      { page: SettingsPages.DeveloperToolsPage, name: 'Developer Tools', PhosphorIcon: Code },
+      { page: SettingsPages.AboutPage, name: 'About', PhosphorIcon: Info },
+    ],
+  },
+];
 
 type SettingsProps = {
   initialPage?: SettingsPages;
@@ -116,7 +115,6 @@ export function Settings({ initialPage, requestClose }: SettingsProps) {
     if (initialPage) return initialPage;
     return screenSize === ScreenSize.Mobile ? undefined : SettingsPages.GeneralPage;
   });
-  const menuItems = useSettingsMenuItems();
 
   const handlePageRequestClose = () => {
     if (screenSize === ScreenSize.Mobile) {
@@ -154,28 +152,54 @@ export function Settings({ initialPage, requestClose }: SettingsProps) {
             </PageNavHeader>
             <Box grow="Yes" direction="Column">
               <PageNavContent>
-                <div style={{ flexGrow: 1 }}>
-                  {menuItems.map((item) => (
-                    <MenuItem
-                      key={item.name}
-                      variant="Background"
-                      radii="400"
-                      aria-pressed={activePage === item.page}
-                      before={<Icon src={item.icon} size="100" filled={activePage === item.page} />}
-                      onClick={() => setActivePage(item.page)}
-                    >
+                <Box direction="Column" gap="400">
+                  {SETTINGS_CATEGORIES.map((category) => (
+                    <Box key={category.label} direction="Column" gap="100">
                       <Text
+                        size="L400"
+                        priority="300"
                         style={{
-                          fontWeight: activePage === item.page ? config.fontWeight.W600 : undefined,
+                          padding: `0 ${config.space.S300}`,
+                          fontSize: '0.6875rem',
+                          fontWeight: 700,
+                          letterSpacing: '0.04em',
+                          textTransform: 'uppercase',
+                          color: 'var(--text-muted)',
                         }}
-                        size="T300"
-                        truncate
                       >
-                        {item.name}
+                        {category.label}
                       </Text>
-                    </MenuItem>
+                      {category.items.map((item) => {
+                        const isActive = activePage === item.page;
+                        return (
+                          <MenuItem
+                            key={item.name}
+                            variant="Background"
+                            radii="400"
+                            aria-pressed={isActive}
+                            before={
+                              <item.PhosphorIcon
+                                size={18}
+                                weight={isActive ? 'fill' : 'regular'}
+                              />
+                            }
+                            onClick={() => setActivePage(item.page)}
+                          >
+                            <Text
+                              style={{
+                                fontWeight: isActive ? config.fontWeight.W600 : undefined,
+                              }}
+                              size="T300"
+                              truncate
+                            >
+                              {item.name}
+                            </Text>
+                          </MenuItem>
+                        );
+                      })}
+                    </Box>
                   ))}
-                </div>
+                </Box>
               </PageNavContent>
               <Box style={{ padding: config.space.S200 }} shrink="No" direction="Column">
                 <UseStateProvider initial={false}>
@@ -186,7 +210,7 @@ export function Settings({ initialPage, requestClose }: SettingsProps) {
                         variant="Critical"
                         fill="None"
                         radii="Pill"
-                        before={<Icon src={Icons.Power} size="100" />}
+                        before={<SignOut size={16} weight="bold" />}
                         onClick={() => setLogout(true)}
                       >
                         <Text size="B400">Logout</Text>
@@ -223,6 +247,9 @@ export function Settings({ initialPage, requestClose }: SettingsProps) {
       )}
       {activePage === SettingsPages.NotificationPage && (
         <Notifications requestClose={handlePageRequestClose} />
+      )}
+      {activePage === SettingsPages.VoiceVideoPage && (
+        <VoiceVideo requestClose={handlePageRequestClose} />
       )}
       {activePage === SettingsPages.DevicesPage && (
         <Devices requestClose={handlePageRequestClose} />

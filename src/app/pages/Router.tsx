@@ -73,6 +73,7 @@ import { PersistentCallContainer } from './client/call/PersistentCallContainer';
 import { IncomingCallNotification } from '../features/call/IncomingCallNotification';
 import { GlobalKeyboardShortcuts } from '../components/GlobalKeyboardShortcuts';
 import { getFallbackSession } from '../state/sessions';
+import { MobileBottomNav } from '../components/mobile-bottom-nav';
 
 export const createRouter = (clientConfig: ClientConfig, screenSize: ScreenSize, basePath?: string) => {
   const { hashRouter } = clientConfig;
@@ -158,6 +159,7 @@ export const createRouter = (clientConfig: ClientConfig, screenSize: ScreenSize,
                           }}
                         />
                       </CallProvider>
+                      <MobileBottomNav />
                       <SearchModalRenderer />
                       <UserRoomProfileRenderer />
                       <CreateRoomModalRenderer />

@@ -50,6 +50,17 @@ export interface Settings {
   callRingtoneUrl: string | null;
   callAutoJoin: boolean;
 
+  // A/V Quality
+  audioBitrate: 32 | 64 | 128 | 256 | 510;
+  echoCancellation: boolean;
+  noiseSuppression: boolean;
+  autoGainControl: boolean;
+  videoResolution: '360p' | '480p' | '720p' | '1080p';
+  videoFps: 15 | 24 | 30;
+  ssResolution: '720p' | '1080p' | 'source';
+  ssFps: 5 | 15 | 30 | 60;
+  ssAudio: boolean;
+
   hour24Clock: boolean;
   dateFormatString: string;
 
@@ -92,6 +103,16 @@ const defaultSettings: Settings = {
   callRingScope: 'nonVoice',
   callRingtoneUrl: null,
   callAutoJoin: false,
+
+  audioBitrate: 64,
+  echoCancellation: true,
+  noiseSuppression: true,
+  autoGainControl: true,
+  videoResolution: '480p',
+  videoFps: 24,
+  ssResolution: '720p',
+  ssFps: 15,
+  ssAudio: false,
 
   hour24Clock: false,
   dateFormatString: 'D MMM YYYY',

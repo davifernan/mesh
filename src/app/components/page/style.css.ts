@@ -21,14 +21,16 @@ export type PageNavVariants = RecipeVariants<typeof PageNav>;
 
 export const PageNavHeader = recipe({
   base: {
-    padding: `0 ${config.space.S200} 0 ${config.space.S300}`,
+    padding: `0 ${config.space.S300}`,
     flexShrink: 0,
+    minHeight: toRem(56),
+    height: toRem(56),
     selectors: {
       'button&': {
         cursor: 'pointer',
       },
       'button&[aria-pressed=true]': {
-        backgroundColor: color.Background.ContainerActive,
+        backgroundColor: color.Background.ContainerHover,
       },
       'button&:hover, button&:focus-visible': {
         backgroundColor: color.Background.ContainerHover,
