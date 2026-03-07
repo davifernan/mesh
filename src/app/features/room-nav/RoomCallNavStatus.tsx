@@ -19,6 +19,9 @@ import {
   VideoCamera,
   VideoCameraSlash,
   Monitor,
+  DotsThree,
+  ChartBar,
+  Waveform,
 } from '@phosphor-icons/react';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useAtomValue } from 'jotai';
@@ -91,6 +94,7 @@ export function CallNavStatus() {
   } = useCallState();
 
   const [showSSModal, setShowSSModal] = useState(false);
+  const [showMoreMenu, setShowMoreMenu] = useState(false);
   const { navigateRoom } = useRoomNavigate();
 
   const [incomingCalls, setIncomingCalls] = useState<IncomingCall[]>([]);
@@ -437,7 +441,7 @@ export function CallNavStatus() {
       <div className={css.VoiceContainer}>
         {/* Status row: signal icon + status text + disconnect */}
         <div className={css.StatusRow}>
-          <div className={css.SignalIconWrap}>
+          <div className={`${css.SignalIconWrap} ${isConnected ? css.SignalConnected : css.SignalConnecting}`}>
             {isConnected ? (
               <WifiHigh size={16} weight="fill" />
             ) : (
@@ -492,8 +496,8 @@ export function CallNavStatus() {
           </button>
         </div>
 
-        {/* Media section: mute + video + screenshare (3-column grid) */}
-        <div className={css.MediaSection} style={{ gridTemplateColumns: 'repeat(3, 1fr)' }}>
+        {/* Media section: mute + video + screenshare + more (4-column grid) */}
+        <div className={css.MediaSection} style={{ gridTemplateColumns: 'repeat(4, 1fr)' }}>
           <TooltipProvider
             position="Top"
             offset={4}
@@ -561,6 +565,52 @@ export function CallNavStatus() {
               </button>
             )}
           </TooltipProvider>
+          {/* More menu: Stats + Noise Suppression */}
+          <div className={css.MoreMenuWrap}>
+            {showMoreMenu && (
+              <div className={css.MoreMenu}>
+                <button
+                  type="button"
+                  className={css.MoreMenuItem}
+                  onClick={() => {
+                    sendWidgetAction('io.bettercord.toggle_stats', {}).catch(() => {});
+                    setShowMoreMenu(false);
+                  }}
+                >
+                  <ChartBar size={14} weight="fill" />
+                  Connection Stats
+                </button>
+                <button
+                  type="button"
+                  className={css.MoreMenuItem}
+                  onClick={() => {
+                    sendWidgetAction('io.bettercord.toggle_noise', {}).catch(() => {});
+                    setShowMoreMenu(false);
+                  }}
+                >
+                  <Waveform size={14} weight="fill" />
+                  Noise Suppression
+                </button>
+              </div>
+            )}
+            <TooltipProvider
+              position="Top"
+              offset={4}
+              tooltip={<Tooltip><Text>Mehr</Text></Tooltip>}
+            >
+              {(triggerRef) => (
+                <button
+                  type="button"
+                  className={css.MediaButton}
+                  ref={triggerRef}
+                  aria-label="Mehr Optionen"
+                  onClick={() => setShowMoreMenu((v) => !v)}
+                >
+                  <DotsThree size={20} weight="bold" />
+                </button>
+              )}
+            </TooltipProvider>
+          </div>
         </div>
       </div>
     </Box>
