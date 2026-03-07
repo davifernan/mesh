@@ -1,5 +1,4 @@
 import React, { createContext, ReactNode, useCallback, useEffect, useMemo, useRef } from 'react';
-import { MatrixRTCSession } from 'matrix-js-sdk/lib/matrixrtc/MatrixRTCSession';
 import { ClientWidgetApi } from 'matrix-widget-api';
 import { useAtomValue } from 'jotai';
 import { useCallState } from './CallProvider';
@@ -29,9 +28,6 @@ export function PersistentCallContainer({ children }: PersistentCallContainerPro
   const callIframeRef = useRef<HTMLIFrameElement | null>(null);
   const callWidgetApiRef = useRef<ClientWidgetApi | null>(null);
   const callSmallWidgetRef = useRef<SmallWidget | null>(null);
-  // After a lobby join, reload EC with join_existing for proper in-call view.
-  const hasReloadedAfterLobbyRef = useRef(false);
-  const postLobbyIntentRef = useRef<'join_existing' | null>(null);
 
   const {
     activeCallRoomId,
@@ -39,8 +35,6 @@ export function PersistentCallContainer({ children }: PersistentCallContainerPro
     isActiveCallReady,
     registerActiveClientWidgetApi,
     activeClientWidget,
-    resetActiveCallReady,
-    hangUp,
   } = useCallState();
   const mx = useMatrixClient();
   const clientConfig = useClientConfig();
@@ -66,7 +60,6 @@ export function PersistentCallContainer({ children }: PersistentCallContainerPro
       iframeRef: React.MutableRefObject<HTMLIFrameElement | null>,
       autoJoin: boolean,
       themeKind: ThemeKind | null,
-      intentOverride?: 'join_existing',
       avSettings?: typeof effectiveAV,
     ) => {
       if (mx?.getUserId()) {
@@ -88,7 +81,6 @@ export function PersistentCallContainer({ children }: PersistentCallContainerPro
 
           const room = mx.getRoom(roomIdToSet);
           const { intent: intentParam, callIntentParam } = getCallIntentParams(room);
-          const effectiveIntent = intentOverride ?? intentParam;
 
           const widgetId = `element-call-${roomIdToSet}-${Date.now()}`;
           const newUrl = getWidgetUrl(
@@ -97,11 +89,11 @@ export function PersistentCallContainer({ children }: PersistentCallContainerPro
             clientConfig.elementCallUrl ?? '',
             widgetId,
             {
-              intent: effectiveIntent,
+              intent: intentParam,
               // Voice-channel rooms and autoJoin: skip lobby (instant join).
-              // Normal/DM rooms: show lobby ("Anruf beitreten") — omitting skipLobby
-              // lets BC-Call show its lobby. Post-lobby reload uses join_existing.
-              skipLobby: intentOverride === 'join_existing' ? true : (autoJoin || room?.isCallRoom() ? true : undefined),
+              // Normal/DM rooms: show lobby ("Anruf beitreten"). BC-Call handles
+              // the lobby → in-call transition itself, no reload needed.
+              skipLobby: autoJoin || room?.isCallRoom() ? true : undefined,
               returnToLobby: 'true',
               // Always per-participant E2EE — matching Element Web/X behaviour.
               // Passing false breaks key exchange even in unencrypted rooms.
@@ -175,45 +167,9 @@ export function PersistentCallContainer({ children }: PersistentCallContainerPro
     ],
   );
 
-  // After a lobby join, poll until the call membership has propagated,
-  // then reload with join_existing + skipLobby so the in-call grid appears.
-  useEffect(() => {
-    if (!activeCallRoomId) {
-      hasReloadedAfterLobbyRef.current = false;
-      return undefined;
-    }
-    if (isActiveCallReady && !hasReloadedAfterLobbyRef.current) {
-      const room = mx?.getRoom(activeCallRoomId);
-      if (room) {
-        hasReloadedAfterLobbyRef.current = true;
-        const POLL_INTERVAL_MS = 200;
-        const TIMEOUT_MS = 10000;
-        const startTime = Date.now();
-        const pollTimer = setInterval(() => {
-          if (MatrixRTCSession.callMembershipsForRoom(room).length > 0) {
-            clearInterval(pollTimer);
-            callSmallWidgetRef.current?.stopMessaging();
-            callWidgetApiRef.current = null;
-            callSmallWidgetRef.current = null;
-            registerActiveClientWidgetApi(activeCallRoomId, null, null, null);
-            postLobbyIntentRef.current = 'join_existing';
-            resetActiveCallReady();
-          } else if (Date.now() - startTime >= TIMEOUT_MS) {
-            clearInterval(pollTimer);
-            hangUp();
-          }
-        }, POLL_INTERVAL_MS);
-        return () => clearInterval(pollTimer);
-      }
-    }
-    return undefined;
-  }, [isActiveCallReady, activeCallRoomId, mx, registerActiveClientWidgetApi, resetActiveCallReady, hangUp]);
-
   useEffect(() => {
     if (activeCallRoomId) {
-      const intentOverride = postLobbyIntentRef.current ?? undefined;
-      postLobbyIntentRef.current = null;
-      setupWidget(callWidgetApiRef, callSmallWidgetRef, callIframeRef, callAutoJoin, theme.kind, intentOverride, effectiveAV);
+      setupWidget(callWidgetApiRef, callSmallWidgetRef, callIframeRef, callAutoJoin, theme.kind, effectiveAV);
     }
   }, [
     theme,

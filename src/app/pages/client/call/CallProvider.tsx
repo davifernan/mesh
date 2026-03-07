@@ -56,7 +56,6 @@ interface CallContextState {
   isChatOpen: boolean;
   isCallViewOpen: boolean;
   isActiveCallReady: boolean;
-  resetActiveCallReady: () => void;
   toggleAudio: () => Promise<void>;
   toggleVideo: () => Promise<void>;
   toggleChat: () => Promise<void>;
@@ -508,10 +507,6 @@ export function CallProvider({ children }: CallProviderProps) {
     setIsChatOpenState(newState);
   }, [isChatOpen]);
 
-  const resetActiveCallReady = useCallback(() => {
-    setIsActiveCallReady(false);
-  }, []);
-
   const toggleCallView = useCallback(() => {
     setIsCallViewOpenState((prev) => !prev);
   }, []);
@@ -532,7 +527,6 @@ export function CallProvider({ children }: CallProviderProps) {
       isAudioEnabled,
       isVideoEnabled,
       isActiveCallReady,
-      resetActiveCallReady,
       toggleAudio,
       toggleVideo,
       toggleChat,
@@ -556,7 +550,6 @@ export function CallProvider({ children }: CallProviderProps) {
       isAudioEnabled,
       isVideoEnabled,
       isActiveCallReady,
-      resetActiveCallReady,
       toggleAudio,
       toggleVideo,
       toggleChat,
