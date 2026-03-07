@@ -95,7 +95,20 @@ export function CallNavStatus() {
 
   const [showSSModal, setShowSSModal] = useState(false);
   const [showMoreMenu, setShowMoreMenu] = useState(false);
+  const moreMenuWrapRef = useRef<HTMLDivElement>(null);
   const { navigateRoom } = useRoomNavigate();
+
+  // Close more menu when clicking outside of it
+  useEffect(() => {
+    if (!showMoreMenu) return;
+    const handleOutsideClick = (e: MouseEvent) => {
+      if (moreMenuWrapRef.current && !moreMenuWrapRef.current.contains(e.target as Node)) {
+        setShowMoreMenu(false);
+      }
+    };
+    document.addEventListener('mousedown', handleOutsideClick);
+    return () => document.removeEventListener('mousedown', handleOutsideClick);
+  }, [showMoreMenu]);
 
   const [incomingCalls, setIncomingCalls] = useState<IncomingCall[]>([]);
   const [callPage, setCallPage] = useState(0);
@@ -551,14 +564,14 @@ export function CallNavStatus() {
           <TooltipProvider
             position="Top"
             offset={4}
-            tooltip={<Tooltip><Text>Bildschirm teilen</Text></Tooltip>}
+            tooltip={<Tooltip><Text>Share Screen</Text></Tooltip>}
           >
             {(triggerRef) => (
               <button
                 type="button"
                 className={css.MediaButton}
                 ref={triggerRef}
-                aria-label="Bildschirm teilen"
+                aria-label="Share screen"
                 onClick={() => setShowSSModal(true)}
               >
                 <Monitor size={20} weight="fill" />
@@ -566,7 +579,7 @@ export function CallNavStatus() {
             )}
           </TooltipProvider>
           {/* More menu: Stats + Noise Suppression */}
-          <div className={css.MoreMenuWrap}>
+          <div className={css.MoreMenuWrap} ref={moreMenuWrapRef}>
             {showMoreMenu && (
               <div className={css.MoreMenu}>
                 <button
@@ -596,14 +609,14 @@ export function CallNavStatus() {
             <TooltipProvider
               position="Top"
               offset={4}
-              tooltip={<Tooltip><Text>Mehr</Text></Tooltip>}
+              tooltip={<Tooltip><Text>More</Text></Tooltip>}
             >
               {(triggerRef) => (
                 <button
                   type="button"
                   className={css.MediaButton}
                   ref={triggerRef}
-                  aria-label="Mehr Optionen"
+                  aria-label="More options"
                   onClick={() => setShowMoreMenu((v) => !v)}
                 >
                   <DotsThree size={20} weight="bold" />
