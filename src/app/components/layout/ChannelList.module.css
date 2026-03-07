@@ -1,0 +1,219 @@
+/* Channel list sidebar styles */
+
+.channelListHeader {
+  height: var(--layout-header-height);
+  display: flex;
+  align-items: center;
+  padding: 0 var(--spacing-4);
+  border-bottom: 1px solid var(--user-area-divider-color);
+  flex-shrink: 0;
+  cursor: pointer;
+  user-select: none;
+}
+.channelListHeader:hover {
+  background-color: var(--background-modifier-hover);
+}
+
+.headerTitle {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text-primary);
+  flex: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.channelListScroll {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: var(--spacing-2) 0 var(--spacing-4) 0;
+  scrollbar-width: thin;
+  scrollbar-color: var(--background-modifier-accent) transparent;
+}
+
+/* Category header */
+.categoryHeader {
+  display: flex;
+  align-items: center;
+  padding: var(--spacing-4) var(--spacing-2) var(--spacing-1) var(--spacing-4);
+  text-transform: uppercase;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  color: var(--text-muted);
+  cursor: pointer;
+  user-select: none;
+}
+.categoryHeader:hover {
+  color: var(--text-secondary);
+}
+.categoryChevron {
+  width: 12px;
+  height: 12px;
+  margin-right: var(--spacing-1);
+  flex-shrink: 0;
+}
+
+/* Channel item */
+.channelItem {
+  display: flex;
+  align-items: center;
+  padding: var(--spacing-1) var(--spacing-2);
+  margin: 1px var(--spacing-2);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  user-select: none;
+  color: var(--text-muted);
+  font-size: 15px;
+  font-weight: 500;
+  min-height: 34px;
+  position: relative;
+  gap: var(--spacing-2);
+}
+.channelItem:hover {
+  background-color: var(--background-modifier-hover);
+  color: var(--text-secondary);
+}
+.channelItem.active {
+  background-color: var(--background-modifier-selected);
+  color: var(--text-primary);
+}
+.channelItem.unread {
+  color: var(--text-primary);
+  font-weight: 600;
+}
+
+.channelIcon {
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-muted);
+}
+.channelItem:hover .channelIcon,
+.channelItem.active .channelIcon {
+  color: var(--text-secondary);
+}
+
+.channelName {
+  flex: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Unread dot */
+.unreadDot {
+  width: 8px;
+  height: 8px;
+  border-radius: var(--radius-full);
+  background-color: var(--text-primary);
+  flex-shrink: 0;
+}
+
+/* User area at bottom */
+.userArea {
+  height: var(--layout-user-area-height);
+  min-height: var(--layout-user-area-height);
+  border-top: 1px solid var(--user-area-divider-color);
+  display: flex;
+  align-items: center;
+  padding: 0 var(--spacing-2);
+  gap: var(--spacing-2);
+  background-color: var(--panel-control-bg);
+  flex-shrink: 0;
+}
+
+.userInfo {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-2);
+  flex: 1;
+  min-width: 0;
+  cursor: pointer;
+  padding: var(--spacing-1) var(--spacing-2);
+  border-radius: var(--radius-md);
+}
+.userInfo:hover {
+  background-color: var(--background-modifier-hover);
+}
+
+.userAvatar {
+  position: relative;
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius-full);
+  flex-shrink: 0;
+  background-color: var(--brand-primary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.statusDot {
+  position: absolute;
+  bottom: -1px;
+  right: -1px;
+  width: 10px;
+  height: 10px;
+  border-radius: var(--radius-full);
+  border: 2px solid var(--panel-control-bg);
+  background-color: var(--status-online);
+}
+
+.userText {
+  flex: 1;
+  min-width: 0;
+}
+.userName {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  line-height: 1.2;
+}
+.userTag {
+  font-size: 11px;
+  color: var(--text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  line-height: 1.2;
+}
+
+/* Control buttons */
+.userControls {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-1);
+  flex-shrink: 0;
+}
+.controlBtn {
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius-md);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: var(--text-muted);
+  background: transparent;
+  border: none;
+  transition: background-color 150ms, color 150ms;
+}
+.controlBtn:hover {
+  background-color: var(--background-modifier-hover);
+  color: var(--text-primary);
+}
+.controlBtn.active {
+  color: var(--text-danger);
+}

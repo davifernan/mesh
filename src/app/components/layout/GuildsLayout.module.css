@@ -1,0 +1,159 @@
+/* BetterCord - Fluxer/Discord 3-Column Layout */
+
+.guildsLayout {
+  display: grid;
+  grid-template-columns: var(--layout-guild-list-width) minmax(0, 1fr);
+  height: 100svh;
+  width: 100%;
+  overflow: hidden;
+  background-color: var(--background-tertiary);
+}
+
+/* Left column: Guild/Space icon list */
+.guildListColumn {
+  width: var(--layout-guild-list-width);
+  height: 100%;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  background-color: var(--background-tertiary);
+  padding: var(--spacing-3) 0;
+  overflow-y: auto;
+  scrollbar-width: none;
+}
+.guildListColumn::-webkit-scrollbar {
+  display: none;
+}
+
+/* Right section: channel list + main content */
+.contentContainer {
+  display: flex;
+  flex-direction: row;
+  height: 100%;
+  overflow: hidden;
+  background-color: var(--background-primary);
+  border-radius: 8px 0 0 0; /* Discord top-left rounded corner */
+}
+
+/* Channel list sidebar */
+.channelListColumn {
+  width: var(--layout-sidebar-width);
+  min-width: var(--layout-sidebar-width);
+  max-width: var(--layout-sidebar-width);
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  background-color: var(--background-secondary);
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+/* Main content area (messages) */
+.mainContent {
+  flex: 1;
+  min-width: 0;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  background-color: var(--background-primary);
+  overflow: hidden;
+}
+
+/* Separator pill between DMs and spaces */
+.guildSeparator {
+  width: 32px;
+  height: 2px;
+  background-color: var(--background-modifier-accent);
+  border-radius: var(--radius-full);
+  margin: var(--spacing-1) 0;
+  flex-shrink: 0;
+}
+
+/* Guild/Space icon button */
+.guildIconWrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: var(--layout-guild-list-width);
+  flex-shrink: 0;
+}
+
+/* Pill indicator on the left */
+.guildPill {
+  position: absolute;
+  left: 0;
+  width: 4px;
+  border-radius: 0 4px 4px 0;
+  background: var(--text-primary);
+  transition: height 200ms ease, opacity 200ms ease;
+  opacity: 0;
+  height: 8px;
+}
+.guildIconWrapper:hover .guildPill {
+  opacity: 1;
+  height: 20px;
+}
+.guildIconWrapper.active .guildPill {
+  opacity: 1;
+  height: 40px;
+}
+
+/* The actual icon */
+.guildIcon {
+  width: 48px;
+  height: 48px;
+  border-radius: var(--radius-full);
+  transition: border-radius 150ms ease-out, background-color 150ms ease-out;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  overflow: hidden;
+  background-color: var(--background-primary);
+  color: var(--text-secondary);
+  font-size: 18px;
+  font-weight: 600;
+  user-select: none;
+}
+.guildIconWrapper:hover .guildIcon,
+.guildIconWrapper.active .guildIcon {
+  border-radius: 30%;
+}
+.guildIconWrapper.active .guildIcon {
+  background-color: var(--brand-primary);
+  color: white;
+}
+.guildIconWrapper:hover:not(.active) .guildIcon {
+  background-color: var(--brand-primary);
+  color: white;
+}
+
+/* Home button (DMs) - special icon */
+.homeIcon {
+  background-color: var(--background-primary);
+  color: var(--brand-primary);
+}
+.guildIconWrapper:hover .homeIcon,
+.guildIconWrapper.active .homeIcon {
+  background-color: var(--brand-primary);
+  color: white;
+}
+
+/* Mobile layout */
+@media (max-width: 840px) {
+  .guildsLayout {
+    grid-template-columns: 1fr;
+  }
+  .guildListColumn {
+    display: none;
+  }
+  .channelListColumn {
+    display: none;
+  }
+  .contentContainer {
+    border-radius: 0;
+  }
+}

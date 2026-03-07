@@ -133,6 +133,42 @@ html {
   font-optical-sizing: auto;
 }
 
+/* ============================================
+   BetterCord: Discord-like UI Overrides
+   Override Folds/Cinny components
+   ============================================ */
+
+/* Make sidebar icon bar look like Discord's guild list */
+[aria-label="Main navigation"] {
+  background-color: var(--background-tertiary) !important;
+  border-right: none !important;
+  width: 72px !important;
+}
+
+/* Channel list panels use Discord's sidebar color */
+[data-ui-kind="PageNav"],
+[class*="PageNav"] {
+  background-color: var(--background-secondary) !important;
+}
+
+/* Main chat area */
+[data-ui-kind="Page"],
+[class*="PageContent"] {
+  background-color: var(--background-primary) !important;
+}
+
+/* Apply IBM Plex font to all Folds components */
+body {
+  font-family: var(--font-sans) !important;
+}
+
+/* Discord-style header bar */
+[class*="RoomViewHeader"],
+[class*="PageHeader"] {
+  border-bottom: 1px solid var(--background-modifier-accent) !important;
+  background-color: var(--background-primary) !important;
+}
+
 /* Reduced motion */
 html.reduced-motion * {
   animation-duration: 0.01ms !important;
