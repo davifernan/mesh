@@ -1,5 +1,6 @@
 import React, { createContext, ReactNode, useCallback, useEffect, useMemo, useRef } from 'react';
-import { ClientWidgetApi, WidgetApiAction } from 'matrix-widget-api';
+import { MatrixRTCSession } from 'matrix-js-sdk/lib/matrixrtc/MatrixRTCSession';
+import { ClientWidgetApi } from 'matrix-widget-api';
 import { useAtomValue } from 'jotai';
 import { useCallState } from './CallProvider';
 import {
@@ -27,8 +28,9 @@ export function PersistentCallContainer({ children }: PersistentCallContainerPro
   const callIframeRef = useRef<HTMLIFrameElement | null>(null);
   const callWidgetApiRef = useRef<ClientWidgetApi | null>(null);
   const callSmallWidgetRef = useRef<SmallWidget | null>(null);
-  // Timer ref for the preload auto-join delay; cleared on unmount/room change.
-  const preloadTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // After a lobby join, reload EC with join_existing so it shows the in-call grid.
+  const hasReloadedAfterLobbyRef = useRef(false);
+  const postLobbyIntentRef = useRef<'join_existing' | null>(null);
 
   const {
     activeCallRoomId,
@@ -36,6 +38,8 @@ export function PersistentCallContainer({ children }: PersistentCallContainerPro
     isActiveCallReady,
     registerActiveClientWidgetApi,
     activeClientWidget,
+    resetActiveCallReady,
+    hangUp,
   } = useCallState();
   const mx = useMatrixClient();
   const clientConfig = useClientConfig();
@@ -59,17 +63,16 @@ export function PersistentCallContainer({ children }: PersistentCallContainerPro
       iframeRef: React.MutableRefObject<HTMLIFrameElement | null>,
       autoJoin: boolean,
       themeKind: ThemeKind | null,
+      intentOverride?: 'join_existing',
       avSettings?: typeof effectiveAV,
     ) => {
       if (mx?.getUserId()) {
         if (activeCallRoomId && !isActiveCallReady) {
           const roomIdToSet = activeCallRoomId;
 
-          if (
-            callSmallWidgetRef.current?.roomId &&
-            activeClientWidget?.roomId &&
-            activeClientWidget.roomId === callSmallWidgetRef.current?.roomId
-          ) {
+          // Guard: use the ref (synchronous) to prevent double-setup when this
+          // callback re-runs due to dep changes before React state has propagated.
+          if (smallWidgetRef.current?.roomId === roomIdToSet) {
             return;
           }
 
@@ -81,7 +84,7 @@ export function PersistentCallContainer({ children }: PersistentCallContainerPro
           // Determine room type to pick the correct intent and callType.
           const room = mx.getRoom(roomIdToSet);
           const { intent: intentParam, callIntentParam } = getCallIntentParams(room);
-          const isVoiceRoom = room?.isCallRoom() ?? false;
+          const effectiveIntent = intentOverride ?? intentParam;
 
           const widgetId = `element-call-${roomIdToSet}-${Date.now()}`;
           const newUrl = getWidgetUrl(
@@ -90,15 +93,19 @@ export function PersistentCallContainer({ children }: PersistentCallContainerPro
             clientConfig.elementCallUrl ?? '',
             widgetId,
             {
-              intent: intentParam,
-              // Always skip the lobby UI — for voice rooms and autoJoin we jump in immediately.
-              // For normal group/DM rooms we also skip the lobby but use preload=true so
-              // BC-Call waits for an explicit io.element.join from BetterCord (sent after a
-              // short delay, giving MatrixRTC membership events time to arrive → no audio race).
-              skipLobby: true,
-              // preload=true tells BC-Call to wait for io.element.join before joining LiveKit.
-              // Only needed for non-voice rooms; voice channels join immediately (no race risk).
-              preload: (!isVoiceRoom && !autoJoin) ? 'true' : undefined,
+              intent: effectiveIntent,
+              // Skip lobby only for:
+              // - Voice-channel rooms (isCallRoom) — Discord-style instant join
+              // - autoJoin rooms
+              // - Post-lobby reload (join_existing) — user already went through lobby
+              // For normal group/DM rooms: show the lobby so user can check mic/camera
+              // before joining. This also eliminates the race-condition where LiveKit
+              // delivers participants before MatrixRTC memberships are loaded.
+              skipLobby: room?.isCallRoom() || autoJoin
+                ? true
+                : intentOverride === 'join_existing'
+                  ? true
+                  : undefined, // undefined = let intent preset decide (lobby shown)
               returnToLobby: 'true',
               // Always use per-participant E2EE — Element Web and Element X both always pass true.
               // Passing false breaks key exchange with other clients even in unencrypted rooms,
@@ -169,9 +176,7 @@ export function PersistentCallContainer({ children }: PersistentCallContainerPro
       activeCallRoomId,
       isActiveCallReady,
       clientConfig.elementCallUrl,
-      activeClientWidget,
       registerActiveClientWidgetApi,
-      callAutoJoin,
       effectiveAV,
       echoCancellation,
       noiseSuppression,
@@ -183,66 +188,46 @@ export function PersistentCallContainer({ children }: PersistentCallContainerPro
     ],
   );
 
-  // Preload auto-join: after the widget API is ready, wait for MatrixRTC memberships
-  // to arrive (short delay), then send io.element.join to BC-Call so it connects to
-  // LiveKit only after memberships are known → eliminates the audio race condition.
-  // This fires for non-voice rooms (preload=true in URL); voice rooms join immediately.
+  // After any lobby join, poll until EC's call member state event has propagated to the room,
+  // then reload EC with intent=join_existing + skipLobby=true so it auto-joins the existing
+  // session and shows the full in-call grid. Hangs up if the session never appears.
   useEffect(() => {
     if (!activeCallRoomId) {
-      if (preloadTimerRef.current) {
-        clearTimeout(preloadTimerRef.current);
-        preloadTimerRef.current = null;
-      }
+      hasReloadedAfterLobbyRef.current = false;
       return undefined;
     }
-
-    // Only trigger when the widget API is registered but the call isn't ready yet
-    if (!callWidgetApiRef.current || isActiveCallReady) return undefined;
-
-    const widgetApi = callWidgetApiRef.current;
-    const room = mx?.getRoom(activeCallRoomId);
-    const isVoiceRoom = room?.isCallRoom() ?? false;
-
-    // Voice rooms skip preload — they already join immediately via skipLobby=true
-    if (isVoiceRoom || callAutoJoin) return undefined;
-
-    const smallWidget = callSmallWidgetRef.current;
-    if (!smallWidget) return undefined;
-
-    // sendJoin: fire after 1500ms so MatrixRTC membership sync has time to run
-    const sendJoin = () => {
-      preloadTimerRef.current = setTimeout(() => {
-        preloadTimerRef.current = null;
-        widgetApi.transport
-          .send('io.element.join' as WidgetApiAction, {
-            audioInput: null,
-            videoInput: null,
-          })
-          .catch(() => {
-            // Ignore: iframe may have been destroyed before join fires
-          });
-      }, 1500);
-    };
-
-    // SmallWidget re-emits 'ready' from its internal messaging once capabilities are done.
-    // Use `once` — if ready fires before this effect runs we'll miss it, but the effect
-    // dependency on callWidgetApiRef.current means it runs right after setupWidget creates
-    // the SmallWidget (before React yields to the iframe), so the race window is tiny.
-    smallWidget.once('ready', sendJoin);
-
-    return () => {
-      smallWidget.off('ready', sendJoin);
-      if (preloadTimerRef.current) {
-        clearTimeout(preloadTimerRef.current);
-        preloadTimerRef.current = null;
+    if (isActiveCallReady && !hasReloadedAfterLobbyRef.current) {
+      const room = mx?.getRoom(activeCallRoomId);
+      if (room) {
+        hasReloadedAfterLobbyRef.current = true;
+        const POLL_INTERVAL_MS = 200;
+        const TIMEOUT_MS = 10000;
+        const startTime = Date.now();
+        const pollTimer = setInterval(() => {
+          if (MatrixRTCSession.callMembershipsForRoom(room).length > 0) {
+            clearInterval(pollTimer);
+            callSmallWidgetRef.current?.stopMessaging();
+            callWidgetApiRef.current = null;
+            callSmallWidgetRef.current = null;
+            registerActiveClientWidgetApi(activeCallRoomId, null, null, null);
+            postLobbyIntentRef.current = 'join_existing';
+            resetActiveCallReady();
+          } else if (Date.now() - startTime >= TIMEOUT_MS) {
+            clearInterval(pollTimer);
+            hangUp();
+          }
+        }, POLL_INTERVAL_MS);
+        return () => clearInterval(pollTimer);
       }
-    };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [callWidgetApiRef.current, isActiveCallReady, activeCallRoomId]);
+    }
+    return undefined;
+  }, [isActiveCallReady, activeCallRoomId, mx, registerActiveClientWidgetApi, resetActiveCallReady, hangUp]);
 
   useEffect(() => {
     if (activeCallRoomId) {
-      setupWidget(callWidgetApiRef, callSmallWidgetRef, callIframeRef, callAutoJoin, theme.kind, effectiveAV);
+      const intentOverride = postLobbyIntentRef.current ?? undefined;
+      postLobbyIntentRef.current = null;
+      setupWidget(callWidgetApiRef, callSmallWidgetRef, callIframeRef, callAutoJoin, theme.kind, intentOverride, effectiveAV);
     }
   }, [
     theme,
