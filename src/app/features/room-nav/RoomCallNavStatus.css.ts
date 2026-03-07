@@ -146,14 +146,13 @@ export const MoreMenuWrap = style({
 export const MoreMenu = style({
   position: 'absolute',
   bottom: `calc(100% + ${toRem(4)})`,
-  left: 0,
-  right: 0,
+  right: 0,       /* anchored to the right edge of the button, grows leftward */
   background: 'var(--background-floating, #111214)',
   border: '1px solid var(--background-modifier-accent, #1e1f22)',
   borderRadius: toRem(6),
   padding: `${toRem(4)} 0`,
   zIndex: 100,
-  minWidth: toRem(160),
+  width: toRem(180),
   boxShadow: '0 4px 16px rgba(0,0,0,0.4)',
 });
 
