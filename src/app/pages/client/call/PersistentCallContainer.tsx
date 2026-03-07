@@ -1,7 +1,6 @@
 import React, { createContext, ReactNode, useCallback, useEffect, useMemo, useRef } from 'react';
 import { MatrixRTCSession } from 'matrix-js-sdk/lib/matrixrtc/MatrixRTCSession';
 import { ClientWidgetApi } from 'matrix-widget-api';
-import { Box } from 'folds';
 import { useAtomValue } from 'jotai';
 import { useCallState } from './CallProvider';
 import {
@@ -54,6 +53,9 @@ export function PersistentCallContainer({ children }: PersistentCallContainerPro
   const [noiseSuppression] = useSetting(settingsAtom, 'noiseSuppression');
   const [autoGainControl] = useSetting(settingsAtom, 'autoGainControl');
   const [ssAudio] = useSetting(settingsAtom, 'ssAudio');
+  const [micDeviceId] = useSetting(settingsAtom, 'micDeviceId');
+  const [cameraDeviceId] = useSetting(settingsAtom, 'cameraDeviceId');
+  const [speakerDeviceId] = useSetting(settingsAtom, 'speakerDeviceId');
   const effectiveAV = useAtomValue(effectiveAVSettingsAtom);
 
   /* eslint-disable no-param-reassign */
@@ -101,8 +103,8 @@ export function PersistentCallContainer({ children }: PersistentCallContainerPro
             widgetId,
             {
               intent: effectiveIntent,
-              // Skip lobby when rejoining existing session; or when autoJoin is on.
-              skipLobby: intentOverride === 'join_existing' ? true : (autoJoin ? true : undefined),
+              // Skip lobby when rejoining existing session, autoJoin is on, or it's a voice channel room (Discord-style instant join).
+              skipLobby: intentOverride === 'join_existing' ? true : (autoJoin || room?.isCallRoom() ? true : undefined),
               returnToLobby: 'true',
               perParticipantE2EE: isRoomEncrypted ? 'true' : 'false',
               theme: themeKind,
@@ -114,12 +116,17 @@ export function PersistentCallContainer({ children }: PersistentCallContainerPro
                 videoFps: String(avSettings.videoFps),
                 ssResolution: avSettings.ssResolution,
                 ssFps: String(avSettings.ssFps),
+                ssAudio: String(avSettings.ssAudio ?? true),
               }),
               // Audio processing flags from user settings
               echoCancellation,
               noiseSuppression,
               autoGainControl,
               ssAudio,
+              // Device selections
+              micDeviceId,
+              cameraDeviceId,
+              speakerDeviceId,
             },
           );
 
@@ -173,6 +180,9 @@ export function PersistentCallContainer({ children }: PersistentCallContainerPro
       noiseSuppression,
       autoGainControl,
       ssAudio,
+      micDeviceId,
+      cameraDeviceId,
+      speakerDeviceId,
     ],
   );
 
@@ -236,42 +246,25 @@ export function PersistentCallContainer({ children }: PersistentCallContainerPro
 
   return (
     <CallRefContext.Provider value={memoizedIframeRef}>
-      <Box grow="No">
-        <Box
-          direction="Column"
+      {/* The iframe lives here purely to persist across route changes.
+          CallView.tsx teleports it via position:fixed onto its ghost div.
+          This box must stay in the DOM but take zero layout space. */}
+      <div style={{ width: 0, height: 0, overflow: 'hidden', flexShrink: 0 }}>
+        <iframe
+          ref={callIframeRef}
           style={{
-            position: 'relative',
-            zIndex: 0,
-            display: isMobile && isChatOpen ? 'none' : 'flex',
-            width: isMobile && isChatOpen ? '0%' : '100%',
-            height: isMobile && isChatOpen ? '0%' : '100%',
+            width: 1,
+            height: 1,
+            border: 'none',
+            backgroundColor: 'var(--background-header-primary)',
+            colorScheme: 'dark',
           }}
-        >
-          <Box
-            grow="Yes"
-            style={{
-              position: 'relative',
-            }}
-          >
-            <iframe
-              ref={callIframeRef}
-              style={{
-                position: 'absolute',
-                top: 0,
-                left: 0,
-                display: 'flex',
-                width: '100%',
-                height: '100%',
-                border: 'none',
-              }}
-              title="Persistent Element Call"
-              sandbox="allow-forms allow-scripts allow-same-origin allow-popups allow-modals allow-downloads"
-              allow="microphone; camera; display-capture; autoplay; clipboard-write;"
-              src="about:blank"
-            />
-          </Box>
-        </Box>
-      </Box>
+          title="Persistent Element Call"
+          sandbox="allow-forms allow-scripts allow-same-origin allow-popups allow-modals allow-downloads"
+          allow="microphone; camera; display-capture; autoplay; clipboard-write;"
+          src="about:blank"
+        />
+      </div>
       {children}
     </CallRefContext.Provider>
   );
