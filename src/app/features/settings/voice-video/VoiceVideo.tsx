@@ -1,5 +1,5 @@
 import React from 'react';
-import { Box, Chip, Switch, Text, config } from 'folds';
+import { Box, Chip, Scroll, Switch, Text, config } from 'folds';
 import { Page, PageContent, PageHeader } from '../../../components/page';
 import { SettingTile } from '../../../components/setting-tile';
 import { useSetting } from '../../../state/hooks/settings';
@@ -69,9 +69,9 @@ export function VoiceVideo({ requestClose }: VoiceVideoProps) {
 
   const serverLimitsAudio = effective.serverMaxAudioBitrate < 510;
   const serverLimitsVideo =
-    effective.serverMaxVideoResolution !== '1080p' || effective.serverMaxVideoFps < 30;
+    effective.serverMaxVideoResolution !== '2160p' || effective.serverMaxVideoFps < 120;
   const serverLimitsSS =
-    effective.serverMaxSSResolution !== 'source' || effective.serverMaxSSFps < 60;
+    effective.serverMaxSSResolution !== 'source' || effective.serverMaxSSFps < 120;
 
   return (
     <Page>
@@ -82,6 +82,8 @@ export function VoiceVideo({ requestClose }: VoiceVideoProps) {
           </Text>
         </Box>
       </PageHeader>
+      <Box grow="Yes">
+      <Scroll hideTrack visibility="Hover">
       <PageContent>
         {/* Audio */}
         <Box direction="Column" gap="200">
@@ -150,10 +152,11 @@ export function VoiceVideo({ requestClose }: VoiceVideoProps) {
               title="Video Resolution"
               description={serverLimitsVideo ? `Server maximum: ${effective.serverMaxVideoResolution}` : undefined}
               after={
-                <ChipRow<'360p' | '480p' | '720p' | '1080p'>
-                  options={['360p', '480p', '720p', '1080p']}
+                <ChipRow<'360p' | '480p' | '720p' | '1080p' | '1440p' | '2160p'>
+                  options={['360p', '480p', '720p', '1080p', '1440p', '2160p']}
                   value={videoResolution}
                   onChange={setVideoResolution}
+                  labels={{ '2160p': '4K' }}
                   serverMax={serverLimitsVideo ? effective.serverMaxVideoResolution : undefined}
                 />
               }
@@ -164,11 +167,11 @@ export function VoiceVideo({ requestClose }: VoiceVideoProps) {
               title="Frame Rate"
               description={serverLimitsVideo ? `Server maximum: ${effective.serverMaxVideoFps} fps` : undefined}
               after={
-                <ChipRow<15 | 24 | 30>
-                  options={[15, 24, 30]}
+                <ChipRow<15 | 24 | 30 | 60 | 120>
+                  options={[15, 24, 30, 60, 120]}
                   value={videoFps}
                   onChange={setVideoFps}
-                  labels={{ 15: '15 fps', 24: '24 fps', 30: '30 fps' }}
+                  labels={{ 15: '15 fps', 24: '24 fps', 30: '30 fps', 60: '60 fps', 120: '120 fps' }}
                   serverMax={serverLimitsVideo ? `${effective.serverMaxVideoFps} fps` : undefined}
                 />
               }
@@ -185,11 +188,11 @@ export function VoiceVideo({ requestClose }: VoiceVideoProps) {
               title="Resolution"
               description={serverLimitsSS ? `Server maximum: ${effective.serverMaxSSResolution}` : undefined}
               after={
-                <ChipRow<'720p' | '1080p' | 'source'>
-                  options={['720p', '1080p', 'source']}
+                <ChipRow<'720p' | '1080p' | '1440p' | '2160p' | 'source'>
+                  options={['720p', '1080p', '1440p', '2160p', 'source']}
                   value={ssResolution}
                   onChange={setSSResolution}
-                  labels={{ '720p': '720p', '1080p': '1080p', source: 'Source' }}
+                  labels={{ '2160p': '4K', source: 'Source' }}
                   serverMax={serverLimitsSS ? effective.serverMaxSSResolution : undefined}
                 />
               }
@@ -200,11 +203,11 @@ export function VoiceVideo({ requestClose }: VoiceVideoProps) {
               title="Frame Rate"
               description={serverLimitsSS ? `Server maximum: ${effective.serverMaxSSFps} fps` : undefined}
               after={
-                <ChipRow<5 | 15 | 30 | 60>
-                  options={[5, 15, 30, 60]}
+                <ChipRow<5 | 15 | 30 | 60 | 120>
+                  options={[5, 15, 30, 60, 120]}
                   value={ssFps}
                   onChange={setSSFps}
-                  labels={{ 5: '5 fps', 15: '15 fps', 30: '30 fps', 60: '60 fps' }}
+                  labels={{ 5: '5 fps', 15: '15 fps', 30: '30 fps', 60: '60 fps', 120: '120 fps' }}
                   serverMax={serverLimitsSS ? `${effective.serverMaxSSFps} fps` : undefined}
                 />
               }
@@ -224,6 +227,8 @@ export function VoiceVideo({ requestClose }: VoiceVideoProps) {
           </SequenceCard>
         </Box>
       </PageContent>
+      </Scroll>
+      </Box>
     </Page>
   );
 }
