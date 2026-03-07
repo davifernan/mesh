@@ -92,10 +92,15 @@ export const getWidgetUrl = (
   if (setParams.intent) {
     params.set('intent', setParams.intent);
   }
-  // skipLobby URL param (in gje(m)) overrides the intent-derived value in the final merge.
+  // skipLobby URL param overrides the intent-derived value in the final merge.
   // Pass true to skip the lobby regardless of intent; omit to let intent decide.
   if (setParams.skipLobby !== undefined) {
     params.set('skipLobby', String(setParams.skipLobby));
+  }
+  // preload=true tells BC-Call to render nothing and wait for io.element.join from host.
+  // Used for non-voice rooms so memberships can load before LiveKit connects.
+  if (setParams.preload !== undefined) {
+    params.set('preload', String(setParams.preload));
   }
 
   // A/V quality constraints — only set when provided (avoids overriding EC defaults)
