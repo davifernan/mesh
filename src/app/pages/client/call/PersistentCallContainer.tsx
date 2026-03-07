@@ -2,6 +2,7 @@ import React, { createContext, ReactNode, useCallback, useEffect, useMemo, useRe
 import { MatrixRTCSession } from 'matrix-js-sdk/lib/matrixrtc/MatrixRTCSession';
 import { ClientWidgetApi } from 'matrix-widget-api';
 import { Box } from 'folds';
+import { useAtomValue } from 'jotai';
 import { useCallState } from './CallProvider';
 import {
   createVirtualWidget,
@@ -16,6 +17,7 @@ import { ScreenSize, useScreenSizeContext } from '../../../hooks/useScreenSize';
 import { ThemeKind, useTheme } from '../../../hooks/useTheme';
 import { useSetting } from '../../../state/hooks/settings';
 import { settingsAtom } from '../../../state/settings';
+import { effectiveAVSettingsAtom } from '../../../state/avQuality';
 
 interface PersistentCallContainerProps {
   children: ReactNode;
@@ -48,6 +50,7 @@ export function PersistentCallContainer({ children }: PersistentCallContainerPro
   const theme = useTheme();
   const isMobile = screenSize === ScreenSize.Mobile;
   const [callAutoJoin] = useSetting(settingsAtom, 'callAutoJoin');
+  const effectiveAV = useAtomValue(effectiveAVSettingsAtom);
 
   /* eslint-disable no-param-reassign */
 
@@ -59,6 +62,7 @@ export function PersistentCallContainer({ children }: PersistentCallContainerPro
       autoJoin: boolean,
       themeKind: ThemeKind | null,
       intentOverride?: 'join_existing',
+      avSettings?: typeof effectiveAV,
     ) => {
       if (mx?.getUserId()) {
         if (activeCallRoomId && !isActiveCallReady) {
@@ -99,6 +103,14 @@ export function PersistentCallContainer({ children }: PersistentCallContainerPro
               perParticipantE2EE: isRoomEncrypted ? 'true' : 'false',
               theme: themeKind,
               callIntent: callIntentParam,
+              // A/V quality constraints from space settings + user preferences
+              ...(avSettings && {
+                audioBitrate: String(avSettings.audioBitrate),
+                videoResolution: avSettings.videoResolution,
+                videoFps: String(avSettings.videoFps),
+                ssResolution: avSettings.ssResolution,
+                ssFps: String(avSettings.ssFps),
+              }),
             },
           );
 
@@ -148,6 +160,7 @@ export function PersistentCallContainer({ children }: PersistentCallContainerPro
       registerActiveClientWidgetApi,
       callAutoJoin,
     ],
+    // Note: effectiveAV is passed per-call to avoid excessive re-renders from atom updates
   );
 
   // After any lobby join, poll until EC's call member state event has propagated to the room,
@@ -191,7 +204,7 @@ export function PersistentCallContainer({ children }: PersistentCallContainerPro
     if (activeCallRoomId) {
       const intentOverride = postLobbyIntentRef.current ?? undefined;
       postLobbyIntentRef.current = null;
-      setupWidget(callWidgetApiRef, callSmallWidgetRef, callIframeRef, callAutoJoin, theme.kind, intentOverride);
+      setupWidget(callWidgetApiRef, callSmallWidgetRef, callIframeRef, callAutoJoin, theme.kind, intentOverride, effectiveAV);
     }
   }, [
     theme,
