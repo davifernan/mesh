@@ -141,17 +141,20 @@ export const MediaSection = style({
 
 export const MoreMenuWrap = style({
   position: 'relative',
+  // Must exceed iframe z-index (1000 set in CallView.tsx applyFixedPositioningToIframe)
+  zIndex: 1001,
+  isolation: 'isolate',
 });
 
 export const MoreMenu = style({
   position: 'absolute',
   bottom: `calc(100% + ${toRem(4)})`,
-  right: 0,       /* anchored to the right edge of the button, grows leftward */
+  right: 0,
   background: 'var(--background-floating, #111214)',
   border: '1px solid var(--background-modifier-accent, #1e1f22)',
   borderRadius: toRem(6),
   padding: `${toRem(4)} 0`,
-  zIndex: 100,
+  zIndex: 1001,
   width: toRem(180),
   boxShadow: '0 4px 16px rgba(0,0,0,0.4)',
 });
