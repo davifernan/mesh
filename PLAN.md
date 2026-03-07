@@ -76,8 +76,10 @@ Phase 5  →  Voice UI Shell                   ~5 Tage
 Phase 6  →  A/V Quality Settings System      ~7 Tage
 Phase 7  →  Settings-Seite Redesign          ~3 Tage
 Phase 8  →  PWA Mobile                       ~3 Tage
+Phase 9  →  Electron Desktop App             ~5 Tage
+Phase 10 →  Community Features               ~8 Tage
 ────────────────────────────────────────────────────
-Gesamt   →  ~30 Arbeitstage / 6 Wochen
+Gesamt   →  ~43 Arbeitstage / ~9 Wochen
 ```
 
 ---
@@ -784,6 +786,847 @@ navigator.setAppBadge?.(unreadCount);
 | Service Worker | `src/sw.ts` |
 | PWA Manifest | `public/manifest.json` |
 | Vite Config | `vite.config.js` |
+
+---
+
+---
+
+## Phase 9 — Electron Desktop App
+
+### Ziel
+BetterCord als native Desktop-App für Windows, macOS und Linux ausliefern.
+Basis: `fluxer/fluxer_desktop/` — fast 1:1 kopieren, nur umbenennen + BetterCord-spezifische
+Anpassungen vornehmen.
+
+### Strategie
+PWA zuerst fertigstellen (Phase 1–8), dann Electron drüberziehen.
+Electron lädt einfach die fertige BetterCord Web-App als URL — kein Umbau der App nötig.
+
+```
+BetterCord Web-App (dist/)
+        ↓
+Electron lädt: https://deine-domain.com  (Prod)
+               http://localhost:8080      (Dev)
+        ↓
+Fertige Desktop-App für Windows / macOS / Linux
+```
+
+### Output-Formate (via electron-builder)
+
+| Platform | Format | Architektur |
+|----------|--------|-------------|
+| macOS | `.dmg` + `.zip` | x64 (Intel) + arm64 (Apple Silicon) |
+| Windows | `.exe` NSIS Installer | x64 + arm64 |
+| Linux | `.AppImage` + `.deb` + `.rpm` | x64 + arm64 |
+
+---
+
+### 9.1 Ordnerstruktur
+
+```
+BetterCord/
+├── src/                    ← Web-App (Phasen 1–8, bleibt unverändert)
+├── desktop/                ← NEU: Electron-Hülle (kopiert von fluxer_desktop)
+│   ├── src/
+│   │   ├── main/
+│   │   │   ├── index.tsx           ← Electron Entry Point
+│   │   │   ├── Window.tsx          ← BrowserWindow + Screenshare Handler
+│   │   │   ├── IpcHandlers.tsx     ← IPC-Bridge (angepasst)
+│   │   │   ├── Autostart.tsx       ← Autostart beim OS-Login
+│   │   │   ├── DeepLinks.tsx       ← bettercord:// URL-Schema
+│   │   │   ├── GlobalKeyHook.tsx   ← Push-to-Talk global (auch ohne Fokus)
+│   │   │   ├── Menu.tsx            ← macOS Menübar
+│   │   │   ├── Updater.tsx         ← Auto-Update
+│   │   │   ├── Spellcheck.tsx      ← Rechtschreibprüfung
+│   │   │   └── WindowsBadge.tsx    ← Windows Taskbar Unread-Badge
+│   │   ├── preload/
+│   │   │   └── index.tsx           ← window.electron API Bridge
+│   │   └── common/
+│   │       ├── Constants.tsx       ← URLs + App-Konstanten
+│   │       ├── DesktopConfig.tsx   ← settings.json Verwaltung
+│   │       ├── Types.tsx           ← ElectronAPI TypeScript-Typen
+│   │       ├── BuildChannel.tsx    ← stable / canary
+│   │       └── Logger.tsx          ← electron-log Wrapper
+│   ├── build_resources/
+│   │   ├── icons/
+│   │   │   ├── AppIcon.icns        ← macOS Icon
+│   │   │   ├── icon.ico            ← Windows Icon
+│   │   │   └── icon.png            ← Linux Icon
+│   │   └── entitlements.mac.plist  ← macOS Kamera/Mic Berechtigungen
+│   ├── electron-builder.config.cjs ← Build-Konfiguration
+│   └── package.json
+```
+
+---
+
+### 9.2 Änderungen gegenüber fluxer_desktop
+
+#### `desktop/src/common/Constants.tsx` — 3 Zeilen ändern
+```typescript
+// VORHER (Fluxer):
+export const APP_PROTOCOL = 'fluxer';
+export const STABLE_APP_URL = 'https://web.fluxer.app';
+export const CANARY_APP_URL = 'https://web.canary.fluxer.app';
+
+// NACHHER (BetterCord):
+export const APP_PROTOCOL = 'bettercord';
+export const STABLE_APP_URL = 'https://DEINE-DOMAIN.com';   // ← deine URL eintragen
+export const CANARY_APP_URL = 'https://DEINE-DOMAIN.com';   // vorerst gleich wie stable
+```
+
+#### `desktop/electron-builder.config.cjs` — Umbenennen
+```javascript
+// VORHER:
+const productName = 'Fluxer';
+const appId = 'app.fluxer';
+const packageName = 'fluxer_desktop';
+
+// NACHHER:
+const productName = 'BetterCord';
+const appId = 'com.bettercord.app';
+const packageName = 'bettercord';
+
+// squirrelWindows.iconUrl auf eigene Domain anpassen:
+iconUrl: 'https://DEINE-DOMAIN.com/icons/icon.ico',
+
+// macOS Info.plist Texte anpassen:
+extendInfo: {
+  NSMicrophoneUsageDescription: 'BetterCord needs microphone access for voice chat.',
+  NSCameraUsageDescription: 'BetterCord needs camera access for video calls.',
+  NSAppleEventsUsageDescription: 'BetterCord needs Apple Events for automation.',
+},
+```
+
+#### `desktop/src/main/IpcHandlers.tsx` — 1 Funktion entfernen
+```typescript
+// DIESE FUNKTION LÖSCHEN — prüft ob /.well-known/fluxer existiert,
+// das gibt's bei Matrix/BetterCord nicht:
+async function assertValidFluxerInstance(instanceOrigin: string) { ... }
+
+// Den Aufruf in 'switch-instance-url' Handler ebenfalls entfernen:
+// await assertValidFluxerInstance(instanceOrigin);  ← weg
+```
+
+#### `desktop/src/main/Window.tsx` — trustedWebOrigins anpassen
+```typescript
+// VORHER: nur Fluxer-URLs sind trusted
+const trustedWebOrigins = new Set([STABLE_APP_URL, CANARY_APP_URL].map(...));
+
+// Das bleibt so — wird automatisch korrekt wenn Constants.tsx geändert wurde.
+// Sicherheitsmechanismus bleibt erhalten: nur deine Domain darf IPC nutzen.
+```
+
+---
+
+### 9.3 BetterCord Web-App: Electron API verdrahten
+
+Die `preload/index.tsx` exposed `window.electron` — BetterCord muss diese API
+an den richtigen Stellen nutzen. Das sind die Stellen die **nach Phase 9 implementiert
+werden müssen** damit die Desktop-Features funktionieren:
+
+#### ⚠ Screenshare-Picker (WICHTIG — ohne das kein nativer Screenshare)
+
+In Electron kann `getDisplayMedia()` nicht direkt aus dem Renderer aufgerufen werden.
+Fluxer löst das über IPC: Electron fragt welche Fenster/Screens verfügbar sind,
+zeigt einen nativen Picker, und gibt die Source zurück.
+
+**Was fehlt in BetterCord nach dem Kopieren:**
+- Die Web-App muss auf `window.electron.onDisplayMediaRequested()` hören
+- Wenn Electron den Screenshare-Request abfängt, muss BetterCord einen Picker zeigen
+- Nach Auswahl: `window.electron.selectDisplayMediaSource(requestId, sourceId, withAudio)`
+
+**Wo das implementiert werden muss:**
+```
+src/app/components/voice/ScreenShareSettingsModal/ScreenShareSettingsModal.tsx
+```
+
+```typescript
+// Pseudocode — in ScreenShareSettingsModal einbauen:
+useEffect(() => {
+  if (!window.electron) return;  // Im Browser: normales getDisplayMedia()
+
+  // Electron-spezifisch: auf Display-Media-Request hören
+  const cleanup = window.electron.onDisplayMediaRequested(async (requestId, info) => {
+    // 1. Desktop-Sources von Electron holen (Fenster + Screens mit Thumbnails)
+    const sources = await window.electron.getDesktopSources(
+      ['screen', 'window'],
+      requestId
+    );
+
+    // 2. Unseren eigenen Picker zeigen (mit Thumbnails, Qualitätsauswahl)
+    //    → das ist die ScreenShareSettingsModal UI
+    setAvailableSources(sources);
+    setRequestId(requestId);
+    setIsOpen(true);
+  });
+
+  return cleanup;
+}, []);
+
+// Nach User-Auswahl:
+const handleConfirm = (sourceId: string, withAudio: boolean) => {
+  window.electron.selectDisplayMediaSource(requestId, sourceId, withAudio);
+  // → Electron gibt den Stream an Element Call weiter
+};
+```
+
+**Im Browser (kein Electron):** normales `getDisplayMedia()` via Element Call — bleibt unverändert.
+
+#### Badge-Count (Unread-Notifications auf App-Icon)
+```
+src/app/pages/client/ClientNonUIFeatures.tsx  ← hier implementieren
+```
+```typescript
+// Wenn sich Unread-Count ändert:
+useEffect(() => {
+  window.electron?.setBadgeCount(totalUnreadCount);
+}, [totalUnreadCount]);
+```
+
+#### Push-to-Talk global (auch wenn App nicht im Fokus)
+```
+src/app/features/settings/voice-video/VoiceSettings.tsx  ← PTT-Keybind registrieren
+```
+```typescript
+// Wenn User PTT-Taste setzt:
+const setPTTKey = async (accelerator: string) => {
+  if (window.electron) {
+    await window.electron.registerGlobalShortcut(accelerator, 'push-to-talk');
+  }
+};
+
+// Auf PTT-Event hören:
+useEffect(() => {
+  if (!window.electron) return;
+  return window.electron.onGlobalShortcut((id) => {
+    if (id === 'push-to-talk') activateMicrophone();
+  });
+}, []);
+```
+
+#### Auto-Update Benachrichtigung
+```
+src/app/components/common/UpdateBanner.tsx  ← NEU erstellen
+```
+```typescript
+useEffect(() => {
+  if (!window.electron) return;
+  return window.electron.onUpdaterEvent((event) => {
+    if (event.type === 'update-downloaded') {
+      showToast('Update verfügbar — jetzt neu starten?', {
+        action: () => window.electron.updaterInstall()
+      });
+    }
+  });
+}, []);
+```
+
+#### Zoom (Ctrl+/Ctrl-)
+```
+src/app/pages/client/ClientRoot.tsx  ← bereits passende Stelle
+```
+```typescript
+useEffect(() => {
+  if (!window.electron) return;
+  const cleanups = [
+    window.electron.onZoomIn(() => adjustZoom(+0.1)),
+    window.electron.onZoomOut(() => adjustZoom(-0.1)),
+    window.electron.onZoomReset(() => resetZoom()),
+  ];
+  return () => cleanups.forEach(fn => fn());
+}, []);
+```
+
+#### Deep Links (`bettercord://invite/xyz`)
+```
+src/app/pages/client/ClientRoot.tsx
+```
+```typescript
+useEffect(() => {
+  if (!window.electron) return;
+  return window.electron.onDeepLink((url) => {
+    // bettercord://invite/ABC → /invite/ABC Route navigieren
+    const path = url.replace('bettercord://', '/');
+    navigate(path);
+  });
+}, []);
+```
+
+---
+
+### 9.4 TypeScript: `window.electron` Typen in BetterCord bekannt machen
+
+```typescript
+// src/types/electron.d.ts  ← neue Datei
+// Die ElectronAPI Types aus desktop/src/common/Types.tsx importieren/duplizieren
+
+interface Window {
+  electron?: ElectronAPI;  // optional — undefined wenn im Browser
+}
+```
+
+So kann überall `window.electron?.setBadgeCount(n)` safe aufgerufen werden
+ohne dass der Browser-Build bricht.
+
+---
+
+### 9.5 Entwicklungs-Workflow mit Electron
+
+```bash
+# Terminal 1: Web-App starten
+npm run dev
+# → http://localhost:8080
+
+# Terminal 2: Electron starten (lädt localhost:8080)
+cd desktop
+npm run dev
+# → Electron-Fenster öffnet sich mit der lokalen Web-App
+```
+
+Im Electron-Dev-Modus wird `http://localhost:8080` geladen statt der Produktions-URL.
+
+```typescript
+// desktop/src/common/DesktopConfig.tsx — Dev-Mode:
+export function getAppUrl(): string {
+  if (process.env.NODE_ENV === 'development') {
+    return 'http://localhost:8080';   // lokaler Vite-Dev-Server
+  }
+  return STABLE_APP_URL;             // Produktions-URL
+}
+```
+
+---
+
+### 9.6 Build & Release
+
+```bash
+# Im desktop/ Ordner:
+
+# macOS (nur auf macOS buildbar):
+npm run build
+npx electron-builder --mac
+
+# Windows (auf Windows ODER via GitHub Actions):
+npx electron-builder --win
+
+# Linux:
+npx electron-builder --linux
+
+# Alle Plattformen via GitHub Actions (empfohlen):
+# → .github/workflows/electron-release.yml erstellen
+```
+
+**GitHub Actions Release-Workflow:**
+```yaml
+# .github/workflows/electron-release.yml
+name: Electron Release
+on:
+  push:
+    tags: ['v*']
+
+jobs:
+  build:
+    strategy:
+      matrix:
+        os: [macos-latest, windows-latest, ubuntu-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 20 }
+      - run: npm ci
+        working-directory: desktop
+      - run: npx electron-builder
+        working-directory: desktop
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - uses: actions/upload-artifact@v4
+        with:
+          name: BetterCord-${{ matrix.os }}
+          path: desktop/dist-electron/
+```
+
+Ein `git tag v1.0.0 && git push --tags` triggert automatisch den Build
+für alle 3 Plattformen und legt die Installer als GitHub Release Assets ab.
+
+---
+
+### 9.7 macOS Code-Signing (optional, für private Nutzung nicht nötig)
+
+Ohne Apple Developer Account ($99/Jahr) erscheint beim ersten Start:
+> "BetterCord kann nicht geöffnet werden, weil Apple es nicht auf Schadsoftware prüfen konnte."
+
+**Lösung für private Nutzung:** User muss einmalig in
+Systemeinstellungen → Datenschutz & Sicherheit → "Trotzdem öffnen" klicken.
+
+**Für öffentliche Distribution:** Apple Developer Account + Code-Signing-Zertifikat nötig.
+electron-builder unterstützt das via `CSC_LINK` + `CSC_KEY_PASSWORD` Environment-Variablen.
+
+---
+
+### 9.8 Checkliste Phase 9
+
+#### Setup (Basis — ~30 Minuten)
+- [ ] `fluxer/fluxer_desktop/` nach `BetterCord/desktop/` kopieren
+- [ ] `Constants.tsx`: `APP_PROTOCOL`, `STABLE_APP_URL`, `CANARY_APP_URL` anpassen
+- [ ] `electron-builder.config.cjs`: `productName`, `appId`, `packageName` anpassen
+- [ ] `IpcHandlers.tsx`: `assertValidFluxerInstance()` entfernen
+- [ ] Icons erstellen: `AppIcon.icns`, `icon.ico`, `icon.png`
+- [ ] `desktop/package.json`: Name auf `bettercord` ändern
+- [ ] Dev-Modus testen: `npm run dev` in beiden Terminals
+
+#### BetterCord Web-App verdrahten (~3–4 Tage)
+- [ ] `src/types/electron.d.ts` erstellen (`window.electron` Typ-Declaration)
+- [ ] **Screenshare-Picker** in `ScreenShareSettingsModal.tsx` implementieren
+  - [ ] `window.electron.onDisplayMediaRequested()` listener
+  - [ ] `window.electron.getDesktopSources()` aufrufen (mit Thumbnails)
+  - [ ] Picker-UI mit Source-Thumbnails (Fenster/Screen-Liste)
+  - [ ] `window.electron.selectDisplayMediaSource()` bei Bestätigung
+  - [ ] Fallback auf normales `getDisplayMedia()` wenn kein Electron
+- [ ] **Badge-Count** in `ClientNonUIFeatures.tsx` implementieren
+  - [ ] Unread-Count aus Matrix-State lesen
+  - [ ] `window.electron.setBadgeCount(count)` aufrufen
+  - [ ] macOS Dock Badge + Windows Taskbar Badge
+- [ ] **Push-to-Talk global** in `VoiceSettings.tsx` implementieren
+  - [ ] Keybind-Auswahl UI (Taste aufnehmen)
+  - [ ] `window.electron.registerGlobalShortcut()` aufrufen
+  - [ ] `window.electron.onGlobalShortcut()` → Mikrofon aktivieren/deaktivieren
+- [ ] **Deep Links** in `ClientRoot.tsx` implementieren
+  - [ ] `bettercord://invite/CODE` → Invite-Flow
+  - [ ] `bettercord://room/ROOM_ID` → direkt in Room navigieren
+- [ ] **Auto-Update Banner** (`UpdateBanner.tsx`) erstellen
+  - [ ] `window.electron.onUpdaterEvent()` hören
+  - [ ] Toast/Banner bei verfügbarem Update zeigen
+  - [ ] "Jetzt installieren" → `window.electron.updaterInstall()`
+- [ ] **Zoom** in `ClientRoot.tsx` verdrahten
+  - [ ] `onZoomIn` / `onZoomOut` / `onZoomReset` listeners
+- [ ] **Custom Titlebar** im Web-App-Layout
+  - [ ] Wenn `window.electron` vorhanden: eigene Titelleiste rendern
+  - [ ] Minimize / Maximize / Close Buttons verdrahten
+  - [ ] macOS: Traffic Light Buttons Platz lassen (paddingLeft)
+  - [ ] Windows/Linux: eigene Minimize/Maximize/Close Buttons
+
+#### Release
+- [ ] `desktop/` Ordner in GitHub Repo committen
+- [ ] GitHub Actions Workflow `.github/workflows/electron-release.yml` erstellen
+- [ ] Ersten Release-Tag setzen: `git tag v0.1.0 && git push --tags`
+- [ ] Installer auf allen 3 Plattformen testen
+
+---
+
+---
+
+## Phase 10 — Community Features
+
+### Ziel
+Discord-Features die in Cinny fehlen oder nur halb implementiert sind.
+Cinny hat bereits eine solide Basis — wir bauen drauf auf statt von null.
+
+---
+
+### Was Cinny bereits hat ✓ (nicht neu bauen!)
+
+| Feature | Datei | Status |
+|---------|-------|--------|
+| Teilnehmer-Liste unter Voice-Channel (Avatar + Name) | `src/app/features/room-nav/RoomNavItem.tsx` + `RoomNavUser.tsx` | ✓ fertig |
+| Reaktiver Hook für Call-Mitglieder (`useCallMemberships`) | `src/app/hooks/useCallMemberships.ts` | ✓ fertig |
+| "X in Call" Aria-Label | `RoomNavItem.tsx` L325 | ✓ fertig |
+| Aktiver Call Status-Bar unten in Sidebar | `src/app/features/room-nav/RoomCallNavStatus.tsx` | ✓ fertig |
+| Eingehender Call Ring + Dismiss UI | `RoomCallNavStatus.tsx` L304–401 | ✓ fertig |
+
+**Fazit:** Avatar + Name unter Voice-Channel ist bereits da. Wir müssen nur die fehlenden Status-Icons und das LIVE-Badge drauf setzen.
+
+---
+
+### 10.1 Voice Channel — Status-Icons + LIVE Badge
+
+#### Was fehlt (auf `RoomNavUser.tsx` aufbauen)
+
+Aktuell zeigt `RoomNavUser` nur Avatar + Name. Folgendes ergänzen:
+
+```
+🔊 Gaming
+   👤 davifernan                  ← bereits da ✓
+   👤 anna         🎥 LIVE        ← LIVE Badge fehlt ✗
+   👤 max          🔇             ← Mute-Icon fehlt ✗
+```
+
+Hover über LIVE Badge:
+```
+┌──────────────────────────────┐
+│  anna streamt gerade         │
+│  [▶ Stream ansehen]          │
+└──────────────────────────────┘
+```
+
+#### Was zu ändern ist
+
+**`src/app/features/room-nav/RoomNavUser.tsx` erweitern:**
+```typescript
+// CallMembership hat bereits feeds[] — daraus LIVE-Status ableiten:
+const isLive = callMembership.feeds?.some(f => f.purpose === 'm.screenshare');
+const isMuted = !callMembership.feeds?.some(f => f.purpose === 'm.usermedia');
+
+// Im JSX ergänzen:
+{isMuted && <Icon src={Icons.MicMute} size="200" />}
+{isLive && <LiveBadge onClick={handleWatchStream} />}
+```
+
+**Neue Komponente: `LiveBadge.tsx`**
+- Animiertes rotes Badge (pulsierend wie Discord)
+- Hover-Tooltip: "Stream ansehen"
+- Klick: Element Call öffnen als Viewer
+
+#### Guild-Icon Badge (ganz links)
+Wenn in irgendeinem Voice-Channel des Space jemand sitzt:
+```
+[Space Icon]
+   🔊  ← kleines Badge unten rechts
+```
+
+**Neues Atom: `src/app/state/voiceActivity.ts`**
+```typescript
+// Derived von existierendem useCallMemberships — pro Space aggregieren
+export const spaceHasVoiceActivityAtom = atomFamily((spaceId: string) =>
+  atom((get) => {
+    // alle Child-Rooms des Space checken ob jemand im Call sitzt
+  })
+);
+```
+
+**`GuildVoiceActivityBadge.tsx`** — kleines 🔊 Icon auf dem Space-Icon in der linken Spalte.
+
+---
+
+### 10.2 Member-Liste rechts (wer ist online)
+
+Komplett neu — existiert in Cinny nicht.
+
+```
+ONLINE — 3
+👤 davifernan    ● [Admin]
+👤 anna          ●
+
+OFFLINE — 12
+👤 bob           ○
+```
+
+#### Matrix-Technisch
+```typescript
+const members = room.getJoinedMembers();
+const presence = mx.getUser(userId)?.presence; // 'online' | 'offline' | 'unavailable'
+const powerLevel = room.getMember(userId)?.powerLevel; // 100 = Admin, 50 = Mod
+```
+
+#### Neue Komponenten
+```
+src/app/components/MemberList/
+├── MemberList.tsx           ← rechte Sidebar (240px)
+├── MemberListGroup.tsx      ← "ONLINE — 3" Header
+├── MemberListItem.tsx       ← Avatar + Name + Status-Dot + Rolle-Badge
+└── MemberListItem.module.css
+```
+
+#### Verhalten
+- Toggle Button im Channel-Header (People-Icon)
+- Breite: 240px, schiebt Main-Content zusammen (kein Overlay)
+- Mobile: ausgeblendet
+- Presence alle 60s aktualisiert
+
+---
+
+### 10.3 Community Lobby + Welcome Channel
+
+#### Lobby-Chat
+Erster pinned Channel `#lobby` pro Space:
+- Normal schreibbar für alle Mitglieder
+- Per `m.space.child` mit `order: "00"` ganz oben gelistet
+- Kein Custom-Backend nötig — normaler Matrix-Raum
+
+#### Welcome Channel
+Read-only `#welcome` Channel mit automatischen Join-Nachrichten:
+
+```
+─────── März 2026 ───────
+🎉  anna hat die Community betreten
+🎉  max hat die Community betreten
+```
+
+```typescript
+// m.room.member join-Events als WelcomeCard rendern statt als normale Nachricht:
+if (event.getType() === 'm.room.member' && event.getContent().membership === 'join') {
+  return <WelcomeCard member={event.getSender()} />;
+}
+```
+
+#### Space-Lobby Screen
+Wenn Space-Icon geklickt aber kein Channel ausgewählt:
+```
+┌─────────────────────────────────────────────────────────────┐
+│  [Space Banner]                                             │
+│  Community Name · 👥 42 Mitglieder · 🟢 8 Online           │
+│─────────────────────────────────────────────────────────────│
+│  TEXT CHANNELS          VOICE CHANNELS                      │
+│  # lobby                🔊 Gaming                          │
+│  # general              🔊 Chill                           │
+└─────────────────────────────────────────────────────────────┘
+```
+
+#### Neue Komponenten
+```
+src/app/components/
+├── LobbyView/
+│   ├── LobbyView.tsx          ← Space-Übersicht Screen
+│   ├── SpaceBanner.tsx        ← Icon + Name + Stats
+│   └── SpaceChannelGrid.tsx   ← Channels als Kacheln
+└── WelcomeCard/
+    └── WelcomeCard.tsx        ← "🎉 anna hat die Community betreten"
+```
+
+---
+
+### 10.5 Checkliste Phase 10
+
+#### "Im Call sein" Anzeige (Voice Connected Bar)
+- [x] `RoomCallNavStatus.tsx` — grüner "Voice Connected" Bar unten in Sidebar ✓ bereits da
+- [x] Roter Hang-Up Button + Mute/Video Buttons ✓ bereits da
+- [x] Incoming Call Ring + Dismiss ✓ bereits da
+- [ ] **Layout-Check:** sicherstellen dass der Bar nach Phase 3 (GuildsLayout Umbau) noch sichtbar ist und nicht vom neuen Layout überdeckt wird — `z-index` + `position` prüfen
+- [ ] Bar ans neue Fluxer-Design anpassen (CSS, Farben, Fonts)
+- [ ] **Hang-Up Button** — immer rot (`#f23f43`) wenn man im Call ist (auch im Idle-Zustand)
+- [ ] **Join-Call Button** (der Button um einem Voice-Channel beizutreten) — on hover grün (`#23a55a`) werden, default neutral/transparent
+
+#### Voice Connected Bar Redesign (nach Fluxer-Vorbild, Bild 4)
+Aktueller Cinny-Bar muss komplett nach Fluxer-Design umgebaut werden:
+
+```
+┌─────────────────────────────────────────┐
+│ 📶 Sprache verbunden          [📊] [📞✕] │  ← grüner Text, Sound-Icon + roter Hangup
+│ General / arbeitsfreunder               │  ← Channel / Space Name klein darunter
+│ 🖥 koi-alsephina                        │  ← wer noch im Call ist
+│ 〰                                       │  ← Wellenform-Icon (spricht gerade)
+│ ┌──────────────┐  ┌──────────────┐      │
+│ │  📷 (Cam)   │  │  🖥 (Screen) │      │  ← zwei große quadratische Buttons
+│ └──────────────┘  └──────────────┘      │
+├─────────────────────────────────────────┤
+│ [Avatar] LuncerStinka    🎙  🔊  ⚙     │  ← User-Area: Mic + Lautsprecher + Settings
+│          Online                         │
+└─────────────────────────────────────────┘
+```
+
+Details:
+- "Sprache verbunden" Text → grün (`#23a55a`), mit WiFi/Signal Icon davor
+- Rechts oben: Sound-Waves Icon (öffnet Sound-Settings) + roter Hang-Up Button
+- Channel-Name + Space-Name als kleiner muted Link darunter
+- Wer noch im Call ist: kleine Avatar-Zeile mit Namen
+- Zwei große quadratische Buttons: Kamera toggle + Screenshare toggle
+- User-Area unten: Avatar + Name + Status + Mic + Lautsprecher + Settings Icons
+- Icons: Phosphor Icons (wie Fluxer) — `Microphone`, `SpeakerHigh`, `GearSix`, `PhoneDisconnect`, `MonitorArrowUp`, `VideoCamera`
+
+#### Verbindungsstatistiken Panel (Bild 1 + 2)
+Das 📊 Icon (Sound-Waves) im Voice Connected Bar öffnet ein Popup mit Live-Stats:
+
+```
+┌─ Verbindungsstatistiken ──────── ✕ ┐
+│                                    │
+│  Dauer              0:58           │
+│  Teilnehmer         1              │
+│                                    │
+│  🎙 Audio                          │
+│  Senden             2 kbps         │
+│  Empfangen          0 kbps         │
+│  Paketverlust       0%   ← grün    │
+│                                    │
+│  📹 Video                          │
+│  Senden             0 kbps         │
+│  Empfangen          0 kbps         │
+│  Paketverlust       0%   ← grün    │
+│                                    │
+│  🔄 Netzwerk                       │
+│  Latenz (RTT)       14 ms ← grün   │
+│  Jitter             0 ms           │
+│                                    │
+│  Statistiken werden jede Sekunde   │
+│  aktualisiert                      │
+└────────────────────────────────────┘
+```
+
+Farbcodierung der Werte (wie Fluxer):
+- Grün: Paketverlust < 2%, Latenz < 100ms — alles gut
+- Gelb: Paketverlust 2–5%, Latenz 100–200ms — Warnung
+- Rot: Paketverlust > 5%, Latenz > 200ms — kritisch
+
+Datenquelle: Element Call Widget API via `postMessage` — EC sendet regelmäßig WebRTC Stats.
+Alternativ: `RTCPeerConnection.getStats()` direkt abfragen wenn EC das exposed.
+
+- [ ] `ConnectionStatsPanel.tsx` — Popup-Panel mit Live-Stats
+- [ ] 📊 Button im Voice Connected Bar öffnet/schließt das Panel (Toggle)
+- [ ] Stats via `postMessage` von Element Call empfangen (jede Sekunde)
+- [ ] Farbcodierung: grün/gelb/rot basierend auf Schwellenwerten
+- [ ] Dauer-Timer (läuft seit Call-Beitritt)
+- [ ] Teilnehmer-Count
+
+#### Rauschunterdrückung Toggle im Voice Connected Bar
+Schneller Toggle direkt im Bar — ohne in die Settings gehen zu müssen:
+
+```
+[🎙 Rauschunterdrückung: AN]  ← Button/Toggle im Bar oder Kontext-Menü
+```
+
+- [ ] Toggle-Button für Rauschunterdrückung im Voice Connected Bar
+- [ ] State aus `settingsAtom.noiseSuppression` lesen/schreiben
+- [ ] Visuelles Feedback: Icon ändert sich (aktiv/inaktiv)
+- [ ] Wert wird an Element Call via URL-Param übergeben beim nächsten Call-Start
+- [ ] Alternativ: im Kontext-Menü des Mic-Buttons (Rechtsklick auf Mic-Icon)
+
+#### Speaking Indicator (grüner Glow wenn jemand spricht)
+Nie implementiert — muss komplett neu gebaut werden.
+
+**Das Problem:** Audio-Level sitzt im Element Call iframe, nicht in Cinny.
+**Die Lösung:** Element Call sendet Speaker-Events via `postMessage` Widget API → wir hören zu und speichern wer gerade spricht.
+
+```typescript
+// In CallProvider.tsx — postMessage listener ergänzen:
+window.addEventListener('message', (e) => {
+  if (e.data?.type === 'io.element.call.notify_speak') {
+    // { userId: string, speaking: boolean }
+    setSpeakingUsers(prev => {
+      const next = new Set(prev);
+      e.data.speaking ? next.add(e.data.userId) : next.delete(e.data.userId);
+      return next;
+    });
+  }
+});
+
+// Atom:
+export const speakingUsersAtom = atom<Set<string>>(new Set());
+```
+
+**Wo der Glow angezeigt wird:**
+
+1. **In der Sidebar** (`RoomNavUser.tsx`) — grüner Ring um Avatar wenn User spricht:
+```css
+.speakingRing {
+  outline: 2px solid #23a55a;
+  outline-offset: 2px;
+  border-radius: 50%;
+}
+```
+
+2. **Im Call selbst** (`CallViewUser.tsx`) — grüner Glow um die Kachel:
+```css
+.speakingTile {
+  box-shadow: 0 0 0 2px #23a55a;
+}
+```
+
+- [ ] `postMessage` listener in `CallProvider.tsx` für `io.element.call.notify_speak`
+- [ ] `speakingUsersAtom` — Jotai Set mit aktuell sprechenden UserIds
+- [ ] Speaking-Ring in `RoomNavUser.tsx` (Sidebar Avatar)
+- [ ] Speaking-Glow in `CallViewUser.tsx` (Call-Kachel)
+- [ ] Sanfte CSS Transition (fade in/out, nicht hart)
+
+#### Voice Channel Sidebar (nach Fluxer-Vorbild, Bild 3)
+
+Fluxer-Sidebar für Voice Channels sieht so aus:
+```
+Voice Channels          [+] [⚙] [▾]
+🔊 General                   [👤+] [⚙]
+```
+- Kategorie-Header "Voice Channels" mit + und ⚙ Icon rechts (nur on hover sichtbar)
+- Channel-Zeile: Lautsprecher-Icon + Name + hover: [👤+] [⚙] Icons rechts
+- Kein überladenes UI — clean und minimal wie Fluxer
+
+- [x] `m.call.member` State Events auslesen → `useCallMemberships.ts` ✓ bereits da
+- [x] Teilnehmer-Liste unter Voice-Channel (Avatar + Name) → `RoomNavUser.tsx` ✓ bereits da
+- [ ] Kategorie-Header Hover-Aktionen (+ Channel, ⚙ Settings) nach Fluxer-Style
+- [ ] Voice-Channel Zeile Hover: [👤+] (Einladen) + [⚙] (Settings) Icons rechts
+- [ ] Mute-Icon pro Teilnehmer in `RoomNavUser.tsx` ergänzen (`feeds` auslesen)
+- [ ] LIVE Badge in `RoomNavUser.tsx` ergänzen (screenshare feed detection)
+- [ ] `LiveBadge.tsx` — animiertes pulsierendes rotes Badge
+- [ ] Hover-Tooltip auf LIVE Badge: "Stream ansehen"
+- [ ] `GuildVoiceActivityBadge.tsx` — 🔊 auf Space-Icon wenn jemand im Voice sitzt
+- [ ] `spaceHasVoiceActivityAtom` — Jotai Atom pro Space aggregiert
+
+#### Auto-Join beim Klick auf Voice Channel (wie Discord/Fluxer)
+Aktuell: Cinny zeigt erst einen "Beitreten"-Dialog mit Kamera/Mic-Auswahl → nervt.
+Ziel: Klick auf Voice Channel → direkt beitreten, genau wie Discord/Fluxer.
+
+```
+Aktuell:  Klick → Modal "Möchtest du beitreten?" → Bestätigen → Call startet
+Neu:      Klick → Call startet sofort (mit letzten Einstellungen)
+```
+
+Wo das geändert wird:
+- `src/app/features/room-nav/RoomNavItem.tsx` — Join-Button Handler
+- `src/app/features/call/CallView.tsx` — Pre-Join Screen entfernen/überspringen
+- Mic/Cam-State aus `settingsAtom` nehmen (letzter Stand) statt jedes Mal fragen
+
+- [ ] Pre-Join Modal/Screen in `CallView.tsx` entfernen
+- [ ] Voice-Channel Klick → direkt `joinCall()` aufrufen
+- [ ] Ersten Beitritt: Mic standardmäßig AN, Kamera standardmäßig AUS (wie Discord)
+- [ ] Einstellungen werden aus `settingsAtom` geladen (letzter Stand)
+
+#### Screenshare Modal (nach Fluxer-Vorbild, Bild 1)
+Fluxer's Modal sieht so aus:
+```
+┌─ Bildschirmfreigabe-Einstellungen ──────── ✕ ┐
+│                                               │
+│  Videoqualität                                │
+│  [480p] [720p ✓] [👑 1080p] [👑 1440p] [👑 4K]│
+│                                               │
+│  Bildrate                                     │
+│  [15 FPS] [24 FPS] [30 FPS ✓] [👑 60 FPS]    │
+│                                               │
+│  Audio teilen                    [Toggle]     │
+│  Ton des Bildschirms einbinden                │
+│                                               │
+│  ┌─────────────────────────────────────────┐  │
+│  │ 👑 Schalte HD-Video mit [Name] frei     │  │
+│  │ Höhere Auflösungen + 60 FPS freischalten│  │
+│  └─────────────────────────────────────────┘  │
+│                                               │
+│  [Abbrechen]          [Freigabe starten →]    │
+└───────────────────────────────────────────────┘
+```
+
+Details:
+- Qualitäts-Optionen als Toggle-Buttons (nicht Dropdown)
+- Premium-Optionen (1080p+, 60fps) mit 👑 Icon + ausgegraut (für später)
+- Audio-Toggle mit schönem Switch
+- Upgrade-Banner für Premium-Features (für spätere Monetarisierung optional)
+- Buttons: "Abbrechen" neutral + "Freigabe starten" brand-blau (`#4641D9`)
+- Werte werden geclamped auf Server-Maximum (Phase 6)
+
+- [ ] `ScreenShareSettingsModal.tsx` nach Fluxer-Design bauen (Toggle-Buttons statt Dropdowns)
+- [ ] Qualitäts-Optionen: 480p / 720p / 1080p / Quelle als visuelle Buttons
+- [ ] FPS-Optionen: 5 / 15 / 30 / 60 als visuelle Buttons
+- [ ] Audio-Toggle Switch
+- [ ] Premium-Badge (👑) auf gesperrten Optionen (visuell, keine echte Paywall)
+- [ ] "Freigabe starten" Button → öffnet nativen Screen-Picker (oder Electron-Picker)
+
+#### LIVE Stream ansehen
+- [ ] Klick auf LIVE Badge → Element Call als Viewer öffnen
+- [ ] "Stream ansehen" Hover-Button unter Voice-Channel wenn Stream aktiv
+
+#### Member-Liste
+- [ ] `MemberList.tsx` — rechte Sidebar (240px)
+- [ ] `MemberListGroup.tsx` — ONLINE / OFFLINE Gruppen-Header
+- [ ] `MemberListItem.tsx` — Avatar + Name + Status-Dot + Rolle-Badge
+- [ ] Toggle Button im Channel-Header (People-Icon)
+- [ ] Mobile: ausgeblendet
+
+#### Community Lobby
+- [ ] `LobbyView.tsx` — Space-Übersicht Screen (wenn kein Channel gewählt)
+- [ ] `SpaceBanner.tsx` — Icon + Name + Beschreibung + Mitglieder-Count
+- [ ] `SpaceChannelGrid.tsx` — alle Channels als Kacheln
+- [ ] `#lobby` Raum automatisch als erster Channel anlegen (`order: "00"`)
+
+#### Welcome Channel
+- [ ] `#welcome` Raum (read-only für normale Mitglieder)
+- [ ] `m.room.member` join-Events als `WelcomeCard` rendern statt als Systemnachricht
+- [ ] `WelcomeCard.tsx` — Avatar + "🎉 [Name] hat die Community betreten"
+- [ ] Datum-Trenner zwischen verschiedenen Tagen
 
 ---
 
