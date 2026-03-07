@@ -17,6 +17,8 @@ export const Modal = style({
   padding: toRem(24),
   minWidth: toRem(340),
   maxWidth: toRem(420),
+  maxHeight: '90vh',
+  overflowY: 'auto',
   width: '90vw',
   display: 'flex',
   flexDirection: 'column',
