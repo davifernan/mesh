@@ -419,10 +419,16 @@ export function CallNavStatus() {
     <Box direction="Column" shrink="No">
       {showSSModal && (
         <ScreenShareModal
-          onConfirm={(_res, _fps, _audio) => {
+          onConfirm={(res, fps, audio) => {
             setShowSSModal(false);
-            // Best-effort: tell EC to start screenshare
-            sendWidgetAction('io.element.screenshare_start', {}).catch(() => {});
+            // Tell BetterCord-Call to start screenshare with the chosen quality settings.
+            // BC-Call's InCallView listens for this action and calls toggleScreenSharing
+            // with the provided overrides (ssResolution, ssFps, ssAudio).
+            sendWidgetAction('io.bettercord.screenshare_start', {
+              ssResolution: res,
+              ssFps: fps,
+              ssAudio: audio,
+            }).catch(() => {});
           }}
           onCancel={() => setShowSSModal(false)}
         />
