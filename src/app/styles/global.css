@@ -54,32 +54,69 @@
   --focus-primary: #00b0f4;
 
   /* === DARK THEME (default) === */
-  --background-primary: #313338;
-  --background-secondary: #2B2D31;
-  --background-tertiary: #1E1F22;
-  --background-floating: #111214;
-  --background-modifier-hover: rgba(255, 255, 255, 0.06);
-  --background-modifier-selected: rgba(255, 255, 255, 0.12);
-  --background-modifier-accent: rgba(255, 255, 255, 0.16);
+  /* Surface colors — HSL 220, 13%, neutralDark scale */
+  --background-primary:            hsl(220, 13%, 13.22%);  /* #1e1f22 guild list */
+  --background-secondary:          hsl(220, 13%, 17.5%);   /* #2b2d31 sidebar */
+  --background-secondary-lighter:  hsl(220, 13%, 18.8%);
+  --background-secondary-alt:      hsl(220, 13%, 15%);     /* panels */
+  --background-tertiary:           hsl(220, 13%, 11.5%);   /* deepest bg */
+  --background-channel-header:     hsl(220, 13%, 19.5%);
+  --background-header-primary:     hsl(220, 13%, 20%);
+  --background-header-primary-hover: hsl(220, 13%, 22%);
+  --background-header-secondary:   hsl(220, 13%, 18%);     /* action bar border */
+  --background-textarea:           hsl(220, 13%, 23%);     /* input area */
+  --background-floating:           hsl(220, 13%, 8%);
+  --guild-list-foreground:         hsl(220, 13%, 19%);     /* guild icon bg */
 
-  --text-primary: #DBDEE1;
-  --text-secondary: #B5BAC1;
-  --text-muted: #80848E;
-  --text-link: #00AFF4;
-  --text-danger: #F23F43;
+  /* Modifiers */
+  --background-modifier-hover:     hsla(0, 0%, 100%, 0.05);
+  --background-modifier-selected:  hsla(0, 0%, 100%, 0.10);
+  --background-modifier-accent:    hsla(220, 13%, 80%, 0.15);
+  --background-modifier-accent-focus: hsla(220, 13%, 80%, 0.22);
+
+  /* Text — HSL 220, 13%, range 52–96% */
+  --text-primary:        hsl(220, 13%, 96%);    /* #dcddde */
+  --text-chat:           hsl(220, 13%, 88%);    /* main message text */
+  --text-secondary:      hsl(220, 13%, 80%);    /* #b9bbbe */
+  --text-chat-muted:     hsl(220, 13%, 72%);    /* author info */
+  --text-primary-muted:  hsl(220, 13%, 72%);    /* timestamps */
+  --text-tertiary:       hsl(220, 13%, 58%);    /* #72767d */
+  --text-tertiary-muted: hsl(220, 13%, 52%);
+  --text-muted:          hsl(220, 11%, 50%);    /* #80848e */
+  --text-link:           hsl(210, 100%, 70%);
+  --text-danger:         hsl(359, 70%, 60%);
 
   --user-area-divider-color: rgba(255, 255, 255, 0.06);
   --panel-control-bg: #232428;
 
-  /* === MESSAGES === */
+  /* === MESSAGES (1:1 from Fluxer Message.module.css) === */
   --message-avatar-size: 40px;
+  --message-avatar-size-compact: 16px;
   --message-gutter: 16px;
   --chat-horizontal-padding: 16px;
+  --message-spacing-y: 0.125rem;
   --message-line-height: 1.375rem;
+  --message-timestamp-color: var(--text-primary-muted);
+  --message-timestamp-font-size: 0.75rem;
+  --message-compact-timestamp-width: 3.5rem;
+  --message-compact-gap: 0.25rem;
+  --message-compact-indent: calc(var(--message-compact-timestamp-width) + var(--message-compact-gap));
+  --message-highlight-bar-width: 2px;
   --message-mention-color: rgb(234 197 50);
   --message-mention-bg: rgb(234 197 50 / 0.1);
+  --message-mention-bg-hover: rgb(234 197 50 / 0.14);
   --message-reply-color: rgb(59 130 246);
   --message-reply-bg: rgb(59 130 246 / 0.1);
+  --message-reply-spacing: 4px;
+  --message-reply-height: 1.125rem;
+  --message-reply-font-size: 0.875rem;
+  --message-reply-spine-width: 2px;
+  --message-reply-spine-radius: 6px;
+  --message-container-gap: 0.25rem;
+  --message-container-padding-y: 0.125rem;
+  --message-action-bar-offset: 3rem;
+  --message-transition-highlight: 200ms ease-in-out;
+  --message-avatar-align-offset: clamp(0px, calc((var(--message-line-height) * 2 - var(--message-avatar-size)) / 2), 0.5rem);
 
   /* === STATUS === */
   --status-online: #23A55A;
@@ -188,132 +225,154 @@ html.reduced-motion * {
 }
 
 /* ============================================
-   Phase 4: Discord-style Message UI
+   Phase 4: Discord/Fluxer-style Message UI
+   (Based on fluxer_app/src/styles/Message.module.css)
    ============================================ */
 
-/* Message row: remove old Cinny border-radius + add hover */
+/* Message row base — remove Cinny border-radius */
 [data-timeline-message] {
   border-radius: 0 !important;
   transition: background-color 100ms ease;
-  padding-left: 16px !important;
-  padding-right: 16px !important;
+  padding-block: var(--message-spacing-y) !important;
+  padding-inline-end: calc(var(--chat-horizontal-padding) + var(--message-action-bar-offset)) !important;
+  position: relative;
 }
 
+/* Left border indicator slot (Fluxer: message::before) */
+[data-timeline-message]::before {
+  content: '';
+  display: block;
+  position: absolute;
+  inset-block: 0;
+  inset-inline-start: 0;
+  width: var(--message-highlight-bar-width);
+  background-color: transparent;
+  pointer-events: none;
+}
+
+/* Hover */
 [data-timeline-message]:hover {
   background-color: var(--background-modifier-hover) !important;
 }
 
-/* Message is "selected" (context menu open) = darker bg */
+/* Context menu active */
 [data-timeline-message]:focus-within {
   background-color: var(--background-modifier-hover) !important;
 }
 
-/* Mention highlight: yellow left-border + tinted bg */
-[data-timeline-message][data-mention="true"] {
+/* Mention highlight — Fluxer: .messageMentioned */
+[data-timeline-message][data-highlight="true"]::before {
+  background-color: var(--message-mention-color);
+}
+[data-timeline-message][data-highlight="true"] {
   background-color: var(--message-mention-bg) !important;
 }
-[data-timeline-message][data-mention="true"]::before {
-  content: '';
-  position: absolute;
-  left: 0;
-  top: 0;
-  bottom: 0;
-  width: 2px;
-  background: var(--message-mention-color);
+[data-timeline-message][data-highlight="true"]:hover {
+  background-color: var(--message-mention-bg-hover) !important;
 }
 
-/* Username: Discord medium-weight, colored */
+/* Username — Fluxer: .messageUsername */
 [data-timeline-message] [data-user-id] b,
 [data-timeline-message] [data-user-id] strong {
   font-weight: 500;
+  line-height: var(--message-line-height);
 }
 
-/* Timestamp: muted, small */
+/* Timestamp — Fluxer: .messageTimestamp */
 [data-timeline-message] time {
-  color: var(--text-muted) !important;
-  font-size: 0.75rem !important;
+  color: var(--message-timestamp-color) !important;
+  font-size: var(--message-timestamp-font-size) !important;
+  opacity: 0.6;
+  white-space: nowrap;
 }
 
-/* Message text body */
+/* Message text — Fluxer: .messageText */
 [data-timeline-message] p,
 [data-timeline-message] [class*="MessageTextBody"] {
-  color: var(--text-primary);
+  color: var(--text-chat);
   font-size: 1rem;
-  line-height: 1.375rem;
+  line-height: var(--message-line-height);
+  word-break: break-word;
+  white-space: break-spaces;
 }
 
-/* Hover actions bar: Discord-style floating pill */
+/* Hover action bar — Fluxer: .actionBar in MessageActionBar.module.css */
+/* background: --background-primary, border: --background-header-secondary, radius: 8px */
 [data-timeline-message] [role="menu"] {
-  background-color: var(--background-floating) !important;
-  border: 1px solid var(--background-modifier-accent) !important;
-  border-radius: 4px !important;
+  background-color: var(--background-header-primary) !important;
+  border: 1px solid var(--background-header-secondary) !important;
+  border-radius: 8px !important;
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4) !important;
   padding: 2px !important;
 }
 
+/* Action bar buttons — Fluxer: .button */
 [data-timeline-message] [role="menu"] button {
-  border-radius: 4px !important;
-  width: 32px !important;
-  height: 32px !important;
-  color: var(--text-secondary) !important;
+  border-radius: 6px !important;
+  height: 30px !important;
+  min-width: 30px !important;
+  padding: 4px !important;
+  color: var(--text-tertiary) !important;
+  transition: background-color 0.1s ease !important;
 }
-
 [data-timeline-message] [role="menu"] button:hover {
   background-color: var(--background-modifier-hover) !important;
   color: var(--text-primary) !important;
 }
 
-/* Reply spine */
-[class*="ReplyLine"],
-[class*="replyLine"] {
-  border-color: var(--text-muted) !important;
+/* Reply spine — Fluxer: .repliedMessage::before */
+[class*="Reply"] [class*="before"],
+[class*="reply"] svg {
+  color: var(--text-chat-muted) !important;
 }
 
-/* Message code blocks: Discord dark mono style */
+/* Inline code — Fluxer global.css: code */
 [data-timeline-message] code {
-  background-color: var(--background-secondary) !important;
+  background-color: var(--bg-code, var(--background-secondary-alt)) !important;
   border: none !important;
-  border-radius: 3px !important;
+  border-radius: var(--radius-sm) !important;
   font-family: var(--font-mono) !important;
   font-size: 0.875em !important;
   padding: 0.2em 0.4em !important;
   color: var(--text-primary) !important;
 }
-
 [data-timeline-message] pre > code {
   padding: 0 !important;
   background: transparent !important;
 }
-
 [data-timeline-message] pre {
-  background-color: var(--background-secondary) !important;
+  background-color: var(--bg-code-block, var(--background-secondary-alt)) !important;
   border: 1px solid var(--background-modifier-accent) !important;
-  border-radius: 4px !important;
+  border-radius: var(--radius-md) !important;
   padding: 0.5rem 1rem !important;
   margin: 0.25rem 0 !important;
 }
 
-/* Reaction pills: Discord style */
+/* Reactions — Fluxer MessageReactions.module.css */
 [data-timeline-message] [class*="Reaction"],
 [data-timeline-message] [class*="reaction"] {
   background-color: var(--background-secondary) !important;
-  border: 1px solid var(--background-modifier-accent) !important;
-  border-radius: 8px !important;
+  border: 1px solid transparent !important;
+  border-radius: 0.5rem !important;
+}
+[data-timeline-message] [class*="Reaction"]:hover,
+[data-timeline-message] [class*="reaction"]:hover {
+  border-color: var(--background-modifier-accent) !important;
+  background-color: var(--background-modifier-hover) !important;
 }
 
-/* Avatar in message: 40px, circular */
-[data-timeline-message] [class*="Avatar"] img,
-[data-timeline-message] [class*="Avatar"] [class*="avatar"] {
-  width: 40px !important;
-  height: 40px !important;
+/* Avatar: 40px circular */
+[data-timeline-message] [class*="Avatar"] img {
   border-radius: 50% !important;
 }
 
-/* Grouped message (collapse=true): show timestamp on hover */
+/* Grouped message: timestamp appears on hover — Fluxer: .messageTimestampHover */
 [data-timeline-message] [class*="AvatarBase"] time {
   opacity: 0;
+  pointer-events: none;
   transition: opacity 100ms ease;
 }
 [data-timeline-message]:hover [class*="AvatarBase"] time {
   opacity: 1;
+  pointer-events: auto;
 }
