@@ -1,5 +1,7 @@
 import React, { createContext, ReactNode, useCallback, useEffect, useMemo, useRef } from 'react';
+import { MatrixRTCSession } from 'matrix-js-sdk/lib/matrixrtc/MatrixRTCSession';
 import { ClientWidgetApi } from 'matrix-widget-api';
+import { Box } from 'folds';
 import { useAtomValue } from 'jotai';
 import { useCallState } from './CallProvider';
 import {
@@ -28,13 +30,19 @@ export function PersistentCallContainer({ children }: PersistentCallContainerPro
   const callIframeRef = useRef<HTMLIFrameElement | null>(null);
   const callWidgetApiRef = useRef<ClientWidgetApi | null>(null);
   const callSmallWidgetRef = useRef<SmallWidget | null>(null);
+  // After a non-voice room lobby join, reload EC with join_existing for proper in-call view.
+  const hasReloadedAfterLobbyRef = useRef(false);
+  const postLobbyIntentRef = useRef<'join_existing' | null>(null);
 
   const {
     activeCallRoomId,
     viewedCallRoomId,
+    isChatOpen,
     isActiveCallReady,
     registerActiveClientWidgetApi,
     activeClientWidget,
+    resetActiveCallReady,
+    hangUp,
   } = useCallState();
   const mx = useMatrixClient();
   const clientConfig = useClientConfig();
@@ -46,9 +54,6 @@ export function PersistentCallContainer({ children }: PersistentCallContainerPro
   const [noiseSuppression] = useSetting(settingsAtom, 'noiseSuppression');
   const [autoGainControl] = useSetting(settingsAtom, 'autoGainControl');
   const [ssAudio] = useSetting(settingsAtom, 'ssAudio');
-  const [micDeviceId] = useSetting(settingsAtom, 'micDeviceId');
-  const [cameraDeviceId] = useSetting(settingsAtom, 'cameraDeviceId');
-  const [speakerDeviceId] = useSetting(settingsAtom, 'speakerDeviceId');
   const effectiveAV = useAtomValue(effectiveAVSettingsAtom);
 
   /* eslint-disable no-param-reassign */
@@ -60,6 +65,7 @@ export function PersistentCallContainer({ children }: PersistentCallContainerPro
       iframeRef: React.MutableRefObject<HTMLIFrameElement | null>,
       autoJoin: boolean,
       themeKind: ThemeKind | null,
+      intentOverride?: 'join_existing',
       avSettings?: typeof effectiveAV,
     ) => {
       if (mx?.getUserId()) {
@@ -79,8 +85,13 @@ export function PersistentCallContainer({ children }: PersistentCallContainerPro
             return;
           }
 
+          // Determine room type to pick the correct intent and callType.
           const room = mx.getRoom(roomIdToSet);
           const { intent: intentParam, callIntentParam } = getCallIntentParams(room);
+          const effectiveIntent = intentOverride ?? intentParam;
+          // Only use per-participant E2EE if the room has Matrix encryption enabled.
+          // Like gomuks: passing false overrides EC's own default of true for unencrypted rooms.
+          const isRoomEncrypted = !!room?.currentState.getStateEvents('m.room.encryption', '');
 
           const widgetId = `element-call-${roomIdToSet}-${Date.now()}`;
           const newUrl = getWidgetUrl(
@@ -89,17 +100,14 @@ export function PersistentCallContainer({ children }: PersistentCallContainerPro
             clientConfig.elementCallUrl ?? '',
             widgetId,
             {
-              intent: intentParam,
-              // Voice-channel rooms and autoJoin: skip lobby (instant join).
-              // Normal/DM rooms: show lobby ("Anruf beitreten"). BC-Call handles
-              // the lobby → in-call transition itself, no reload needed.
-              skipLobby: autoJoin || room?.isCallRoom() ? true : undefined,
+              intent: effectiveIntent,
+              // Skip lobby when rejoining existing session; or when autoJoin is on.
+              skipLobby: intentOverride === 'join_existing' ? true : (autoJoin ? true : undefined),
               returnToLobby: 'true',
-              // Always per-participant E2EE — matching Element Web/X behaviour.
-              // Passing false breaks key exchange even in unencrypted rooms.
-              perParticipantE2EE: 'true',
+              perParticipantE2EE: isRoomEncrypted ? 'true' : 'false',
               theme: themeKind,
               callIntent: callIntentParam,
+              // A/V quality constraints from space settings + user preferences
               ...(avSettings && {
                 audioBitrate: String(avSettings.audioBitrate),
                 videoResolution: avSettings.videoResolution,
@@ -107,13 +115,11 @@ export function PersistentCallContainer({ children }: PersistentCallContainerPro
                 ssResolution: avSettings.ssResolution,
                 ssFps: String(avSettings.ssFps),
               }),
+              // Audio processing flags from user settings
               echoCancellation,
               noiseSuppression,
               autoGainControl,
               ssAudio,
-              micDeviceId,
-              cameraDeviceId,
-              speakerDeviceId,
             },
           );
 
@@ -125,6 +131,10 @@ export function PersistentCallContainer({ children }: PersistentCallContainerPro
             'Element Call',
             'm.call',
             newUrl,
+            // waitForIframeLoad: false — EC sends ContentLoaded when its React app is ready,
+            // which triggers capabilities negotiation at the right time. With true, capabilities
+            // are negotiated on iframe load (before EC is ready) and ContentLoaded gets an error
+            // reply, leaving the widget channel partially broken and causing blank screen on join.
             false,
             getWidgetData(mx, roomIdToSet, {}, { callIntent: callIntentParam }),
             roomIdToSet,
@@ -133,6 +143,8 @@ export function PersistentCallContainer({ children }: PersistentCallContainerPro
           const smallWidget = new SmallWidget(app);
           smallWidgetRef.current = smallWidget;
 
+          // Start messaging BEFORE setting iframe.src — ensures the ClientWidgetApi
+          // message listener is registered before the iframe navigates.
           const widgetApiInstance = smallWidget.startMessaging(iframeElement);
           widgetApiRef.current = widgetApiInstance;
           registerActiveClientWidgetApi(
@@ -161,15 +173,51 @@ export function PersistentCallContainer({ children }: PersistentCallContainerPro
       noiseSuppression,
       autoGainControl,
       ssAudio,
-      micDeviceId,
-      cameraDeviceId,
-      speakerDeviceId,
     ],
   );
 
+  // After any lobby join, poll until EC's call member state event has propagated to the room,
+  // then reload EC with intent=join_existing + skipLobby=true so it auto-joins the existing
+  // session and shows the full in-call grid. Hangs up if the session never appears.
+  // This applies to all room types: DM/group rooms (start_call) and voice rooms (join_existing)
+  // both hit the same timing issue where the in-call grid is not shown after the first join.
+  useEffect(() => {
+    if (!activeCallRoomId) {
+      hasReloadedAfterLobbyRef.current = false;
+      return undefined;
+    }
+    if (isActiveCallReady && !hasReloadedAfterLobbyRef.current) {
+      const room = mx?.getRoom(activeCallRoomId);
+      if (room) {
+        hasReloadedAfterLobbyRef.current = true;
+        const POLL_INTERVAL_MS = 200;
+        const TIMEOUT_MS = 10000;
+        const startTime = Date.now();
+        const pollTimer = setInterval(() => {
+          if (MatrixRTCSession.callMembershipsForRoom(room).length > 0) {
+            clearInterval(pollTimer);
+            callSmallWidgetRef.current?.stopMessaging();
+            callWidgetApiRef.current = null;
+            callSmallWidgetRef.current = null;
+            registerActiveClientWidgetApi(activeCallRoomId, null, null, null);
+            postLobbyIntentRef.current = 'join_existing';
+            resetActiveCallReady();
+          } else if (Date.now() - startTime >= TIMEOUT_MS) {
+            clearInterval(pollTimer);
+            hangUp();
+          }
+        }, POLL_INTERVAL_MS);
+        return () => clearInterval(pollTimer);
+      }
+    }
+    return undefined;
+  }, [isActiveCallReady, activeCallRoomId, mx, registerActiveClientWidgetApi, resetActiveCallReady, hangUp]);
+
   useEffect(() => {
     if (activeCallRoomId) {
-      setupWidget(callWidgetApiRef, callSmallWidgetRef, callIframeRef, callAutoJoin, theme.kind, effectiveAV);
+      const intentOverride = postLobbyIntentRef.current ?? undefined;
+      postLobbyIntentRef.current = null;
+      setupWidget(callWidgetApiRef, callSmallWidgetRef, callIframeRef, callAutoJoin, theme.kind, intentOverride, effectiveAV);
     }
   }, [
     theme,
@@ -188,22 +236,42 @@ export function PersistentCallContainer({ children }: PersistentCallContainerPro
 
   return (
     <CallRefContext.Provider value={memoizedIframeRef}>
-      <div style={{ width: 0, height: 0, overflow: 'hidden', flexShrink: 0 }}>
-        <iframe
-          ref={callIframeRef}
+      <Box grow="No">
+        <Box
+          direction="Column"
           style={{
-            width: 1,
-            height: 1,
-            border: 'none',
-            backgroundColor: 'var(--background-header-primary)',
-            colorScheme: 'dark',
+            position: 'relative',
+            zIndex: 0,
+            display: isMobile && isChatOpen ? 'none' : 'flex',
+            width: isMobile && isChatOpen ? '0%' : '100%',
+            height: isMobile && isChatOpen ? '0%' : '100%',
           }}
-          title="Persistent Element Call"
-          sandbox="allow-forms allow-scripts allow-same-origin allow-popups allow-modals allow-downloads"
-          allow="microphone; camera; display-capture; autoplay; clipboard-write;"
-          src="about:blank"
-        />
-      </div>
+        >
+          <Box
+            grow="Yes"
+            style={{
+              position: 'relative',
+            }}
+          >
+            <iframe
+              ref={callIframeRef}
+              style={{
+                position: 'absolute',
+                top: 0,
+                left: 0,
+                display: 'flex',
+                width: '100%',
+                height: '100%',
+                border: 'none',
+              }}
+              title="Persistent Element Call"
+              sandbox="allow-forms allow-scripts allow-same-origin allow-popups allow-modals allow-downloads"
+              allow="microphone; camera; display-capture; autoplay; clipboard-write;"
+              src="about:blank"
+            />
+          </Box>
+        </Box>
+      </Box>
       {children}
     </CallRefContext.Provider>
   );
