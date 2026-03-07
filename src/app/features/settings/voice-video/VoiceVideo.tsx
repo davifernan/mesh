@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Box, Chip, Scroll, Switch, Text, config } from 'folds';
 import { Page, PageContent, PageHeader } from '../../../components/page';
 import { SettingTile } from '../../../components/setting-tile';
@@ -50,12 +50,108 @@ function ChipRow<T extends string | number>({
   );
 }
 
+// ── Device picker ────────────────────────────────────────────────────────────
+
+type MediaDeviceInfo2 = { deviceId: string; label: string };
+
+function useMediaDeviceList(kind: MediaDeviceKind): MediaDeviceInfo2[] {
+  const [devices, setDevices] = useState<MediaDeviceInfo2[]>([]);
+  const permissionRequestedRef = useRef(false);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function load(requestPermission: boolean) {
+      // If labels are empty, request permission first (browser hides labels until granted)
+      if (requestPermission && !permissionRequestedRef.current) {
+        permissionRequestedRef.current = true;
+        try {
+          const constraints = kind === 'videoinput' ? { video: true } : { audio: true };
+          const stream = await navigator.mediaDevices.getUserMedia(constraints);
+          stream.getTracks().forEach((t) => t.stop());
+        } catch {
+          // Permission denied — still enumerate (labels will be empty)
+        }
+      }
+
+      const all = await navigator.mediaDevices.enumerateDevices();
+      if (cancelled) return;
+
+      const filtered = all
+        .filter((d) => d.kind === kind)
+        .map((d) => ({
+          deviceId: d.deviceId,
+          label: d.label || `${kind === 'audioinput' ? 'Microphone' : kind === 'videoinput' ? 'Camera' : 'Speaker'} ${d.deviceId.slice(0, 6)}`,
+        }));
+
+      setDevices(filtered);
+
+      // If labels are still empty, retry after requesting permission
+      if (filtered.every((d) => !d.label || d.label.startsWith('Microphone ') || d.label.startsWith('Camera ') || d.label.startsWith('Speaker '))) {
+        if (!requestPermission) load(true);
+      }
+    }
+
+    void load(false);
+    navigator.mediaDevices.addEventListener('devicechange', () => void load(false));
+    return () => {
+      cancelled = true;
+      navigator.mediaDevices.removeEventListener('devicechange', () => void load(false));
+    };
+  }, [kind]);
+
+  return devices;
+}
+
+type DeviceSelectProps = {
+  kind: MediaDeviceKind;
+  value: string | undefined;
+  onChange: (id: string | undefined) => void;
+  placeholder: string;
+};
+
+function DeviceSelect({ kind, value, onChange, placeholder }: DeviceSelectProps) {
+  const devices = useMediaDeviceList(kind);
+
+  return (
+    <select
+      value={value ?? ''}
+      onChange={(e) => onChange(e.target.value === '' ? undefined : e.target.value)}
+      style={{
+        background: 'var(--bg-surface-low, #1e1f22)',
+        color: 'var(--text-normal, #dbdee1)',
+        border: '1px solid var(--background-modifier-accent, #3a3c40)',
+        borderRadius: '4px',
+        padding: '6px 10px',
+        fontSize: '14px',
+        minWidth: '220px',
+        maxWidth: '100%',
+        cursor: 'pointer',
+        outline: 'none',
+      }}
+    >
+      <option value="">{placeholder}</option>
+      {devices.map((d) => (
+        <option key={d.deviceId} value={d.deviceId}>
+          {d.label}
+        </option>
+      ))}
+    </select>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+
 type VoiceVideoProps = {
   requestClose: () => void;
 };
 
 export function VoiceVideo({ requestClose }: VoiceVideoProps) {
   const effective = useAtomValue(effectiveAVSettingsAtom);
+
+  const [micDeviceId, setMicDeviceId] = useSetting(settingsAtom, 'micDeviceId');
+  const [cameraDeviceId, setCameraDeviceId] = useSetting(settingsAtom, 'cameraDeviceId');
+  const [speakerDeviceId, setSpeakerDeviceId] = useSetting(settingsAtom, 'speakerDeviceId');
 
   const [audioBitrate, setAudioBitrate] = useSetting(settingsAtom, 'audioBitrate');
   const [echoCancellation, setEchoCancellation] = useSetting(settingsAtom, 'echoCancellation');
@@ -85,8 +181,57 @@ export function VoiceVideo({ requestClose }: VoiceVideoProps) {
       <Box grow="Yes">
       <Scroll hideTrack visibility="Hover">
       <PageContent>
-        {/* Audio */}
+        {/* Devices */}
         <Box direction="Column" gap="200">
+          <Text size="L400" priority="300">
+            DEVICES
+          </Text>
+          <SequenceCard className={SequenceCardStyle}>
+            <SettingTile
+              title="Microphone"
+              description="Input device used for your voice in calls."
+              after={
+                <DeviceSelect
+                  kind="audioinput"
+                  value={micDeviceId}
+                  onChange={setMicDeviceId}
+                  placeholder="Default microphone"
+                />
+              }
+            />
+          </SequenceCard>
+          <SequenceCard className={SequenceCardStyle}>
+            <SettingTile
+              title="Camera"
+              description="Video input device used for camera in calls."
+              after={
+                <DeviceSelect
+                  kind="videoinput"
+                  value={cameraDeviceId}
+                  onChange={setCameraDeviceId}
+                  placeholder="Default camera"
+                />
+              }
+            />
+          </SequenceCard>
+          <SequenceCard className={SequenceCardStyle}>
+            <SettingTile
+              title="Speaker / Output"
+              description="Audio output device for call audio. Not supported on Firefox."
+              after={
+                <DeviceSelect
+                  kind="audiooutput"
+                  value={speakerDeviceId}
+                  onChange={setSpeakerDeviceId}
+                  placeholder="Default speaker"
+                />
+              }
+            />
+          </SequenceCard>
+        </Box>
+
+        {/* Audio */}
+        <Box direction="Column" gap="200" style={{ marginTop: config.space.S500 }}>
           <Text size="L400" priority="300">
             AUDIO
           </Text>

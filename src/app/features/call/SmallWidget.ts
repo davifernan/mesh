@@ -118,6 +118,10 @@ export const getWidgetUrl = (
   if (setParams.ssAudio !== undefined) {
     params.set('ssAudio', String(setParams.ssAudio));
   }
+  // Device IDs — only set when user has chosen a non-default device
+  if (setParams.micDeviceId) params.set('micDeviceId', setParams.micDeviceId);
+  if (setParams.cameraDeviceId) params.set('cameraDeviceId', setParams.cameraDeviceId);
+  if (setParams.speakerDeviceId) params.set('speakerDeviceId', setParams.speakerDeviceId);
 
   const replacedParams = params.toString().replace(/%24/g, '$');
   url.search = `?${replacedParams}`;

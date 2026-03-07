@@ -50,6 +50,11 @@ export interface Settings {
   callRingtoneUrl: string | null;
   callAutoJoin: boolean;
 
+  // A/V Devices (deviceId from enumerateDevices, undefined = system default)
+  micDeviceId?: string;
+  cameraDeviceId?: string;
+  speakerDeviceId?: string;
+
   // A/V Quality
   audioBitrate: 32 | 64 | 128 | 256 | 510;
   echoCancellation: boolean;
@@ -103,6 +108,10 @@ const defaultSettings: Settings = {
   callRingScope: 'nonVoice',
   callRingtoneUrl: null,
   callAutoJoin: false,
+
+  micDeviceId: undefined,
+  cameraDeviceId: undefined,
+  speakerDeviceId: undefined,
 
   audioBitrate: 64,
   echoCancellation: true,
