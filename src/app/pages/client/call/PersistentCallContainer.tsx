@@ -50,6 +50,10 @@ export function PersistentCallContainer({ children }: PersistentCallContainerPro
   const theme = useTheme();
   const isMobile = screenSize === ScreenSize.Mobile;
   const [callAutoJoin] = useSetting(settingsAtom, 'callAutoJoin');
+  const [echoCancellation] = useSetting(settingsAtom, 'echoCancellation');
+  const [noiseSuppression] = useSetting(settingsAtom, 'noiseSuppression');
+  const [autoGainControl] = useSetting(settingsAtom, 'autoGainControl');
+  const [ssAudio] = useSetting(settingsAtom, 'ssAudio');
   const effectiveAV = useAtomValue(effectiveAVSettingsAtom);
 
   /* eslint-disable no-param-reassign */
@@ -111,6 +115,11 @@ export function PersistentCallContainer({ children }: PersistentCallContainerPro
                 ssResolution: avSettings.ssResolution,
                 ssFps: String(avSettings.ssFps),
               }),
+              // Audio processing flags from user settings
+              echoCancellation,
+              noiseSuppression,
+              autoGainControl,
+              ssAudio,
             },
           );
 
@@ -159,8 +168,12 @@ export function PersistentCallContainer({ children }: PersistentCallContainerPro
       activeClientWidget,
       registerActiveClientWidgetApi,
       callAutoJoin,
+      effectiveAV,
+      echoCancellation,
+      noiseSuppression,
+      autoGainControl,
+      ssAudio,
     ],
-    // Note: effectiveAV is passed per-call to avoid excessive re-renders from atom updates
   );
 
   // After any lobby join, poll until EC's call member state event has propagated to the room,
@@ -216,6 +229,7 @@ export function PersistentCallContainer({ children }: PersistentCallContainerPro
     activeCallRoomId,
     viewedCallRoomId,
     isActiveCallReady,
+    effectiveAV,
   ]);
 
   const memoizedIframeRef = useMemo(() => callIframeRef, [callIframeRef]);
