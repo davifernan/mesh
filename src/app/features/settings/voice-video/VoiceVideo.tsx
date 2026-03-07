@@ -113,8 +113,9 @@ export function VoiceVideo({ requestClose }: VoiceVideoProps) {
               title="Echo Cancellation"
               after={
                 <Switch
-                  checked={echoCancellation}
-                  onChange={(e) => setEchoCancellation(e.currentTarget.checked)}
+                  variant="Primary"
+                  value={echoCancellation}
+                  onChange={setEchoCancellation}
                 />
               }
             />
@@ -124,8 +125,9 @@ export function VoiceVideo({ requestClose }: VoiceVideoProps) {
               title="Noise Suppression"
               after={
                 <Switch
-                  checked={noiseSuppression}
-                  onChange={(e) => setNoiseSuppression(e.currentTarget.checked)}
+                  variant="Primary"
+                  value={noiseSuppression}
+                  onChange={setNoiseSuppression}
                 />
               }
             />
@@ -135,8 +137,9 @@ export function VoiceVideo({ requestClose }: VoiceVideoProps) {
               title="Auto Gain Control"
               after={
                 <Switch
-                  checked={autoGainControl}
-                  onChange={(e) => setAutoGainControl(e.currentTarget.checked)}
+                  variant="Primary"
+                  value={autoGainControl}
+                  onChange={setAutoGainControl}
                 />
               }
             />
@@ -219,8 +222,9 @@ export function VoiceVideo({ requestClose }: VoiceVideoProps) {
               description="Captures system audio along with your screen."
               after={
                 <Switch
-                  checked={ssAudio}
-                  onChange={(e) => setSSAudio(e.currentTarget.checked)}
+                  variant="Primary"
+                  value={ssAudio}
+                  onChange={setSSAudio}
                 />
               }
             />
