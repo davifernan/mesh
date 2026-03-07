@@ -191,11 +191,11 @@ export function VoiceVideo({ requestClose }: VoiceVideoProps) {
               title="Resolution"
               description={serverLimitsSS ? `Server maximum: ${effective.serverMaxSSResolution}` : undefined}
               after={
-                <ChipRow<'720p' | '1080p' | '1440p' | '2160p' | 'source'>
-                  options={['720p', '1080p', '1440p', '2160p', 'source']}
+                <ChipRow<'720p' | '1080p' | '1440p' | '4k' | 'source'>
+                  options={['720p', '1080p', '1440p', '4k', 'source']}
                   value={ssResolution}
                   onChange={setSSResolution}
-                  labels={{ '2160p': '4K', source: 'Source' }}
+                  labels={{ '4k': '4K', source: 'Source' }}
                   serverMax={serverLimitsSS ? effective.serverMaxSSResolution : undefined}
                 />
               }
@@ -204,13 +204,17 @@ export function VoiceVideo({ requestClose }: VoiceVideoProps) {
           <SequenceCard className={SequenceCardStyle}>
             <SettingTile
               title="Frame Rate"
-              description={serverLimitsSS ? `Server maximum: ${effective.serverMaxSSFps} fps` : undefined}
+              description={
+                serverLimitsSS
+                  ? `Server maximum: ${effective.serverMaxSSFps} fps`
+                  : '120 fps requires Chrome on desktop.'
+              }
               after={
                 <ChipRow<5 | 15 | 30 | 60 | 120>
                   options={[5, 15, 30, 60, 120]}
                   value={ssFps}
                   onChange={setSSFps}
-                  labels={{ 5: '5 fps', 15: '15 fps', 30: '30 fps', 60: '60 fps', 120: '120 fps' }}
+                  labels={{ 5: '5', 15: '15', 30: '30', 60: '60', 120: '120 fps' }}
                   serverMax={serverLimitsSS ? `${effective.serverMaxSSFps} fps` : undefined}
                 />
               }
