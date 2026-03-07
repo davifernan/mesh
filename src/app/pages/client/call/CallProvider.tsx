@@ -332,6 +332,15 @@ export function CallProvider({ children }: CallProviderProps) {
     }
   }, [isVideoEnabled, isAudioEnabled, sendWidgetAction, isActiveCallReady]);
 
+  // Fallback: if io.element.join is never received (listener registration race),
+  // mark the call ready as soon as the ClientWidgetApi emits 'ready' (capabilities done).
+  useEffect(() => {
+    if (!activeClientWidgetApi || isActiveCallReady) return;
+    const onReady = () => setIsActiveCallReady(true);
+    activeClientWidgetApi.once('ready', onReady);
+    return () => { activeClientWidgetApi.off('ready', onReady); };
+  }, [activeClientWidgetApi, isActiveCallReady]);
+
   useEffect(() => {
     if (!activeCallRoomId && !viewedCallRoomId) {
       return;
@@ -473,14 +482,17 @@ export function CallProvider({ children }: CallProviderProps) {
     activeClientWidget?.iframe?.contentWindow?.document,
   ]);
 
-  // Separate effect: sync mute state to EC whenever it changes (without re-registering listeners)
+  // Separate effect: sync mute state to EC whenever it changes.
+  // Do NOT gate on isActiveCallReady — that flag may never be set due to a
+  // race condition with the io.element.join listener registration.  EC ignores
+  // the message if it isn't ready yet; errors are swallowed via .catch().
   useEffect(() => {
-    if (!activeClientWidgetApi || !isActiveCallReady) return;
+    if (!activeClientWidgetApi) return;
     void activeClientWidgetApi.transport.send(WIDGET_MEDIA_STATE_UPDATE_ACTION as WidgetApiAction, {
       audio_enabled: isAudioEnabled,
       video_enabled: isVideoEnabled,
     } as IWidgetApiRequestData).catch(() => {});
-  }, [isAudioEnabled, isVideoEnabled, isActiveCallReady, activeClientWidgetApi]);
+  }, [isAudioEnabled, isVideoEnabled, activeClientWidgetApi]);
 
   // Clear real-time state only when call fully ends (activeCallRoomId → null)
   useEffect(() => {
