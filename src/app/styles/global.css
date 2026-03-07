@@ -376,3 +376,231 @@ html.reduced-motion * {
   opacity: 1;
   pointer-events: auto;
 }
+
+/* ============================================
+   Phase 5: Layout UI — Fluxer 1:1
+   GuildHeader, ChannelItem, ChannelHeader, UserArea
+   ============================================ */
+
+/* === Space/Guild Header (PageNavHeader) === */
+/* Fluxer GuildHeader.module.css: min-height 56px, border-bottom, bg-secondary */
+[class*="PageNav"] > * > header,
+[class*="PageNavHeader"] {
+  min-height: var(--layout-header-height) !important;
+  height: var(--layout-header-height) !important;
+  border-bottom: 1px solid var(--user-area-divider-color) !important;
+  background-color: var(--background-secondary) !important;
+  padding: 0 var(--spacing-3) !important;
+}
+[class*="PageNavHeader"] h1,
+[class*="PageNavHeader"] h2,
+[class*="PageNavHeader"] h3 {
+  font-size: 1rem !important;
+  font-weight: 600 !important;
+  color: var(--text-primary) !important;
+  white-space: nowrap !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+}
+
+/* === Channel Header (PageHeader = top of chat area) === */
+/* Fluxer ChannelHeader.module.css: bg-secondary-lighter, border-bottom, height=layout-header-height */
+[class*="RoomViewHeader"],
+[class*="PageHeader"] {
+  height: var(--layout-header-height) !important;
+  min-height: var(--layout-header-height) !important;
+  background-color: var(--background-secondary-lighter) !important;
+  border-bottom: 1px solid var(--user-area-divider-color) !important;
+  padding: 0 var(--spacing-4) !important;
+}
+/* Channel name in header */
+[class*="PageHeader"] h3,
+[class*="PageHeader"] h4,
+[class*="PageHeader"] h5 {
+  font-size: 1rem !important;
+  font-weight: 500 !important;
+  color: var(--text-primary) !important;
+}
+/* Header icon buttons — Fluxer ChannelHeader .iconButtonDefault */
+[class*="PageHeader"] button,
+[class*="RoomViewHeader"] button {
+  color: var(--text-primary-muted) !important;
+  border-radius: var(--radius-full) !important;
+  transition: color 80ms ease !important;
+}
+[class*="PageHeader"] button:hover,
+[class*="RoomViewHeader"] button:hover {
+  color: var(--text-primary) !important;
+}
+
+/* === Channel Nav Items — Fluxer ChannelItem.module.css === */
+/* NavItem renders as [role="option"] in RoomNavItem.tsx */
+[role="option"] {
+  border-radius: 0.375rem !important;
+  min-height: unset !important;
+  background-color: transparent !important;
+  color: var(--text-tertiary-muted) !important;
+  transition: background-color 50ms ease, color 50ms ease !important;
+  margin: 0 0.5rem !important;
+  padding: 0 !important;
+  position: relative !important;
+}
+
+/* Fluxer: unreadIndicator — pill on left of channel item */
+[role="option"][data-highlight="true"]::before {
+  content: '' !important;
+  position: absolute !important;
+  left: -0.625rem !important;
+  top: 50% !important;
+  transform: translateY(-50%) !important;
+  width: 0.35rem !important;
+  height: 0.5rem !important;
+  border-radius: 0 var(--radius-full) var(--radius-full) 0 !important;
+  background-color: var(--text-primary) !important;
+  pointer-events: none !important;
+}
+
+/* Hover: Fluxer .channelItemHoverable:hover */
+[role="option"]:hover {
+  background-color: var(--background-modifier-hover) !important;
+  color: var(--text-chat) !important;
+}
+
+/* Selected: Fluxer .channelItemSelected */
+[role="option"][aria-selected="true"] {
+  background-color: var(--background-modifier-selected) !important;
+  color: var(--text-primary) !important;
+}
+
+/* Unread (highlight): Fluxer .channelItemHighlight */
+[role="option"][data-highlight="true"]:not([aria-selected="true"]) {
+  color: var(--text-secondary) !important;
+  font-weight: 600 !important;
+}
+
+/* Keep selected color even if unread */
+[role="option"][data-highlight="true"][aria-selected="true"] {
+  color: var(--text-primary) !important;
+}
+
+/* NavItemContent padding — Fluxer: padding: 0.375rem 0.5rem */
+[role="option"] [class*="NavItemContent"],
+[role="option"] [class*="NavLink"] {
+  padding: 0.375rem 0.5rem !important;
+  min-height: unset !important;
+  font-size: 1rem !important;
+  font-weight: 500 !important;
+  line-height: 1.25rem !important;
+  max-height: 2rem !important;
+}
+
+/* Channel icon color follows parent */
+[role="option"] svg {
+  color: inherit !important;
+  flex-shrink: 0 !important;
+}
+
+/* NavItemOptions (hover actions) — don't show unless hover */
+[role="option"] [class*="NavItemOptions"] {
+  padding-right: 0.25rem !important;
+}
+[role="option"] [class*="NavItemOptions"] button {
+  height: 1.5rem !important;
+  width: 1.5rem !important;
+  border-radius: var(--radius-sm) !important;
+  color: var(--text-tertiary-muted) !important;
+  background-color: transparent !important;
+}
+[role="option"] [class*="NavItemOptions"] button:hover {
+  background-color: var(--background-modifier-hover) !important;
+  color: var(--text-primary) !important;
+}
+
+/* === Category Headers — Fluxer .categoryName === */
+/* RoomNavCategoryButton uses <Chip> — class includes "CategoryButton" */
+[class*="CategoryButton"] {
+  color: var(--text-tertiary-muted) !important;
+  font-weight: 600 !important;
+  font-size: 0.75rem !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.05em !important;
+  background-color: transparent !important;
+  border-radius: 0.25rem !important;
+  padding: 0.25rem 0.375rem !important;
+  margin: 0 0.5rem !important;
+}
+[class*="CategoryButton"]:hover {
+  color: var(--text-primary) !important;
+}
+[class*="CategoryButton"] svg,
+[class*="CategoryButtonIcon"] {
+  color: var(--text-tertiary-muted) !important;
+  opacity: 1 !important;
+}
+
+/* === NavCategory gap/padding === */
+[class*="NavCategory"] {
+  padding-bottom: 0 !important;
+}
+[class*="NavCategoryHeader"] {
+  padding: 0.25rem 0 !important;
+  margin-top: 1rem !important;
+}
+
+/* === User area (bottom of sidebar) — Fluxer UserArea.module.css === */
+/* panel-control-bg, 72px height */
+[class*="CallNavStatus"],
+[data-ui-kind="PageNav"] > * > * > * > div:last-child {
+  background-color: var(--panel-control-bg) !important;
+  border-top: 1px solid var(--user-area-divider-color) !important;
+}
+
+/* === Sidebar width match — enforce 270px for channel list === */
+[class*="PageNav"] {
+  width: 16.875rem !important;
+  min-width: 16.875rem !important;
+  flex-shrink: 0 !important;
+  background-color: var(--background-secondary) !important;
+  border-right: none !important;
+}
+
+/* === Guild list (sidebar) separator line === */
+/* Fluxer: .guildDivider */
+[class*="SidebarStackSeparator"],
+[class*="StackSeparator"] {
+  height: 0.125rem !important;
+  width: 2rem !important;
+  margin: 0.375rem auto !important;
+  border-radius: 1px !important;
+  background-color: var(--background-modifier-hover) !important;
+  flex-shrink: 0 !important;
+}
+
+/* Unread badge in channel nav items — Fluxer style */
+[role="option"] [class*="UnreadBadge"] {
+  background-color: var(--text-primary) !important;
+  color: var(--background-primary) !important;
+  font-size: 0.75rem !important;
+  font-weight: 700 !important;
+  min-width: 1.25rem !important;
+  height: 1.25rem !important;
+  border-radius: var(--radius-full) !important;
+  padding: 0 0.375rem !important;
+}
+[role="option"][aria-selected="true"] [class*="UnreadBadge"] {
+  background-color: var(--text-primary) !important;
+}
+
+/* === Phase 8: PWA Mobile === */
+@media (max-width: 750px) {
+  /* Add padding for bottom nav bar */
+  #root {
+    padding-bottom: calc(3.75rem + env(safe-area-inset-bottom));
+  }
+
+  /* Safe area insets for iPhone notch/home bar */
+  body {
+    padding-left: env(safe-area-inset-left);
+    padding-right: env(safe-area-inset-right);
+  }
+}
