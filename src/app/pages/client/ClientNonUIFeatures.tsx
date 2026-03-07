@@ -1,6 +1,7 @@
 import { useAtomValue } from 'jotai';
 import React, { ReactNode, useCallback, useEffect, useMemo, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { getAppPathFromHref, getOriginBaseUrl } from '../pathUtils';
 import { MatrixEvent, Room, RoomEvent, RoomEventHandlerMap } from 'matrix-js-sdk';
 import { roomToUnreadAtom, unreadEqual, unreadInfoToUnread } from '../../state/room/roomToUnread';
 import LogoSVG from '../../../../public/res/svg/cinny.svg';
@@ -515,6 +516,122 @@ function InboxUnreadNotifications() {
   return null;
 }
 
+/**
+ * Syncs Electron zoom commands (View → Zoom In/Out/Reset from the main-process
+ * menu) with the web-app pageZoom setting.
+ * Step: ±10%, clamped between 50 and 200.
+ */
+function ElectronZoom() {
+  const [pageZoom, setPageZoom] = useSetting(settingsAtom, 'pageZoom');
+
+  useEffect(() => {
+    const electron = window.electron;
+    if (!electron) return;
+
+    const STEP = 10;
+    const MIN = 50;
+    const MAX = 200;
+
+    const unZoomIn = electron.onZoomIn(() => {
+      setPageZoom((prev) => {
+        const next = Math.min(prev + STEP, MAX);
+        electron.setZoomFactor(next / 100);
+        return next;
+      });
+    });
+
+    const unZoomOut = electron.onZoomOut(() => {
+      setPageZoom((prev) => {
+        const next = Math.max(prev - STEP, MIN);
+        electron.setZoomFactor(next / 100);
+        return next;
+      });
+    });
+
+    const unZoomReset = electron.onZoomReset(() => {
+      setPageZoom(100);
+      electron.setZoomFactor(1);
+    });
+
+    return () => {
+      unZoomIn();
+      unZoomOut();
+      unZoomReset();
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Also keep the Electron zoom factor in sync when pageZoom changes externally
+  // (e.g. user edits it in Settings → General).
+  useEffect(() => {
+    window.electron?.setZoomFactor(pageZoom / 100);
+  }, [pageZoom]);
+
+  return null;
+}
+
+/**
+ * Handles deep-link URLs arriving from the Electron main process.
+ * Strips the custom protocol prefix and navigates to the in-app path.
+ * e.g. bettercord://app/home → /home
+ */
+function ElectronDeepLink() {
+  const navigate = useNavigate();
+
+  const handleDeepLinkUrl = useCallback(
+    (url: string) => {
+      try {
+        // bettercord://app/some/path → /some/path
+        const parsed = new URL(url);
+        const path = `/${parsed.host}${parsed.pathname}${parsed.search}${parsed.hash}`.replace(/^\/app/, '');
+        if (path) navigate(path);
+      } catch {
+        // Fallback: try treating it as a normal URL and extract the app path
+        const appPath = getAppPathFromHref(getOriginBaseUrl(), url);
+        if (appPath && appPath !== '/') navigate(appPath);
+      }
+    },
+    [navigate],
+  );
+
+  useEffect(() => {
+    const electron = window.electron;
+    if (!electron) return;
+
+    // Handle the URL that launched the app (if any)
+    electron.getInitialDeepLink().then((url) => {
+      if (url) handleDeepLinkUrl(url);
+    }).catch(() => {});
+
+    // Subscribe to future deep-link events
+    return electron.onDeepLink(handleDeepLinkUrl);
+  }, [handleDeepLinkUrl]);
+
+  return null;
+}
+
+/**
+ * Keeps the Electron dock/taskbar badge count in sync with total unread count.
+ * No-op when running in the browser (window.electron is undefined).
+ */
+function ElectronBadgeCount() {
+  const roomToUnread = useAtomValue(roomToUnreadAtom);
+
+  useEffect(() => {
+    const electron = window.electron;
+    if (!electron?.setBadgeCount) return;
+
+    let total = 0;
+    roomToUnread.forEach((unread) => {
+      total += unread.highlight > 0 ? unread.highlight : unread.total;
+    });
+
+    electron.setBadgeCount(total);
+  }, [roomToUnread]);
+
+  return null;
+}
+
 type ClientNonUIFeaturesProps = {
   children: ReactNode;
 };
@@ -525,6 +642,9 @@ export function ClientNonUIFeatures({ children }: ClientNonUIFeaturesProps) {
       <SystemEmojiFeature />
       <PageZoomFeature />
       <FaviconUpdater />
+      <ElectronBadgeCount />
+      <ElectronZoom />
+      <ElectronDeepLink />
       <InviteNotifications />
       <MessageNotifications />
       <InboxUnreadNotifications />

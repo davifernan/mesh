@@ -18,8 +18,8 @@
  */
 
 export const APP_PROTOCOL = 'bettercord';
-export const STABLE_APP_URL = 'https://DEINE-DOMAIN.com'; // TODO: echte Domain eintragen
-export const CANARY_APP_URL = 'https://DEINE-DOMAIN.com'; // TODO: echte Domain eintragen
+export const STABLE_APP_URL = 'https://chat.nilo.live';
+export const CANARY_APP_URL = 'https://chat.nilo.live'; // vorerst gleich wie stable
 export const DEFAULT_WINDOW_WIDTH = 1280;
 export const DEFAULT_WINDOW_HEIGHT = 800;
 export const MIN_WINDOW_WIDTH = 800;

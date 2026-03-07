@@ -6,6 +6,7 @@
 	"main": "dist/main/index.js",
 	"scripts": {
 		"build": "node scripts/build.mjs",
+		"dev": "node scripts/build.mjs && BETTERCORD_APP_URL=http://localhost:8080 npx electron dist/main/index.js",
 		"set-channel": "node scripts/set-build-channel.mjs",
 		"typecheck": "tsgo --noEmit"
 	},

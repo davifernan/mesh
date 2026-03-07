@@ -82,9 +82,6 @@ async function buildMain() {
 		define: {
 			'process.env.NODE_ENV': JSON.stringify(isProduction ? 'production' : 'development'),
 		},
-		banner: {
-			js: `import { createRequire } from 'module'; const require = createRequire(import.meta.url);`,
-		},
 	});
 
 	console.log('Main process build complete.');
