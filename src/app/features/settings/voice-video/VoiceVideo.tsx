@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Box, Chip, Scroll, Switch, Text, config } from 'folds';
 import { Page, PageContent, PageHeader } from '../../../components/page';
 import { SettingTile } from '../../../components/setting-tile';
@@ -140,6 +140,129 @@ function DeviceSelect({ kind, value, onChange, placeholder }: DeviceSelectProps)
   );
 }
 
+// ── Microphone loopback test ──────────────────────────────────────────────────
+
+type MicTestProps = {
+  micDeviceId: string | undefined;
+  speakerDeviceId: string | undefined;
+};
+
+function MicTestButton({ micDeviceId, speakerDeviceId }: MicTestProps) {
+  const [testing, setTesting] = useState(false);
+  const [volume, setVolume] = useState(0); // 0–100
+  const streamRef = useRef<MediaStream | null>(null);
+  const ctxRef = useRef<AudioContext | null>(null);
+  const analyserRef = useRef<AnalyserNode | null>(null);
+  const rafRef = useRef<number>(0);
+
+  const stop = useCallback(() => {
+    cancelAnimationFrame(rafRef.current);
+    streamRef.current?.getTracks().forEach((t) => t.stop());
+    streamRef.current = null;
+    ctxRef.current?.close().catch(() => {});
+    ctxRef.current = null;
+    analyserRef.current = null;
+    setVolume(0);
+    setTesting(false);
+  }, []);
+
+  const start = useCallback(async () => {
+    try {
+      const constraints: MediaStreamConstraints = {
+        audio: micDeviceId ? { deviceId: { exact: micDeviceId } } : true,
+      };
+      const stream = await navigator.mediaDevices.getUserMedia(constraints);
+      streamRef.current = stream;
+
+      const ctx = new AudioContext();
+      ctxRef.current = ctx;
+
+      const src = ctx.createMediaStreamSource(stream);
+      const analyser = ctx.createAnalyser();
+      analyser.fftSize = 256;
+      analyserRef.current = analyser;
+      src.connect(analyser);
+
+      // Route to output (loopback) — setSinkId if speaker is selected
+      const dest = ctx.createMediaStreamDestination();
+      analyser.connect(dest);
+      const audio = new Audio();
+      audio.srcObject = dest.stream;
+      if (speakerDeviceId && 'setSinkId' in audio) {
+        await (audio as any).setSinkId(speakerDeviceId);
+      }
+      audio.play().catch(() => {});
+
+      // Volume meter via RAF
+      const data = new Uint8Array(analyser.frequencyBinCount);
+      const tick = () => {
+        analyser.getByteFrequencyData(data);
+        const avg = data.reduce((s, v) => s + v, 0) / data.length;
+        setVolume(Math.round((avg / 255) * 100));
+        rafRef.current = requestAnimationFrame(tick);
+      };
+      rafRef.current = requestAnimationFrame(tick);
+      setTesting(true);
+    } catch {
+      stop();
+    }
+  }, [micDeviceId, speakerDeviceId, stop]);
+
+  // Stop automatically when component unmounts
+  useEffect(() => stop, [stop]);
+
+  return (
+    <Box alignItems="Center" gap="200" style={{ marginTop: '8px' }}>
+      <button
+        type="button"
+        onClick={testing ? stop : () => void start()}
+        style={{
+          background: testing ? '#f23f43' : 'var(--bg-surface-low, #1e1f22)',
+          color: 'var(--text-normal, #dbdee1)',
+          border: '1px solid var(--background-modifier-accent, #3a3c40)',
+          borderRadius: '4px',
+          padding: '6px 14px',
+          fontSize: '13px',
+          cursor: 'pointer',
+          flexShrink: 0,
+        }}
+      >
+        {testing ? 'Stop Test' : 'Test Microphone'}
+      </button>
+      {testing && (
+        <Box alignItems="Center" gap="100" style={{ flex: 1 }}>
+          <div
+            style={{
+              flex: 1,
+              height: '6px',
+              background: 'var(--background-modifier-accent, #3a3c40)',
+              borderRadius: '3px',
+              overflow: 'hidden',
+            }}
+          >
+            <div
+              style={{
+                height: '100%',
+                width: `${volume}%`,
+                background: volume > 60 ? '#f23f43' : volume > 30 ? '#faa61a' : '#23a55a',
+                transition: 'width 0.05s ease',
+              }}
+            />
+          </div>
+          <Text size="T200" priority="300" style={{ flexShrink: 0, minWidth: '32px' }}>
+            {volume}%
+          </Text>
+        </Box>
+      )}
+      {testing && (
+        <Text size="T200" priority="300">
+          Speak — you hear yourself through the selected output
+        </Text>
+      )}
+    </Box>
+  );
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 
 type VoiceVideoProps = {
@@ -199,6 +322,9 @@ export function VoiceVideo({ requestClose }: VoiceVideoProps) {
                 />
               }
             />
+            <Box style={{ padding: '0 16px 12px' }}>
+              <MicTestButton micDeviceId={micDeviceId} speakerDeviceId={speakerDeviceId} />
+            </Box>
           </SequenceCard>
           <SequenceCard className={SequenceCardStyle}>
             <SettingTile
