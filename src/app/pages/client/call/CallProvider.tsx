@@ -483,16 +483,16 @@ export function CallProvider({ children }: CallProviderProps) {
   ]);
 
   // Separate effect: sync mute state to EC whenever it changes.
-  // Do NOT gate on isActiveCallReady — that flag may never be set due to a
-  // race condition with the io.element.join listener registration.  EC ignores
-  // the message if it isn't ready yet; errors are swallowed via .catch().
+  // Gate on isActiveCallReady so we only send after EC has fully initialized
+  // and registered its io.element.device_mute handler (set by io.element.join
+  // or the 'ready' event fallback). Sending too early causes a 10s timeout.
   useEffect(() => {
-    if (!activeClientWidgetApi) return;
+    if (!activeClientWidgetApi || !isActiveCallReady) return;
     void activeClientWidgetApi.transport.send(WIDGET_MEDIA_STATE_UPDATE_ACTION as WidgetApiAction, {
       audio_enabled: isAudioEnabled,
       video_enabled: isVideoEnabled,
     } as IWidgetApiRequestData).catch(() => {});
-  }, [isAudioEnabled, isVideoEnabled, activeClientWidgetApi]);
+  }, [isAudioEnabled, isVideoEnabled, activeClientWidgetApi, isActiveCallReady]);
 
   // Clear real-time state only when call fully ends (activeCallRoomId → null)
   useEffect(() => {

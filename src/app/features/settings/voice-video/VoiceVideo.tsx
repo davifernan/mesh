@@ -212,8 +212,8 @@ function MicTestButton({ micDeviceId, speakerDeviceId }: MicTestProps) {
   useEffect(() => stop, [stop]);
 
   return (
-    <Box direction="Column" gap="200" style={{ padding: '0 16px 14px' }}>
-      {/* Volume bar — always visible when testing */}
+    <div style={{ padding: '4px 16px 14px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+      {/* Volume bar */}
       <div style={{
         height: '4px',
         borderRadius: '2px',
@@ -230,29 +230,39 @@ function MicTestButton({ micDeviceId, speakerDeviceId }: MicTestProps) {
           borderRadius: '2px',
         }} />
       </div>
-      <Box alignItems="Center" gap="300">
+      {/* Button row */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
         <button
           type="button"
           onClick={testing ? stop : () => void start()}
           style={{
-            background: testing ? '#da373c22' : 'transparent',
-            color: testing ? '#f23f43' : 'var(--text-muted, #949cf7)',
-            border: `1px solid ${testing ? '#f23f43' : 'var(--background-modifier-accent, #3a3c40)'}`,
+            flexShrink: 0,
+            background: testing ? 'rgba(242,63,67,0.1)' : 'transparent',
+            color: testing ? '#f23f43' : '#b5bac1',
+            border: `1px solid ${testing ? '#f23f43' : '#3a3c40'}`,
             borderRadius: '3px',
-            padding: '5px 12px',
+            padding: '5px 14px',
             fontSize: '13px',
             fontWeight: 500,
             cursor: 'pointer',
+            lineHeight: '20px',
             whiteSpace: 'nowrap',
           }}
         >
           {testing ? '⏹ Stop' : '▶ Test'}
         </button>
-        <Text size="T200" priority="300">
-          {testing ? 'Sprich — du hörst dich selbst über die ausgewählte Ausgabe' : 'Mikrofon testen'}
-        </Text>
-      </Box>
-    </Box>
+        <span style={{
+          fontSize: '12px',
+          color: '#949ba4',
+          lineHeight: '16px',
+          whiteSpace: testing ? 'normal' : 'nowrap',
+        }}>
+          {testing
+            ? 'Sprich — du hörst dich selbst über die Ausgabe'
+            : 'Mikrofon testen'}
+        </span>
+      </div>
+    </div>
   );
 }
 
