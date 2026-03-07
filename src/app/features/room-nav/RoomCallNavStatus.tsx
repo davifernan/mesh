@@ -91,7 +91,11 @@ export function CallNavStatus() {
     hangUp,
     setActiveCallRoomId,
     sendWidgetAction,
+    speakingUsers,
   } = useCallState();
+
+  const myUserId = mx.getUserId() ?? '';
+  const iMSpeaking = speakingUsers.has(myUserId);
 
   const [showSSModal, setShowSSModal] = useState(false);
   const [showMoreMenu, setShowMoreMenu] = useState(false);
@@ -523,6 +527,7 @@ export function CallNavStatus() {
                 data-muted={!isAudioEnabled}
                 ref={triggerRef}
                 aria-label={isAudioEnabled ? 'Mute microphone' : 'Unmute microphone'}
+                style={iMSpeaking && isAudioEnabled ? { color: '#23a55a', filter: 'drop-shadow(0 0 4px #23a55a)' } : undefined}
                 onClick={() => {
                   toggleAudio();
                   announce(isAudioEnabled ? 'Microphone muted' : 'Microphone unmuted');

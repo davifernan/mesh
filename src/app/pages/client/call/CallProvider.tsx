@@ -6,6 +6,7 @@ import React, {
   useCallback,
   ReactNode,
   useEffect,
+  useRef,
 } from 'react';
 import {
   WidgetApiToWidgetAction,
@@ -13,6 +14,8 @@ import {
   ClientWidgetApi,
   IWidgetApiRequestData,
 } from 'matrix-widget-api';
+import { ClientEvent, MatrixEvent } from 'matrix-js-sdk';
+import { MatrixRTCSession } from 'matrix-js-sdk/lib/matrixrtc/MatrixRTCSession';
 import { useParams } from 'react-router-dom';
 import { SmallWidget } from '../../../features/call/SmallWidget';
 import { useMatrixClient } from '../../../hooks/useMatrixClient';
@@ -58,6 +61,9 @@ interface CallContextState {
   toggleVideo: () => Promise<void>;
   toggleChat: () => Promise<void>;
   toggleCallView: () => void;
+  speakingUsers: Set<string>;
+  participantStates: Map<string, { audioEnabled: boolean; videoEnabled: boolean }>;
+  screensharingUsers: Set<string>;
 }
 
 const CallContext = createContext<CallContextState | undefined>(undefined);
@@ -69,6 +75,31 @@ interface CallProviderProps {
 const DEFAULT_AUDIO_ENABLED = true;
 const DEFAULT_VIDEO_ENABLED = false;
 const DEFAULT_CHAT_OPENED = false;
+
+// Play a short two-note ascending/descending tone (Web Audio API).
+function playCallSound(ascending: boolean) {
+  try {
+    const ctx = new AudioContext();
+    const now = ctx.currentTime;
+    const freqs = ascending ? [523, 659] : [659, 523]; // C5→E5 join, E5→C5 leave
+    freqs.forEach((freq, i) => {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = 'sine';
+      osc.frequency.value = freq;
+      gain.gain.setValueAtTime(0, now + i * 0.12);
+      gain.gain.linearRampToValueAtTime(0.18, now + i * 0.12 + 0.01);
+      gain.gain.linearRampToValueAtTime(0, now + i * 0.12 + 0.14);
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start(now + i * 0.12);
+      osc.stop(now + i * 0.12 + 0.14);
+    });
+    setTimeout(() => ctx.close().catch(() => {}), 600);
+  } catch {
+    // Audio blocked or not supported
+  }
+}
 
 export function CallProvider({ children }: CallProviderProps) {
   const mx = useMatrixClient();
@@ -90,6 +121,9 @@ export function CallProvider({ children }: CallProviderProps) {
   const [isChatOpen, setIsChatOpenState] = useState<boolean>(DEFAULT_CHAT_OPENED);
   const [isCallViewOpen, setIsCallViewOpenState] = useState<boolean>(false);
   const [isActiveCallReady, setIsActiveCallReady] = useState<boolean>(false);
+  const [speakingUsers, setSpeakingUsers] = useState<Set<string>>(new Set());
+  const [participantStates, setParticipantStates] = useState<Map<string, { audioEnabled: boolean; videoEnabled: boolean }>>(new Map());
+  const [screensharingUsers, setScreensharingUsers] = useState<Set<string>>(new Set());
 
   const { roomIdOrAlias: viewedRoomId } = useParams<{ roomIdOrAlias: string }>();
 
@@ -145,6 +179,57 @@ export function CallProvider({ children }: CallProviderProps) {
     [mx]
   );
 
+  // Track RTC memberships and play join/leave sounds for every participant's client.
+  const knownSendersRef = useRef<Set<string>>(new Set());
+  const initializedRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    if (!activeCallRoomId) {
+      knownSendersRef.current = new Set();
+      initializedRef.current = null;
+      return undefined;
+    }
+
+    const room = mx.getRoom(activeCallRoomId);
+    if (!room) return undefined;
+
+    const myUserId = mx.getUserId() ?? '';
+
+    // Snapshot current members without playing sounds (baseline on join/room switch)
+    if (initializedRef.current !== activeCallRoomId) {
+      knownSendersRef.current = new Set(
+        MatrixRTCSession.callMembershipsForRoom(room).map((m) => m.sender)
+      );
+      initializedRef.current = activeCallRoomId;
+    }
+
+    const checkMemberships = () => {
+      const current = MatrixRTCSession.callMembershipsForRoom(room);
+      const currentSenders = new Set(current.map((m) => m.sender));
+      const known = knownSendersRef.current;
+
+      for (const sender of currentSenders) {
+        if (!known.has(sender) && sender !== myUserId) playCallSound(true);
+      }
+      for (const sender of known) {
+        if (!currentSenders.has(sender) && sender !== myUserId) playCallSound(false);
+      }
+
+      knownSendersRef.current = currentSenders;
+    };
+
+    const handleEvent = (ev: MatrixEvent) => {
+      if (ev.getRoomId() === activeCallRoomId && ev.getType().includes('call.member')) {
+        checkMemberships();
+      }
+    };
+
+    mx.on(ClientEvent.Event, handleEvent);
+    return () => {
+      mx.off(ClientEvent.Event, handleEvent);
+    };
+  }, [activeCallRoomId, mx]);
+
   const setViewedCallRoomId = useCallback(
     (roomId: string | null) => {
       setViewedCallRoomIdState(roomId);
@@ -184,12 +269,13 @@ export function CallProvider({ children }: CallProviderProps) {
   );
 
   const hangUp = useCallback(() => {
+    if (isActiveCallReady) playCallSound(false); // descending tone: user left call
     setActiveClientWidgetApi(null, null, null, null);
     setActiveCallRoomIdState(null);
     activeClientWidgetApi?.transport.send(`${WIDGET_HANGUP_ACTION}`, {});
     setIsActiveCallReady(false);
     setIsCallViewOpenState(false);
-  }, [activeClientWidgetApi?.transport, setActiveClientWidgetApi]);
+  }, [isActiveCallReady, activeClientWidgetApi?.transport, setActiveClientWidgetApi]);
 
   const sendWidgetAction = useCallback(
     async <T extends IWidgetApiRequestData = IWidgetApiRequestData>(
@@ -290,6 +376,42 @@ export function CallProvider({ children }: CallProviderProps) {
       activeClientWidgetApi.transport.reply(ev.detail, {});
     };
 
+    const handleSpeaking = (ev: CustomEvent<{ data?: { userId?: string; speaking?: boolean } }>) => {
+      ev.preventDefault();
+      activeClientWidgetApi.transport.reply(ev.detail, {});
+      const { userId: speakingUserId, speaking } = ev.detail.data ?? {};
+      if (typeof speakingUserId === 'string' && typeof speaking === 'boolean') {
+        setSpeakingUsers((prev) => {
+          const next = new Set(prev);
+          if (speaking) next.add(speakingUserId);
+          else next.delete(speakingUserId);
+          return next;
+        });
+      }
+    };
+
+    const handleParticipantState = (ev: CustomEvent<{ data?: { userId?: string; audioEnabled?: boolean; videoEnabled?: boolean } }>) => {
+      ev.preventDefault();
+      activeClientWidgetApi.transport.reply(ev.detail, {});
+      const { userId: uid, audioEnabled, videoEnabled } = ev.detail.data ?? {};
+      if (typeof uid === 'string' && typeof audioEnabled === 'boolean' && typeof videoEnabled === 'boolean') {
+        setParticipantStates((prev) => {
+          const next = new Map(prev);
+          next.set(uid, { audioEnabled, videoEnabled });
+          return next;
+        });
+      }
+    };
+
+    const handleScreenshareState = (ev: CustomEvent<{ data?: { screensharingUserIds?: string[] } }>) => {
+      ev.preventDefault();
+      activeClientWidgetApi.transport.reply(ev.detail, {});
+      const { screensharingUserIds } = ev.detail.data ?? {};
+      if (Array.isArray(screensharingUserIds)) {
+        setScreensharingUsers(new Set(screensharingUserIds));
+      }
+    };
+
     const handleJoin = (ev: CustomEvent) => {
       ev.preventDefault();
 
@@ -318,6 +440,7 @@ export function CallProvider({ children }: CallProviderProps) {
         // Ignore cross-origin errors - they're expected when Element Call is on a different domain
       }
 
+      playCallSound(true); // ascending tone: user joined call
       setIsActiveCallReady(true);
     };
 
@@ -332,12 +455,21 @@ export function CallProvider({ children }: CallProviderProps) {
     activeClientWidgetApi.on(`action:${WIDGET_MEDIA_STATE_UPDATE_ACTION}`, handleMediaStateUpdate);
     activeClientWidgetApi.on(`action:${WIDGET_TILE_UPDATE}`, handleOnTileLayout);
     activeClientWidgetApi.on(`action:${WIDGET_JOIN_ACTION}`, handleJoin);
+    activeClientWidgetApi.on('action:io.bettercord.speaking', handleSpeaking as EventListener);
+    activeClientWidgetApi.on('action:io.bettercord.participant_state', handleParticipantState as EventListener);
+    activeClientWidgetApi.on('action:io.bettercord.screenshare_state', handleScreenshareState as EventListener);
 
     return () => {
       activeClientWidgetApi.off(`action:${WIDGET_HANGUP_ACTION}`, handleHangup);
       activeClientWidgetApi.off(`action:${WIDGET_MEDIA_STATE_UPDATE_ACTION}`, handleMediaStateUpdate);
       activeClientWidgetApi.off(`action:${WIDGET_TILE_UPDATE}`, handleOnTileLayout);
       activeClientWidgetApi.off(`action:${WIDGET_JOIN_ACTION}`, handleJoin);
+      activeClientWidgetApi.off('action:io.bettercord.speaking', handleSpeaking as EventListener);
+      activeClientWidgetApi.off('action:io.bettercord.participant_state', handleParticipantState as EventListener);
+      activeClientWidgetApi.off('action:io.bettercord.screenshare_state', handleScreenshareState as EventListener);
+      setSpeakingUsers(new Set());
+      setParticipantStates(new Map());
+      setScreensharingUsers(new Set());
     };
   }, [
     activeClientWidgetIframeRef,
@@ -391,6 +523,9 @@ export function CallProvider({ children }: CallProviderProps) {
       toggleVideo,
       toggleChat,
       toggleCallView,
+      speakingUsers,
+      participantStates,
+      screensharingUsers,
     }),
     [
       activeCallRoomId,
@@ -412,6 +547,9 @@ export function CallProvider({ children }: CallProviderProps) {
       toggleVideo,
       toggleChat,
       toggleCallView,
+      speakingUsers,
+      participantStates,
+      screensharingUsers,
     ]
   );
 
