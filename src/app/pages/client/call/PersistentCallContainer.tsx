@@ -53,6 +53,9 @@ export function PersistentCallContainer({ children }: PersistentCallContainerPro
   const [noiseSuppression] = useSetting(settingsAtom, 'noiseSuppression');
   const [autoGainControl] = useSetting(settingsAtom, 'autoGainControl');
   const [ssAudio] = useSetting(settingsAtom, 'ssAudio');
+  const [micDeviceId] = useSetting(settingsAtom, 'micDeviceId');
+  const [cameraDeviceId] = useSetting(settingsAtom, 'cameraDeviceId');
+  const [speakerDeviceId] = useSetting(settingsAtom, 'speakerDeviceId');
   const effectiveAV = useAtomValue(effectiveAVSettingsAtom);
 
   /* eslint-disable no-param-reassign */
@@ -120,6 +123,10 @@ export function PersistentCallContainer({ children }: PersistentCallContainerPro
               noiseSuppression,
               autoGainControl,
               ssAudio,
+              // Device selections
+              micDeviceId,
+              cameraDeviceId,
+              speakerDeviceId,
             },
           );
 
@@ -173,6 +180,9 @@ export function PersistentCallContainer({ children }: PersistentCallContainerPro
       noiseSuppression,
       autoGainControl,
       ssAudio,
+      micDeviceId,
+      cameraDeviceId,
+      speakerDeviceId,
     ],
   );
 
