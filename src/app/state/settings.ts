@@ -57,7 +57,7 @@ export interface Settings {
   autoGainControl: boolean;
   videoResolution: '360p' | '480p' | '720p' | '1080p' | '1440p' | '2160p';
   videoFps: 15 | 24 | 30 | 60 | 120;
-  ssResolution: '720p' | '1080p' | '1440p' | '2160p' | 'source';
+  ssResolution: '720p' | '1080p' | '1440p' | '4k' | 'source';
   ssFps: 5 | 15 | 30 | 60 | 120;
   ssAudio: boolean;
 
