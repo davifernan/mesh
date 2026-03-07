@@ -58,7 +58,6 @@ import { useCallState } from '../../pages/client/call/CallProvider';
 import { SpeakerHigh } from '@phosphor-icons/react';
 import { useCallMembers } from '../../hooks/useCallMemberships';
 import { useRoomNavigate } from '../../hooks/useRoomNavigate';
-import { RoomNavUser } from './RoomNavUser';
 import { useRoomName } from '../../hooks/useRoomMeta';
 
 type RoomNavItemMenuProps = {
@@ -528,17 +527,6 @@ export function RoomNavItem({
           </NavItemOptions>
         )}
       </NavItem>
-      {room.isCallRoom() && (
-        <Box direction="Column" style={{ paddingLeft: config.space.S200 }}>
-          {callMemberships.map((userId) => (
-            <RoomNavUser
-              key={userId}
-              room={room}
-              userId={userId}
-            />
-          ))}
-        </Box>
-      )}
     </Box>
   );
 }

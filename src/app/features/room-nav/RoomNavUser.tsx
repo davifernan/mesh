@@ -21,8 +21,10 @@ export function RoomNavUser({ room, userId }: RoomNavUserProps) {
   const useAuthentication = useMediaAuthentication();
   const openProfile = useOpenUserRoomProfile();
   const space = useSpaceOptionally();
-  const { isActiveCallReady, activeCallRoomId, speakingUsers, participantStates, screensharingUsers } = useCallState();
-  const isActiveCall = isActiveCallReady && activeCallRoomId === room.roomId;
+  const { activeCallRoomId, speakingUsers, participantStates, screensharingUsers } = useCallState();
+  // Use activeCallRoomId directly — don't gate on isActiveCallReady which can
+  // miss the io.element.join event due to a registration race condition.
+  const isActiveCall = activeCallRoomId === room.roomId;
   const avatarMxcUrl = getMemberAvatarMxc(room, userId);
   const avatarUrl = avatarMxcUrl
     ? mx.mxcUrlToHttp(avatarMxcUrl, 32, 32, 'crop', undefined, false, useAuthentication)
