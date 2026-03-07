@@ -91,9 +91,6 @@ export function PersistentCallContainer({ children }: PersistentCallContainerPro
           const room = mx.getRoom(roomIdToSet);
           const { intent: intentParam, callIntentParam } = getCallIntentParams(room);
           const effectiveIntent = intentOverride ?? intentParam;
-          // Only use per-participant E2EE if the room has Matrix encryption enabled.
-          // Like gomuks: passing false overrides EC's own default of true for unencrypted rooms.
-          const isRoomEncrypted = !!room?.currentState.getStateEvents('m.room.encryption', '');
 
           const widgetId = `element-call-${roomIdToSet}-${Date.now()}`;
           const newUrl = getWidgetUrl(
@@ -106,7 +103,10 @@ export function PersistentCallContainer({ children }: PersistentCallContainerPro
               // Skip lobby when rejoining existing session, autoJoin is on, or it's a voice channel room (Discord-style instant join).
               skipLobby: intentOverride === 'join_existing' ? true : (autoJoin || room?.isCallRoom() ? true : undefined),
               returnToLobby: 'true',
-              perParticipantE2EE: isRoomEncrypted ? 'true' : 'false',
+              // Always use per-participant E2EE — Element Web and Element X both always pass true.
+              // Passing false breaks key exchange with other clients even in unencrypted rooms,
+              // because the SFU still uses the per-participant key protocol for MatrixRTC.
+              perParticipantE2EE: 'true',
               theme: themeKind,
               callIntent: callIntentParam,
               // A/V quality constraints from space settings + user preferences
