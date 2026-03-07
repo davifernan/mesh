@@ -100,8 +100,8 @@ export function PersistentCallContainer({ children }: PersistentCallContainerPro
             widgetId,
             {
               intent: effectiveIntent,
-              // Skip lobby when rejoining existing session; or when autoJoin is on.
-              skipLobby: intentOverride === 'join_existing' ? true : (autoJoin ? true : undefined),
+              // Skip lobby when rejoining existing session, autoJoin is on, or it's a voice channel room (Discord-style instant join).
+              skipLobby: intentOverride === 'join_existing' ? true : (autoJoin || room?.isCallRoom() ? true : undefined),
               returnToLobby: 'true',
               perParticipantE2EE: isRoomEncrypted ? 'true' : 'false',
               theme: themeKind,
@@ -113,6 +113,7 @@ export function PersistentCallContainer({ children }: PersistentCallContainerPro
                 videoFps: String(avSettings.videoFps),
                 ssResolution: avSettings.ssResolution,
                 ssFps: String(avSettings.ssFps),
+                ssAudio: String(avSettings.ssAudio ?? true),
               }),
               // Audio processing flags from user settings
               echoCancellation,

@@ -99,7 +99,7 @@ export const getWidgetUrl = (
   }
 
   // A/V quality constraints — only set when provided (avoids overriding EC defaults)
-  const avParams = ['audioBitrate', 'videoResolution', 'videoFps', 'ssResolution', 'ssFps'] as const;
+  const avParams = ['audioBitrate', 'videoResolution', 'videoFps', 'ssResolution', 'ssFps', 'ssAudio'] as const;
   for (const key of avParams) {
     if (setParams[key] !== undefined) {
       params.set(key, String(setParams[key]));

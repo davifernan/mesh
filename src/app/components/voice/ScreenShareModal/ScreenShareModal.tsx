@@ -126,7 +126,7 @@ export function ScreenShareModal({ onConfirm, onCancel }: ScreenShareModalProps)
             Abbrechen
           </button>
           <button type="button" className={css.BtnConfirm} onClick={handleConfirm}>
-            Jetzt teilen →
+            Speichern &amp; zum Anruf →
           </button>
         </div>
       </div>

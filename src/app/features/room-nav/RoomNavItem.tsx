@@ -55,6 +55,7 @@ import { useRoomCreators } from '../../hooks/useRoomCreators';
 import { useRoomPermissions } from '../../hooks/useRoomPermissions';
 import { InviteUserPrompt } from '../../components/invite-user-prompt';
 import { useCallState } from '../../pages/client/call/CallProvider';
+import { SpeakerHigh } from '@phosphor-icons/react';
 import { useCallMembers } from '../../hooks/useCallMemberships';
 import { useRoomNavigate } from '../../hooks/useRoomNavigate';
 import { RoomNavUser } from './RoomNavUser';
@@ -253,6 +254,7 @@ export function RoomNavItem({
 
   const {
     activeCallRoomId,
+    isActiveCallReady,
     setActiveCallRoomId,
     setViewedCallRoomId,
     isChatOpen,
@@ -382,7 +384,7 @@ export function RoomNavItem({
                   />
                 )}
               </Avatar>
-              <Box as="span" grow="Yes">
+              <Box as="span" grow="Yes" alignItems="Center" gap="200">
                 <Text
                   priority={unread || isActiveCall ? '500' : '300'}
                   as="span"
@@ -392,6 +394,15 @@ export function RoomNavItem({
                   {roomName}
                 </Text>
               </Box>
+              {/* Speaker icon when others are in this voice channel */}
+              {room.isCallRoom() && callMemberships.length > 0 && !optionsVisible && !unread && (
+                <SpeakerHigh
+                  size={12}
+                  weight="fill"
+                  style={{ color: isActiveCall ? '#23a55a' : 'rgba(255,255,255,0.4)', flexShrink: 0 }}
+                  aria-label={`${callMemberships.length} in voice`}
+                />
+              )}
               {!optionsVisible && !unread && !selected && typingMember.length > 0 && (
                 <Badge size="300" variant="Secondary" fill="Soft" radii="Pill" outlined>
                   <TypingIndicator size="300" disableAnimation />
