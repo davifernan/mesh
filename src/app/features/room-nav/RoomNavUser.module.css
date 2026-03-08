@@ -11,6 +11,7 @@
 }
 
 .liveBadgeButton {
+  position: relative;
   background: none;
   border: none;
   padding: 0;
@@ -18,4 +19,38 @@
   cursor: pointer;
   display: inline-flex;
   align-items: center;
+}
+
+.livePreview {
+  position: absolute;
+  bottom: calc(100% + 6px);
+  right: 0;
+  width: 200px;
+  height: 112px;
+  border-radius: 8px;
+  overflow: hidden;
+  background: #000;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
+  z-index: 40;
+  pointer-events: none;
+}
+
+.livePreviewVideo {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.livePreviewText {
+  width: 100%;
+  height: 100%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-secondary);
+  font-size: 11px;
+  text-align: center;
+  padding: 0 8px;
 }

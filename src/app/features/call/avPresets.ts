@@ -254,9 +254,22 @@ export function buildSSPublishOptions(
   ssFps: number,
 ): TrackPublishOptions {
   const preset = resolutionToSSPreset(ssResolution, ssFps);
+  const sourceEncoding =
+    !preset && ssResolution === 'source'
+      ? {
+          maxFramerate: ssFps,
+          maxBitrate:
+            ssFps <= 15 ? 2_500_000
+              : ssFps <= 30 ? 4_500_000
+              : ssFps <= 60 ? 8_000_000
+              : 12_000_000,
+        }
+      : undefined;
+
   return {
     simulcast: false, // screenshare must NOT simulcast
     ...(preset && { videoEncoding: preset.encoding }),
+    ...(sourceEncoding && { videoEncoding: sourceEncoding }),
   };
 }
 

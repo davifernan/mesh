@@ -1,4 +1,4 @@
-import React, { MouseEventHandler, forwardRef, useState, MouseEvent, useEffect } from 'react';
+import React, { MouseEventHandler, forwardRef, useState, MouseEvent, useEffect, useMemo } from 'react';
 import { EventType, JoinRule, Room } from 'matrix-js-sdk';
 import {
   Avatar,
@@ -60,6 +60,14 @@ import { useCallMembers } from '../../hooks/useCallMemberships';
 import { useRoomNavigate } from '../../hooks/useRoomNavigate';
 import { RoomNavUser } from './RoomNavUser';
 import { useRoomName } from '../../hooks/useRoomMeta';
+
+function extractUserId(identity: string): string {
+  if (identity.startsWith('@')) {
+    const lastUnderscore = identity.lastIndexOf('_');
+    if (lastUnderscore > 1) return identity.slice(0, lastUnderscore);
+  }
+  return identity;
+}
 
 type RoomNavItemMenuProps = {
   room: Room;
@@ -260,6 +268,7 @@ export function RoomNavItem({
     toggleChat,
     hangUp,
     callStatus,
+    livekitRoom,
   } = useCallState();
 
   // isActiveCall: true as soon as this room is set as active call (including while connecting)
@@ -286,6 +295,29 @@ export function RoomNavItem({
     return `${m}:${String(sec).padStart(2, '0')}`;
   }
   const callMemberships = useCallMembers(mx, room.roomId);
+
+  const displayedCallMembers = useMemo(() => {
+    const merged = [...callMemberships];
+    const seen = new Set(merged);
+
+    if (isActiveCall && callStatus === 'connected' && livekitRoom) {
+      const myUserId = mx.getUserId();
+      if (myUserId && !seen.has(myUserId)) {
+        merged.push(myUserId);
+        seen.add(myUserId);
+      }
+
+      for (const participant of livekitRoom.remoteParticipants.values()) {
+        const userId = extractUserId(participant.identity);
+        if (!seen.has(userId)) {
+          merged.push(userId);
+          seen.add(userId);
+        }
+      }
+    }
+
+    return merged;
+  }, [callMemberships, isActiveCall, callStatus, livekitRoom, mx]);
 
   const powerLevels = usePowerLevels(room);
   const creators = useRoomCreators(room);
@@ -323,7 +355,11 @@ export function RoomNavItem({
   // Open chat panel for voice rooms
   const handleChatButtonClick = (evt: MouseEvent<HTMLButtonElement>) => {
     evt.stopPropagation();
-    if (!isChatOpen) toggleChat();
+    if (selected) {
+      toggleChat();
+    } else if (!isChatOpen) {
+      toggleChat();
+    }
     setViewedCallRoomId(room.roomId);
     navigate(linkPath);
   };
@@ -345,7 +381,7 @@ export function RoomNavItem({
       ? [
           'Call Room',
           isActiveCall && 'Currently in Call',
-          callMemberships.length && `${callMemberships.length} in Call`,
+          displayedCallMembers.length && `${displayedCallMembers.length} in Call`,
         ]
       : direct
         ? 'Direct Message'
@@ -429,12 +465,12 @@ export function RoomNavItem({
                 )}
               </Box>
               {/* Speaker icon when others are in this voice channel */}
-              {room.isCallRoom() && callMemberships.length > 0 && !optionsVisible && !unread && (
+              {room.isCallRoom() && displayedCallMembers.length > 0 && !optionsVisible && !unread && (
                 <SpeakerHigh
                   size={12}
                   weight="fill"
                   style={{ color: isActiveCall ? '#23a55a' : 'rgba(255,255,255,0.4)', flexShrink: 0 }}
-                  aria-label={`${callMemberships.length} in voice`}
+                  aria-label={`${displayedCallMembers.length} in voice`}
                 />
               )}
               {!optionsVisible && !unread && !selected && typingMember.length > 0 && (
@@ -534,7 +570,7 @@ export function RoomNavItem({
                         data-testid="chat-button"
                         onClick={handleChatButtonClick}
                         aria-pressed={isChatOpen && selected}
-                        aria-label="Open Chat"
+                        aria-label={isChatOpen && selected ? 'Close Chat' : 'Open Chat'}
                         variant="Background"
                         fill="None"
                         size="300"
@@ -562,9 +598,9 @@ export function RoomNavItem({
           </NavItemOptions>
         )}
       </NavItem>
-      {room.isCallRoom() && callMemberships.length > 0 && (
+      {room.isCallRoom() && displayedCallMembers.length > 0 && (
         <Box direction="Column" style={{ paddingLeft: config.space.S200 }}>
-          {callMemberships.map((userId) => (
+          {displayedCallMembers.map((userId) => (
             <RoomNavUser
               key={userId}
               room={room}

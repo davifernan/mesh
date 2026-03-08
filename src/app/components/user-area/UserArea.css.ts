@@ -2,20 +2,41 @@ import { style } from '@vanilla-extract/css';
 import { toRem } from 'folds';
 
 const LINE_H = '1.0625rem'; // 17px — single text line height
+const MOBILE_MAX = '750px';
 
 export const userArea = style({
   display: 'flex',
   alignItems: 'center',
   gap: toRem(8),
-  padding: `${toRem(8)} ${toRem(8)}`,
+  padding: `${toRem(8)} ${toRem(10)}`,
   minHeight: toRem(52),
-  backgroundColor: 'var(--panel-control-bg)',
+  margin: `${toRem(4)} ${toRem(8)} ${toRem(10)}`,
+  borderRadius: toRem(12),
+  border: '1px solid color-mix(in srgb, var(--background-modifier-accent) 78%, transparent)',
+  background: 'linear-gradient(135deg, color-mix(in srgb, var(--background-secondary) 92%, transparent), color-mix(in srgb, var(--background-primary) 88%, transparent))',
+  boxShadow: '0 8px 22px rgba(0, 0, 0, 0.28)',
+  backdropFilter: 'blur(8px)',
+  position: 'relative',
+  zIndex: 12,
   flexShrink: 0,
   cursor: 'default',
-  transition: 'background-color 100ms ease',
+  transition: 'background-color 120ms ease, border-color 120ms ease, transform 120ms ease',
   selectors: {
     '&:hover': {
-      backgroundColor: 'var(--background-modifier-hover)',
+      background: 'linear-gradient(135deg, color-mix(in srgb, var(--background-secondary) 96%, transparent), color-mix(in srgb, var(--background-primary) 92%, transparent))',
+      borderColor: 'color-mix(in srgb, var(--background-modifier-accent) 96%, transparent)',
+      transform: 'translateY(-1px)',
+    },
+  },
+  '@media': {
+    [`(max-width: ${MOBILE_MAX})`]: {
+      margin: 0,
+      borderRadius: 0,
+      borderLeft: 'none',
+      borderRight: 'none',
+      borderBottom: 'none',
+      boxShadow: 'none',
+      backdropFilter: 'none',
     },
   },
 });
@@ -34,7 +55,7 @@ export const presenceDot = style({
   width: toRem(10),
   height: toRem(10),
   borderRadius: '50%',
-  border: `${toRem(2)} solid var(--panel-control-bg)`,
+  border: `${toRem(2)} solid color-mix(in srgb, var(--background-primary) 88%, transparent)`,
   backgroundColor: 'var(--status-offline)',
   selectors: {
     '&[data-presence="online"]': { backgroundColor: 'var(--status-online)' },

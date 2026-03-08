@@ -10,6 +10,7 @@ import React, {
 } from 'react';
 import { ClientEvent, MatrixEvent } from 'matrix-js-sdk';
 import { MatrixRTCSession } from 'matrix-js-sdk/lib/matrixrtc/MatrixRTCSession';
+import { RoomEvent } from 'livekit-client';
 import type { Room } from 'livekit-client';
 import { useNativeCall, type CallStatus } from '../../../features/call/nativeCallEngine';
 import { useMatrixClient } from '../../../hooks/useMatrixClient';
@@ -72,6 +73,14 @@ function playCallSound(ascending: boolean) {
   } catch {
     // Audio blocked or not supported
   }
+}
+
+function extractUserId(identity: string): string {
+  if (identity.startsWith('@')) {
+    const lastUnderscore = identity.lastIndexOf('_');
+    if (lastUnderscore > 1) return identity.slice(0, lastUnderscore);
+  }
+  return identity;
 }
 
 export function CallProvider({ children }: CallProviderProps) {
@@ -171,6 +180,7 @@ export function CallProvider({ children }: CallProviderProps) {
     if (!room) return undefined;
 
     const myUserId = mx.getUserId() ?? '';
+    const useMatrixMembershipSounds = !engine.livekitRoom || engine.status !== 'connected';
 
     // Snapshot current members without playing sounds (baseline on join/room switch)
     if (initializedRef.current !== activeCallRoomId) {
@@ -189,11 +199,13 @@ export function CallProvider({ children }: CallProviderProps) {
       );
       const known = knownSendersRef.current;
 
-      for (const sender of currentSenders) {
-        if (!known.has(sender) && sender !== myUserId) playCallSound(true);
-      }
-      for (const sender of known) {
-        if (!currentSenders.has(sender) && sender !== myUserId) playCallSound(false);
+      if (useMatrixMembershipSounds) {
+        for (const sender of currentSenders) {
+          if (!known.has(sender) && sender !== myUserId) playCallSound(true);
+        }
+        for (const sender of known) {
+          if (!currentSenders.has(sender) && sender !== myUserId) playCallSound(false);
+        }
       }
 
       knownSendersRef.current = currentSenders;
@@ -209,7 +221,32 @@ export function CallProvider({ children }: CallProviderProps) {
     return () => {
       mx.off(ClientEvent.Event, handleEvent);
     };
-  }, [activeCallRoomId, mx]);
+  }, [activeCallRoomId, mx, engine.livekitRoom, engine.status]);
+
+  // LiveKit join/leave sounds for immediate feedback (no Matrix delayed-event lag).
+  useEffect(() => {
+    if (!engine.livekitRoom || engine.status !== 'connected') return;
+
+    const myUserId = mx.getUserId() ?? '';
+
+    const onParticipantConnected = (participant: { identity: string }) => {
+      const uid = extractUserId(participant.identity);
+      if (uid !== myUserId) playCallSound(true);
+    };
+
+    const onParticipantDisconnected = (participant: { identity: string }) => {
+      const uid = extractUserId(participant.identity);
+      if (uid !== myUserId) playCallSound(false);
+    };
+
+    engine.livekitRoom.on(RoomEvent.ParticipantConnected, onParticipantConnected as any);
+    engine.livekitRoom.on(RoomEvent.ParticipantDisconnected, onParticipantDisconnected as any);
+
+    return () => {
+      engine.livekitRoom?.off(RoomEvent.ParticipantConnected, onParticipantConnected as any);
+      engine.livekitRoom?.off(RoomEvent.ParticipantDisconnected, onParticipantDisconnected as any);
+    };
+  }, [engine.livekitRoom, engine.status, mx]);
 
   const setViewedCallRoomId = useCallback(
     (roomId: string | null) => {

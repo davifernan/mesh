@@ -43,7 +43,7 @@ export function Room() {
   const powerLevels = usePowerLevels(room);
   const members = useRoomMembers(mx, room?.roomId);
 
-  const { activeCallRoomId, isCallViewOpen, isChatOpen, callStatus } = useCallState();
+  const { activeCallRoomId, isCallViewOpen, isChatOpen, callStatus, toggleChat } = useCallState();
   const isActiveCall = activeCallRoomId === room?.roomId;
 
   const [isIssueBoard, setIsIssueBoard] = useState(false);
@@ -174,10 +174,14 @@ export function Room() {
     useCallback(
       (evt) => {
         if (isKeyHotkey('escape', evt)) {
+          if (showMobileChatSheet) {
+            toggleChat();
+            return;
+          }
           markAsRead(mx, room.roomId, hideActivity);
         }
       },
-      [mx, room.roomId, hideActivity]
+      [mx, room.roomId, hideActivity, showMobileChatSheet, toggleChat]
     )
   );
 
@@ -236,9 +240,17 @@ export function Room() {
                 )}
                 {/* Mobile: chat as sliding bottom-sheet overlay on top of call */}
                 {showMobileChatSheet ? (
-                  <div className={styles.mobileChatSheet}>
-                    <RoomView room={room} eventId={eventId} />
-                  </div>
+                  <>
+                    <button
+                      type="button"
+                      className={styles.mobileChatBackdrop}
+                      onClick={toggleChat}
+                      aria-label="Close chat"
+                    />
+                    <div className={styles.mobileChatSheet}>
+                      <RoomView room={room} eventId={eventId} />
+                    </div>
+                  </>
                 ) : (
                   <Box
                     grow={showChatPanel ? 'Yes' : undefined}

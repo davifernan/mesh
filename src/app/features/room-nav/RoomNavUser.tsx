@@ -1,7 +1,8 @@
 import { Avatar, Badge, Box, Icon, Icons, Text, Tooltip, TooltipProvider } from 'folds';
-import React from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Room } from 'matrix-js-sdk';
 import { MicrophoneSlash, VideoCamera } from '@phosphor-icons/react';
+import { Track } from 'livekit-client';
 import { NavButton, NavItem, NavItemContent } from '../../components/nav';
 import { UserAvatar } from '../../components/user-avatar';
 import { useMatrixClient } from '../../hooks/useMatrixClient';
@@ -17,14 +18,40 @@ type RoomNavUserProps = {
   room: Room;
   userId: string;
 };
+
+function extractUserId(identity: string): string {
+  if (identity.startsWith('@')) {
+    const lastUnderscore = identity.lastIndexOf('_');
+    if (lastUnderscore > 1) return identity.slice(0, lastUnderscore);
+  }
+  return identity;
+}
+
+type AttachableVideoTrack = {
+  attach: (element?: HTMLMediaElement) => HTMLMediaElement;
+  detach: (element?: HTMLMediaElement) => HTMLMediaElement[];
+};
+
 export function RoomNavUser({ room, userId }: RoomNavUserProps) {
   const mx = useMatrixClient();
   const useAuthentication = useMediaAuthentication();
   const openProfile = useOpenUserRoomProfile();
   const space = useSpaceOptionally();
-  const { activeCallRoomId, setActiveCallRoomId, speakingUsers, remoteParticipantStates } =
+  const {
+    activeCallRoomId,
+    setActiveCallRoomId,
+    speakingUsers,
+    remoteParticipantStates,
+    isAudioEnabled,
+    isVideoEnabled,
+    isScreenShareEnabled,
+    livekitRoom,
+    callStatus,
+  } =
     useCallState();
   const isActiveCall = activeCallRoomId === room.roomId;
+  const myUserId = mx.getUserId() ?? '';
+  const isLocalUser = userId === myUserId;
   const avatarMxcUrl = getMemberAvatarMxc(room, userId);
   const avatarUrl = avatarMxcUrl
     ? mx.mxcUrlToHttp(avatarMxcUrl, 32, 32, 'crop', undefined, false, useAuthentication)
@@ -33,9 +60,57 @@ export function RoomNavUser({ room, userId }: RoomNavUserProps) {
   const isSpeaking = isActiveCall && speakingUsers.has(userId);
 
   const pState = isActiveCall ? remoteParticipantStates.get(userId) : undefined;
-  const isAudioMuted = isActiveCall && pState !== undefined && !pState.audioEnabled;
-  const hasVideo = isActiveCall && pState !== undefined && pState.videoEnabled;
-  const isScreensharing = isActiveCall && pState !== undefined && pState.isScreenSharing;
+  const hasPresenceState = isActiveCall && (isLocalUser || pState !== undefined);
+  const isAudioMuted = hasPresenceState && (isLocalUser ? !isAudioEnabled : !pState!.audioEnabled);
+  const hasVideo = hasPresenceState && (isLocalUser ? isVideoEnabled : pState!.videoEnabled);
+  const isScreensharing = hasPresenceState && (isLocalUser ? isScreenShareEnabled : pState!.isScreenSharing);
+
+  const [showPreview, setShowPreview] = useState(false);
+  const previewRef = useRef<HTMLVideoElement>(null);
+
+  const previewTrack = useMemo<AttachableVideoTrack | null>(() => {
+    if (!isScreensharing || !livekitRoom || activeCallRoomId !== room.roomId || callStatus !== 'connected') {
+      return null;
+    }
+
+    if (isLocalUser) {
+      const localPub = livekitRoom.localParticipant.getTrackPublication(Track.Source.ScreenShare);
+      return (localPub?.track as AttachableVideoTrack | undefined) ?? null;
+    }
+
+    for (const participant of livekitRoom.remoteParticipants.values()) {
+      if (extractUserId(participant.identity) !== userId) continue;
+      for (const pub of participant.trackPublications.values()) {
+        if (pub.source === Track.Source.ScreenShare && pub.track) {
+          return pub.track as AttachableVideoTrack;
+        }
+      }
+    }
+
+    return null;
+  }, [
+    isScreensharing,
+    livekitRoom,
+    activeCallRoomId,
+    room.roomId,
+    callStatus,
+    isLocalUser,
+    userId,
+  ]);
+
+  useEffect(() => {
+    const video = previewRef.current;
+    if (!video || !showPreview || !previewTrack) return;
+
+    previewTrack.attach(video);
+    video.muted = true;
+    video.autoplay = true;
+    video.playsInline = true;
+
+    return () => {
+      previewTrack.detach(video);
+    };
+  }, [showPreview, previewTrack]);
 
   const handleNavUserClick: React.MouseEventHandler<HTMLButtonElement> = (evt) => {
     openProfile(room.roomId, space?.roomId, userId, evt.currentTarget.getBoundingClientRect());
@@ -98,6 +173,8 @@ export function RoomNavUser({ room, userId }: RoomNavUserProps) {
                         className={styles.liveBadgeButton}
                         onClick={handleLiveBadgeClick}
                         aria-label="Watch stream"
+                        onMouseEnter={() => setShowPreview(true)}
+                        onMouseLeave={() => setShowPreview(false)}
                       >
                         <Badge
                           size="300"
@@ -113,6 +190,16 @@ export function RoomNavUser({ room, userId }: RoomNavUserProps) {
                             LIVE
                           </Text>
                         </Badge>
+
+                        {showPreview && (
+                          <div className={styles.livePreview}>
+                            {previewTrack ? (
+                              <video ref={previewRef} className={styles.livePreviewVideo} />
+                            ) : (
+                              <span className={styles.livePreviewText}>Open call to preview</span>
+                            )}
+                          </div>
+                        )}
                       </button>
                     )}
                   </TooltipProvider>

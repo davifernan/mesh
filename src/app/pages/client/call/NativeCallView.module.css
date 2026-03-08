@@ -28,6 +28,7 @@
   flex-direction: column;
   overflow: hidden;
   background: var(--voice-surface-0);
+  isolation: isolate;
   /* HUD system */
   --voice-hud-opacity: 0;
   --voice-hud-pointer-events: none;
@@ -136,14 +137,19 @@
   bottom: 0;
   left: 0;
   right: 0;
+  z-index: 80;
   display: flex;
   justify-content: center;
   padding-bottom: 24px;
   /* extra clearance on mobile so pill floats above bottom nav */
   padding-bottom: calc(24px + env(safe-area-inset-bottom, 0px));
   opacity: var(--voice-hud-opacity);
-  pointer-events: var(--voice-hud-pointer-events);
+  pointer-events: none;
   transition: opacity 0.2s ease;
+}
+
+.controlBarWrap > * {
+  pointer-events: var(--voice-hud-pointer-events);
 }
 
 @media (max-width: 768px) {
