@@ -332,15 +332,6 @@ export function CallProvider({ children }: CallProviderProps) {
     }
   }, [isVideoEnabled, isAudioEnabled, sendWidgetAction, isActiveCallReady]);
 
-  // Fallback: if io.element.join is never received (listener registration race),
-  // mark the call ready as soon as the ClientWidgetApi emits 'ready' (capabilities done).
-  useEffect(() => {
-    if (!activeClientWidgetApi || isActiveCallReady) return;
-    const onReady = () => setIsActiveCallReady(true);
-    activeClientWidgetApi.once('ready', onReady);
-    return () => { activeClientWidgetApi.off('ready', onReady); };
-  }, [activeClientWidgetApi, isActiveCallReady]);
-
   useEffect(() => {
     if (!activeCallRoomId && !viewedCallRoomId) {
       return;

@@ -103,9 +103,10 @@ export function PersistentCallContainer({ children }: PersistentCallContainerPro
             widgetId,
             {
               intent: effectiveIntent,
-              // Skip lobby when rejoining existing session, autoJoin is on, or it's a voice channel room (Discord-style instant join).
-              skipLobby: intentOverride === 'join_existing' ? true : (autoJoin || room?.isCallRoom() ? true : undefined),
-              returnToLobby: 'true',
+              // Skip lobby only when rejoining an existing session or autoJoin is on.
+              // Voice rooms use intent=join_existing but still show the lobby (camera/mic preview).
+              skipLobby: intentOverride === 'join_existing' ? true : (autoJoin ? true : undefined),
+              returnToLobby: 'false',
               perParticipantE2EE: isRoomEncrypted ? 'true' : 'false',
               theme: themeKind,
               callIntent: callIntentParam,
