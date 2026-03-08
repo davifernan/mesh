@@ -27,6 +27,12 @@ const DIST_DIR = path.join(ROOT_DIR, 'dist');
 
 const isProduction = process.env.NODE_ENV === 'production';
 
+if (!process.env.BETTERCORD_APP_URL) {
+	throw new Error(
+		'[BetterCord] BETTERCORD_APP_URL is not set. Set it before running the build script.',
+	);
+}
+
 const electronExternals = [
 	'electron',
 	'electron-log',
@@ -81,6 +87,8 @@ async function buildMain() {
 		plugins: [pathAliasPlugin],
 		define: {
 			'process.env.NODE_ENV': JSON.stringify(isProduction ? 'production' : 'development'),
+			'process.env.BETTERCORD_APP_URL': JSON.stringify(process.env.BETTERCORD_APP_URL),
+			'process.env.BETTERCORD_CANARY_URL': JSON.stringify(process.env.BETTERCORD_CANARY_URL ?? process.env.BETTERCORD_APP_URL),
 		},
 	});
 
