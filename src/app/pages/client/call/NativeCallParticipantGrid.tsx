@@ -1,7 +1,7 @@
-import React, { useMemo, useEffect, useState } from 'react';
+import React, { useMemo, useEffect, useState, useRef, useCallback } from 'react';
 import { useParticipants, useTracks, VideoTrack, type TrackReference } from '@livekit/components-react';
 import { Track } from 'livekit-client';
-import { Monitor, CaretUp, CaretDown } from '@phosphor-icons/react';
+import { Monitor, CaretUp, CaretDown, CornersOut, ArrowSquareOut } from '@phosphor-icons/react';
 import { useAtom, useSetAtom } from 'jotai';
 import { voiceCallLayoutAtom, pinParticipantAtom } from './VoiceCallLayoutStore';
 import { NativeCallParticipantTile } from './NativeCallParticipantTile';
@@ -9,14 +9,144 @@ import { useCallState } from './CallProvider';
 import styles from './NativeCallParticipantGrid.module.css';
 
 /** A dedicated tile that renders a participant's screenshare video. */
-function ScreenShareTile({ trackRef }: { trackRef: TrackReference }) {
+function ScreenShareTile({
+  trackRef,
+  onWatch,
+}: {
+  trackRef: TrackReference;
+  onWatch?: () => void;
+}) {
+  const tileRef = useRef<HTMLDivElement>(null);
+  const [isFullscreen, setIsFullscreen] = useState(false);
+  const [isPiPActive, setIsPiPActive] = useState(false);
   const name = trackRef.participant?.name ?? trackRef.participant?.identity ?? 'Someone';
+
+  const getVideoElement = useCallback(() => {
+    if (!tileRef.current) return null;
+    return tileRef.current.querySelector('video') as HTMLVideoElement | null;
+  }, []);
+
+  const supportsPiP =
+    typeof document !== 'undefined' &&
+    'pictureInPictureEnabled' in document &&
+    (document as Document & { pictureInPictureEnabled?: boolean }).pictureInPictureEnabled;
+
+  useEffect(() => {
+    const onFullscreenChange = () => {
+      setIsFullscreen(document.fullscreenElement === tileRef.current);
+    };
+    document.addEventListener('fullscreenchange', onFullscreenChange);
+    return () => document.removeEventListener('fullscreenchange', onFullscreenChange);
+  }, []);
+
+  useEffect(() => {
+    const video = getVideoElement();
+    if (!video) return;
+
+    const onEnter = () => setIsPiPActive(true);
+    const onLeave = () => setIsPiPActive(false);
+    video.addEventListener('enterpictureinpicture', onEnter);
+    video.addEventListener('leavepictureinpicture', onLeave);
+    return () => {
+      video.removeEventListener('enterpictureinpicture', onEnter);
+      video.removeEventListener('leavepictureinpicture', onLeave);
+    };
+  }, [getVideoElement]);
+
+  const toggleFullscreen = useCallback(async () => {
+    if (!tileRef.current) return;
+    if (document.fullscreenElement === tileRef.current) {
+      await document.exitFullscreen();
+      return;
+    }
+    await tileRef.current.requestFullscreen();
+  }, []);
+
+  const togglePiP = useCallback(async () => {
+    const video = getVideoElement();
+    if (!video || !supportsPiP) return;
+
+    const doc = document as Document & {
+      pictureInPictureElement?: Element | null;
+      exitPictureInPicture?: () => Promise<void>;
+    };
+
+    try {
+      if (doc.pictureInPictureElement === video && doc.exitPictureInPicture) {
+        await doc.exitPictureInPicture();
+        return;
+      }
+      const pipVideo = video as HTMLVideoElement & {
+        requestPictureInPicture?: () => Promise<unknown>;
+      };
+      if (pipVideo.requestPictureInPicture) {
+        await pipVideo.requestPictureInPicture();
+      }
+    } catch {
+      // Browser blocked PiP or does not support it for this track.
+    }
+  }, [getVideoElement, supportsPiP]);
+
+  const dims = trackRef.publication?.dimensions;
+  const fps = trackRef.publication?.track?.mediaStreamTrack?.getSettings()?.frameRate;
+
   return (
-    <div className={styles.screenTile}>
+    <div className={styles.screenTile} ref={tileRef}>
       <VideoTrack trackRef={trackRef} style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
+
+      <div className={styles.screenActions}>
+        <button
+          type="button"
+          className={styles.screenActionBtn}
+          onClick={(e) => {
+            e.stopPropagation();
+            void toggleFullscreen();
+          }}
+          aria-label={isFullscreen ? 'Exit fullscreen screen share' : 'Enter fullscreen screen share'}
+          title={isFullscreen ? 'Exit fullscreen' : 'Fullscreen'}
+        >
+          <CornersOut size={14} weight="bold" />
+        </button>
+
+        {supportsPiP && (
+          <button
+            type="button"
+            className={styles.screenActionBtn}
+            onClick={(e) => {
+              e.stopPropagation();
+              void togglePiP();
+            }}
+            aria-label={isPiPActive ? 'Close popout' : 'Popout screen share'}
+            title={isPiPActive ? 'Close popout' : 'Popout'}
+          >
+            <ArrowSquareOut size={14} weight="bold" />
+          </button>
+        )}
+      </div>
+
+      {dims && (
+        <div className={styles.screenQualityPill}>
+          {dims.width}x{dims.height}
+          {fps ? ` · ${Math.round(fps)}fps` : ''}
+        </div>
+      )}
+
       <div className={styles.screenTileLabel}>
         <Monitor size={13} weight="bold" style={{ flexShrink: 0 }} />
         {name}&apos;s screen
+
+        {onWatch && (
+          <button
+            type="button"
+            className={styles.watchBtn}
+            onClick={(e) => {
+              e.stopPropagation();
+              onWatch();
+            }}
+          >
+            Stream anschauen
+          </button>
+        )}
       </div>
     </div>
   );
@@ -138,7 +268,14 @@ export function NativeCallParticipantGrid({ onPin }: NativeCallParticipantGridPr
       {/* Screenshare tiles first */}
       {screenShareTracks.map((t) => (
         <div key={`ss-${t.participant?.identity}`} className={styles.screenTileWrap}>
-          <ScreenShareTile trackRef={t} />
+          <ScreenShareTile
+            trackRef={t}
+            onWatch={() => {
+              if (t.participant?.identity) {
+                pinParticipant(t.participant.identity);
+              }
+            }}
+          />
         </div>
       ))}
 
