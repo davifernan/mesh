@@ -11,9 +11,9 @@ type SettingTileProps = {
 };
 export function SettingTile({ title, description, before, after, children }: SettingTileProps) {
   return (
-    <Box alignItems="Center" gap="300">
+    <Box alignItems="Center" gap="300" style={{ flexWrap: 'wrap' }}>
       {before && <Box shrink="No">{before}</Box>}
-      <Box grow="Yes" direction="Column" gap="100">
+      <Box grow="Yes" direction="Column" gap="100" style={{ minWidth: '160px' }}>
         {title && (
           <Text className={BreakWord} size="T300">
             {title}
