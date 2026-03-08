@@ -887,7 +887,7 @@ export function RoomViewHeader({ isIssueBoard, onToggleIssueBoard, isThreadsDraw
                   aria-keyshortcuts="Alt+Shift+T"
                   onContextMenu={handleContextMenu('threads')}
                 >
-                  <Icon size="400" src={Icons.Message} filled={isThreadsDrawer} />
+                  <Icon size="400" src={Icons.Thread} filled={isThreadsDrawer} />
                 </IconButton>
               )}
             </TooltipProvider>

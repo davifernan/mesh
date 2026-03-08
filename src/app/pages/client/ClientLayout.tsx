@@ -8,7 +8,9 @@ type ClientLayoutProps = {
 export function ClientLayout({ nav, children }: ClientLayoutProps) {
   return (
     <Box grow="Yes" className="bc-app-shell">
-      <Box shrink="No">{nav}</Box>
+      <Box shrink="No" style={{ height: '100%' }}>
+        {nav}
+      </Box>
       <Box
         grow="Yes"
         className="bc-content"

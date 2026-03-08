@@ -3,7 +3,7 @@ import { toRem } from 'folds';
 
 const LINE_H = '1.0625rem'; // 17px — single text line height
 const MOBILE_MAX = '750px';
-const USER_AREA_LEFT_OVERLAP = toRem(64);
+const USER_AREA_LEFT_OVERLAP = toRem(56);
 
 export const userArea = style({
   display: 'flex',
@@ -15,7 +15,8 @@ export const userArea = style({
   paddingLeft: toRem(10),
   minHeight: toRem(52),
   width: `calc(100% + ${USER_AREA_LEFT_OVERLAP} - ${toRem(8)}) !important`,
-  margin: `${toRem(8)} ${toRem(8)} ${toRem(8)} calc(-1 * ${USER_AREA_LEFT_OVERLAP}) !important`,
+  margin: `${toRem(8)} ${toRem(8)} ${toRem(8)} ${toRem(8)} !important`,
+  left: `calc(-1 * ${USER_AREA_LEFT_OVERLAP})`,
   borderRadius: toRem(12),
   border: '1px solid color-mix(in srgb, var(--background-modifier-accent) 82%, transparent)',
   borderLeftColor: 'color-mix(in srgb, var(--background-modifier-accent) 58%, transparent)',
@@ -23,7 +24,7 @@ export const userArea = style({
   boxShadow: '0 4px 12px rgba(0, 0, 0, 0.2), inset 0 0 0 1px color-mix(in srgb, var(--background-modifier-accent) 30%, transparent)',
   backdropFilter: 'blur(8px)',
   position: 'relative',
-  zIndex: 2,
+  zIndex: 10,
   flexShrink: 0,
   cursor: 'default',
   transition: 'background-color 120ms ease, border-color 120ms ease, transform 120ms ease',

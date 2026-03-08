@@ -3,6 +3,9 @@ import { recipe, RecipeVariants } from '@vanilla-extract/recipes';
 import { DefaultReset, color, config, toRem } from 'folds';
 
 export const PageNav = recipe({
+  base: {
+    overflow: 'visible',
+  },
   variants: {
     size: {
       '400': {
