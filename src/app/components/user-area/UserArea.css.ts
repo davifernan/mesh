@@ -10,7 +10,6 @@ export const userArea = style({
   padding: `${toRem(8)} ${toRem(8)}`,
   minHeight: toRem(52),
   backgroundColor: 'var(--panel-control-bg)',
-  borderTop: '1px solid var(--user-area-divider-color)',
   flexShrink: 0,
   cursor: 'default',
   transition: 'background-color 100ms ease',

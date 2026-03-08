@@ -495,7 +495,7 @@ body {
    border-radius: 8px, border, padding: 0.625rem 1rem, 0.875rem font-size
    transition: 150ms cubic-bezier(0.4, 0, 0.2, 1)
    ================================================================ */
-input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="file"]):not([type="search"]):not([type="number"]):not([type="date"]):not([type="color"]),
+input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="file"]):not([type="search"]):not([type="number"]):not([type="date"]):not([type="color"]):not(._1rrvnjmr),
 textarea {
   background-color: var(--background-textarea) !important;
   border: 1px solid var(--background-modifier-accent) !important;
@@ -506,7 +506,7 @@ textarea {
   line-height: 1.25rem !important;
   transition: border-color 150ms cubic-bezier(0.4, 0, 0.2, 1), box-shadow 150ms cubic-bezier(0.4, 0, 0.2, 1) !important;
 }
-input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="file"]):not([type="search"]):not([type="number"]):not([type="date"]):not([type="color"]):focus,
+input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="file"]):not([type="search"]):not([type="number"]):not([type="date"]):not([type="color"]):not(._1rrvnjmr):focus,
 textarea:focus {
   border-color: var(--background-modifier-accent-focus) !important;
   outline: none !important;

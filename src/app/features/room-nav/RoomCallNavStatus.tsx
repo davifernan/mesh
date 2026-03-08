@@ -445,7 +445,6 @@ export function CallNavStatus() {
           onCancel={() => setShowSSModal(false)}
         />
       )}
-      <Line variant="Surface" size="300" />
       <div className={css.VoiceContainer} style={{ position: 'relative' }}>
         {/* Voice details popout */}
         {showVoicePopout && (
