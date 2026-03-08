@@ -19,7 +19,16 @@ export type ClientConfig = {
 
   hashRouter?: HashRouterConfig;
 
+  /** @deprecated replaced by livekitServiceUrl */
   elementCallUrl?: string;
+
+  /**
+   * LiveKit JWT service URL — used as fallback when a voice channel room
+   * does not yet have an org.matrix.msc3401.call state event.
+   * Set via BETTERCORD_LIVEKIT_URL env var (Docker) or directly in config.json.
+   * Example: "https://livekit-jwt.example.com"
+   */
+  livekitServiceUrl?: string;
 };
 
 const ClientConfigContext = createContext<ClientConfig | null>(null);

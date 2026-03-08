@@ -18,8 +18,18 @@
  */
 
 export const APP_PROTOCOL = 'bettercord';
-export const STABLE_APP_URL = 'https://chat.nilo.live';
-export const CANARY_APP_URL = 'https://chat.nilo.live'; // vorerst gleich wie stable
+
+// Required: set BETTERCORD_APP_URL before building the desktop app.
+// Example: BETTERCORD_APP_URL=https://chat.example.com npm run build:desktop
+if (!process.env.BETTERCORD_APP_URL) {
+  throw new Error(
+    '[BetterCord] BETTERCORD_APP_URL is not set. ' +
+      'Set it to your web app URL before building the desktop app.',
+  );
+}
+
+export const STABLE_APP_URL = process.env.BETTERCORD_APP_URL;
+export const CANARY_APP_URL = process.env.BETTERCORD_CANARY_URL ?? STABLE_APP_URL;
 export const DEFAULT_WINDOW_WIDTH = 1280;
 export const DEFAULT_WINDOW_HEIGHT = 800;
 export const MIN_WINDOW_WIDTH = 800;

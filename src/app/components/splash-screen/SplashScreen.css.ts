@@ -9,6 +9,7 @@ export const SplashScreen = style({
   position: 'fixed',
   inset: 0,
   display: 'flex',
+  flexDirection: 'column',
   alignItems: 'center',
   justifyContent: 'center',
   backgroundColor: 'var(--background-secondary)',

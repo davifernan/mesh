@@ -323,12 +323,17 @@ body {
    CHANNEL LIST SIDEBAR — 270px
    ================================================================ */
 [data-ui-kind="PageNav"],
-[class*="PageNav"] {
+[class*="PageNav"]:not([class*="PageNavContent"]):not([class*="PageNavHeader"]) {
   background-color: var(--background-secondary) !important;
   width: var(--layout-sidebar-width) !important;
   min-width: var(--layout-sidebar-width) !important;
   flex-shrink: 0 !important;
   border-right: none !important;
+  /* Constrain the flex column so UserArea always gets its space at the bottom */
+  height: 100% !important;
+  overflow: hidden !important;
+  display: flex !important;
+  flex-direction: column !important;
 }
 
 /* Guild/Space name header (56px, with bottom border) */
@@ -490,7 +495,7 @@ body {
    border-radius: 8px, border, padding: 0.625rem 1rem, 0.875rem font-size
    transition: 150ms cubic-bezier(0.4, 0, 0.2, 1)
    ================================================================ */
-input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="file"]),
+input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="file"]):not([type="search"]):not([type="number"]):not([type="date"]):not([type="color"]),
 textarea {
   background-color: var(--background-textarea) !important;
   border: 1px solid var(--background-modifier-accent) !important;
@@ -501,7 +506,7 @@ textarea {
   line-height: 1.25rem !important;
   transition: border-color 150ms cubic-bezier(0.4, 0, 0.2, 1), box-shadow 150ms cubic-bezier(0.4, 0, 0.2, 1) !important;
 }
-input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="file"]):focus,
+input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="file"]):not([type="search"]):not([type="number"]):not([type="date"]):not([type="color"]):focus,
 textarea:focus {
   border-color: var(--background-modifier-accent-focus) !important;
   outline: none !important;
@@ -511,6 +516,13 @@ input::placeholder,
 textarea::placeholder {
   color: var(--text-tertiary) !important;
   opacity: 1 !important;
+}
+
+/* Strip native OS chrome from <select> to prevent double border with custom border */
+select {
+  -webkit-appearance: none !important;
+  -moz-appearance: none !important;
+  appearance: none !important;
 }
 
 /* folds Input renders as <label><input /></label> — the label is the styled container.
@@ -680,7 +692,7 @@ label > input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not
     0 0 0 1px hsla(223, 7%, 20%, 0.08),
     0 8px 24px -4px rgba(0,0,0,0.25),
     0 20px 48px -8px rgba(0,0,0,0.2) !important;
-  overflow: hidden !important;
+  overflow: clip !important;
   animation: bcModalIn 0.22s cubic-bezier(0.34, 1.56, 0.64, 1) both !important;
 }
 

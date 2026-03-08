@@ -18,6 +18,7 @@ import { Room, RoomEvent, Track } from 'livekit-client';
 import type { MatrixClient } from 'matrix-js-sdk';
 import { useAtomValue } from 'jotai';
 import { useMatrixClient } from '../../hooks/useMatrixClient';
+import { useClientConfig } from '../../hooks/useClientConfig';
 import { effectiveAVSettingsAtom } from '../../state/avQuality';
 import { settingsAtom } from '../../state/settings';
 import { buildLiveKitRoomOptions, buildSSCaptureOptions, type AVSettings } from './avPresets';
@@ -100,6 +101,11 @@ function getFocusUrl(mx: MatrixClient, roomId: string): string | null {
 export function useNativeCall(roomId: string | null): NativeCallEngine {
   const mx = useMatrixClient();
 
+  // ── Config ─────────────────────────────────────────────────────────────────
+  const { livekitServiceUrl: configServiceUrl } = useClientConfig();
+  const configServiceUrlRef = useRef(configServiceUrl);
+  configServiceUrlRef.current = configServiceUrl;
+
   // ── Atoms ──────────────────────────────────────────────────────────────────
   const effectiveAV = useAtomValue(effectiveAVSettingsAtom);
   const userSettings = useAtomValue(settingsAtom);
@@ -160,9 +166,40 @@ export function useNativeCall(roomId: string | null): NativeCallEngine {
           speakerDeviceId: userSettingsRef.current.speakerDeviceId,
         };
 
-        // 1. Resolve LiveKit focus URL
-        const serviceUrl = getFocusUrl(mx, roomId!);
-        if (!serviceUrl) throw new Error('No LiveKit focus URL found in room state');
+        // 1. Resolve LiveKit focus URL — room state first, then config.json fallback
+        let serviceUrl = getFocusUrl(mx, roomId!);
+
+        if (!serviceUrl) {
+          if (configServiceUrlRef.current) {
+            const configServiceUrl = configServiceUrlRef.current;
+            serviceUrl = configServiceUrl;
+            // Best-effort: write the call state event so future joins skip the fallback
+            const plEvent = matrixRoom.currentState.getStateEvents('m.room.power_levels', '');
+            const userPower =
+              (plEvent as any)?.getContent()?.users?.[userId] ??
+              (plEvent as any)?.getContent()?.users_default ??
+              0;
+            const stateDefault = (plEvent as any)?.getContent()?.state_default ?? 50;
+            if (userPower >= stateDefault) {
+              void mx.sendStateEvent(
+                roomId!,
+                'org.matrix.msc3401.call' as any,
+                {
+                  'm.intent': 'm.room',
+                  'm.type': 'm.voice',
+                  foci_preferred: [{ livekit_service_url: serviceUrl, type: 'livekit' }],
+                },
+                '',
+              );
+            }
+          }
+        }
+
+        if (!serviceUrl) {
+          throw new Error(
+            'No LiveKit focus URL found. Set BETTERCORD_LIVEKIT_URL (Docker) or livekitServiceUrl in config.json.',
+          );
+        }
 
         // 2. E2EE setup (only for encrypted rooms)
         const isEncrypted = !!matrixRoom.currentState.getStateEvents('m.room.encryption', '');

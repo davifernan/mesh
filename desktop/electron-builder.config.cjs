@@ -120,7 +120,8 @@ module.exports = {
 	},
 
 	squirrelWindows: {
-		iconUrl: `https://chat.nilo.live/icons/icon.ico`,
+		// Set BETTERCORD_APP_URL at build time so the icon URL points to your deployment.
+		iconUrl: `${process.env.BETTERCORD_APP_URL}/icons/icon.ico`,
 		name: packageName,
 	},
 
@@ -183,8 +184,8 @@ module.exports = {
 
 	publish: {
 		provider: 'github',
-		owner: 'davifernan',
-		repo: 'BetterCord',
+		owner: process.env.GITHUB_OWNER,
+		repo: process.env.GITHUB_REPO,
 		releaseType: 'release',
 	},
 };
