@@ -85,15 +85,16 @@ export function NativeCallView() {
         </div>
       </div>
 
-      {/* Main content */}
+      {/* RoomContext wraps both grid and control bar — all LiveKit hooks need this */}
       <RoomContext.Provider value={livekitRoom}>
+        {/* Main content */}
         <NativeCallParticipantGrid />
-      </RoomContext.Provider>
 
-      {/* Control bar (auto-hiding) */}
-      <div className={styles.controlBarWrap}>
-        <NativeCallControlBar />
-      </div>
+        {/* Control bar (auto-hiding) */}
+        <div className={styles.controlBarWrap}>
+          <NativeCallControlBar />
+        </div>
+      </RoomContext.Provider>
     </div>
   );
 }
