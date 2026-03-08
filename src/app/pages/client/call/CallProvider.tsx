@@ -131,46 +131,6 @@ export function CallProvider({ children }: CallProviderProps) {
 
   const setActiveCallRoomId = useCallback(
     (roomId: string | null, isVoiceRoom = false) => {
-      // Kick own stale memberships from other devices before joining (Discord-style: one session at a time).
-      if (roomId !== null) {
-        const userId = mx.getUserId();
-        const deviceId = mx.getDeviceId();
-        const room = mx.getRoom(roomId);
-
-        if (userId && deviceId && room) {
-          // Compute the state key prefixes that belong to THIS device — clear everything else from us.
-          const ownLegacyKey = userId;
-          const ownMsc4143KeyA = `_${userId}_${deviceId}`;
-          const ownMsc4143KeyB = `${userId}_${deviceId}`;
-
-          const callMemberEvents = room
-            .currentState
-            .getStateEvents('org.matrix.msc3401.call.member');
-
-          const staleKeys: string[] = [];
-          for (const ev of callMemberEvents) {
-            if (ev.getSender() !== userId) continue;
-            const sk = ev.getStateKey();
-            if (sk === undefined || sk === null) continue;
-            // Skip our own current-device keys and empty/already-cleared events.
-            if (sk === ownLegacyKey || sk === ownMsc4143KeyA || sk === ownMsc4143KeyB) continue;
-            // Non-empty content means this device is actively registered.
-            const content = ev.getContent();
-            if (content && Object.keys(content).length > 0) {
-              staleKeys.push(sk);
-            }
-          }
-
-          for (const sk of staleKeys) {
-            mx.sendStateEvent(roomId, 'org.matrix.msc3401.call.member' as any, {}, sk).catch(
-              () => {
-                // Best-effort: ignore errors (e.g. permission denied on already-cleared keys).
-              }
-            );
-          }
-        }
-      }
-
       setActiveCallRoomIdState(roomId);
       if (roomId !== null) {
         // Voice rooms: show call by default. Regular/DM rooms: show chat by default.
@@ -178,7 +138,7 @@ export function CallProvider({ children }: CallProviderProps) {
         setIsChatOpenState(!isVoiceRoom);
       }
     },
-    [mx]
+    []
   );
 
   // Track RTC memberships and play join/leave sounds for every participant's client.
