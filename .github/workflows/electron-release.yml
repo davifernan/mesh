@@ -4,6 +4,9 @@ on:
   release:
     types: [published]
 
+permissions:
+  contents: write
+
 jobs:
   build-electron:
     strategy:
@@ -14,8 +17,6 @@ jobs:
             platform: mac
           - os: windows-latest
             platform: win
-          - os: ubuntu-22.04
-            platform: linux
 
     name: Build Electron (${{ matrix.platform }})
     runs-on: ${{ matrix.os }}
@@ -39,7 +40,7 @@ jobs:
           NODE_OPTIONS: '--max_old_space_size=4096'
         run: npm run build
 
-      # ── Desktop build ──────────────────────────────────────────────────
+      # ── Desktop build + publish to GitHub Release ──────────────────────
       - name: Install desktop dependencies
         working-directory: desktop
         run: npm ci
@@ -48,59 +49,8 @@ jobs:
         working-directory: desktop
         run: node scripts/build.mjs
 
-      # Copy the web-app dist into the desktop build resources so Electron
-      # can bundle it (if the app is configured to serve locally from files).
-      # If the app loads from https://chat.nilo.live this step is not needed
-      # but keeping it here does no harm.
-      - name: Copy web-app dist → desktop/dist-webapp
-        shell: bash
-        run: |
-          mkdir -p desktop/dist-webapp
-          cp -r dist/. desktop/dist-webapp/
-
-      # ── macOS code-signing (optional — only when secrets are present) ──
-      - name: Import Apple certificates
-        if: matrix.platform == 'mac' && env.APPLE_CERTIFICATE != ''
-        env:
-          APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
-          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
-          KEYCHAIN_PASSWORD: ${{ secrets.KEYCHAIN_PASSWORD }}
-        run: |
-          KEYCHAIN_PATH=$RUNNER_TEMP/app.keychain
-          security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
-          security set-keychain-settings -lut 21600 "$KEYCHAIN_PATH"
-          security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
-          echo "$APPLE_CERTIFICATE" | base64 --decode -o /tmp/certificate.p12
-          security import /tmp/certificate.p12 -P "$APPLE_CERTIFICATE_PASSWORD" \
-            -A -t cert -f pkcs12 -k "$KEYCHAIN_PATH"
-          security list-keychain -d user -s "$KEYCHAIN_PATH"
-          rm /tmp/certificate.p12
-
-      # ── Package with electron-builder ─────────────────────────────────
-      - name: Build Electron app (stable)
+      - name: Build & publish Electron app
         working-directory: desktop
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          # macOS notarization (optional)
-          APPLE_ID: ${{ secrets.APPLE_ID }}
-          APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
-          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
-          CSC_LINK: ${{ secrets.APPLE_CERTIFICATE }}
-          CSC_KEY_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
         run: npx electron-builder --${{ matrix.platform }} --config electron-builder.config.cjs --publish always
-
-      # ── Upload artifacts ───────────────────────────────────────────────
-      - name: Upload build artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: electron-${{ matrix.platform }}
-          path: |
-            desktop/dist-electron/**/*.dmg
-            desktop/dist-electron/**/*.zip
-            desktop/dist-electron/**/*.exe
-            desktop/dist-electron/**/*.AppImage
-            desktop/dist-electron/**/*.deb
-            desktop/dist-electron/**/*.rpm
-            desktop/dist-electron/**/*.tar.gz
-          if-no-files-found: warn
-          retention-days: 30

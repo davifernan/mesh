@@ -181,5 +181,10 @@ module.exports = {
 		],
 	},
 
-	publish: null,
+	publish: {
+		provider: 'github',
+		owner: 'davifernan',
+		repo: 'BetterCord',
+		releaseType: 'release',
+	},
 };
