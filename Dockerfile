@@ -17,6 +17,7 @@ FROM nginx:1.29.5-alpine
 RUN apk add --no-cache gettext
 
 COPY --from=builder /src/dist /app
+COPY --from=builder /src/config.template.json /app/config.template.json
 COPY --from=builder /src/docker-nginx.conf /etc/nginx/conf.d/default.conf
 COPY docker-entrypoint.sh /docker-entrypoint.sh
 

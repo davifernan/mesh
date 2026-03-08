@@ -53,4 +53,7 @@ jobs:
         working-directory: desktop
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_OWNER: davifernan
+          GITHUB_REPO: BetterCord
+          BETTERCORD_APP_URL: https://chat.nilo.live
         run: npx electron-builder --${{ matrix.platform }} --config electron-builder.config.cjs --publish always
