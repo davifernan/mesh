@@ -698,8 +698,11 @@ export function createWindow(): BrowserWindow {
 
 	webContents.setWindowOpenHandler(({url, frameName}) => {
 		const pathname = getSanitizedPath(url);
+		const namespacedPopout = frameName?.startsWith(POPOUT_NAMESPACE);
+		const trustedRoutePopout = namespacedPopout && pathname === '/popout' && isTrustedOrigin(url);
+		const blankPopout = namespacedPopout && url === 'about:blank';
 
-		if (frameName?.startsWith(POPOUT_NAMESPACE) && pathname === '/popout' && isTrustedOrigin(url)) {
+		if (trustedRoutePopout || blankPopout) {
 			const overrideBrowserWindowOptions: Electron.BrowserWindowConstructorOptions = {
 				titleBarStyle: isMac ? 'hidden' : undefined,
 				trafficLightPosition: isMac ? {x: 12, y: 5} : undefined,
