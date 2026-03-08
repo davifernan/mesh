@@ -43,7 +43,16 @@ jobs:
       # ── Desktop build + publish to GitHub Release ──────────────────────
       - name: Set desktop version from git tag
         working-directory: desktop
-        run: npm version --no-git-tag-version ${GITHUB_REF_NAME#v}
+        shell: bash
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          node -e "
+            const fs = require('fs');
+            const pkg = JSON.parse(fs.readFileSync('package.json', 'utf8'));
+            pkg.version = '$VERSION';
+            fs.writeFileSync('package.json', JSON.stringify(pkg, null, '\t') + '\n');
+          "
+          echo "Desktop version set to $VERSION"
 
       - name: Install desktop dependencies
         working-directory: desktop
