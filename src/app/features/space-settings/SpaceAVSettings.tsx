@@ -19,7 +19,7 @@ type AudioBitrate = SpaceAVSettings['maxAudioBitrate'];
 
 const VIDEO_RESOLUTIONS: VideoResolution[] = ['360p', '480p', '720p', '1080p', '1440p', '2160p'];
 const VIDEO_FPS: VideoFps[] = [15, 24, 30, 60, 120];
-const SS_RESOLUTIONS: SSResolution[] = ['720p', '1080p', '1440p', '2160p', 'source'];
+const SS_RESOLUTIONS: SSResolution[] = ['720p', '1080p', '1440p', '4k', 'source'];
 const SS_FPS: SSFps[] = [5, 15, 30, 60, 120];
 const AUDIO_BITRATES: AudioBitrate[] = [64, 128, 256, 510];
 

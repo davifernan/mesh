@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect } from 'react';
-import { Box, Header, Scroll, Spinner, Text, color } from 'folds';
+import { Scroll, Spinner, Text, color } from 'folds';
 import {
   Outlet,
   generatePath,
@@ -12,7 +12,6 @@ import classNames from 'classnames';
 
 import { AuthFooter } from './AuthFooter';
 import * as css from './styles.css';
-import * as PatternsCss from '../../styles/Patterns.css';
 import {
   clientAllowedServer,
   clientDefaultServer,
@@ -20,7 +19,6 @@ import {
 } from '../../hooks/useClientConfig';
 import { AsyncStatus, useAsyncCallback } from '../../hooks/useAsyncCallback';
 import { LOGIN_PATH, REGISTER_PATH, RESET_PASSWORD_PATH } from '../paths';
-import CinnySVG from '../../../../public/res/svg/cinny.svg';
 import { ServerPicker } from './ServerPicker';
 import { AutoDiscoveryAction, autoDiscovery } from '../../cs-api';
 import { SpecVersionsLoader } from '../../components/SpecVersionsLoader';
@@ -46,22 +44,22 @@ const currentAuthPath = (pathname: string): string => {
 
 function AuthLayoutLoading({ message }: { message: string }) {
   return (
-    <Box justifyContent="Center" alignItems="Center" gap="200">
+    <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '0.5rem' }}>
       <Spinner size="100" variant="Secondary" />
       <Text align="Center" size="T300">
         {message}
       </Text>
-    </Box>
+    </div>
   );
 }
 
 function AuthLayoutError({ message }: { message: string }) {
   return (
-    <Box justifyContent="Center" alignItems="Center" gap="200">
+    <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
       <Text align="Center" style={{ color: color.Critical.Main }} size="T300">
         {message}
       </Text>
-    </Box>
+    </div>
   );
 }
 
@@ -93,7 +91,6 @@ export function AuthLayout() {
     if (server) discoverServer(server);
   }, [discoverServer, server]);
 
-  // if server is mismatches with path server, update path
   useEffect(() => {
     if (!urlEncodedServer || tryDecodeURIComponent(urlEncodedServer) !== server) {
       navigate(
@@ -124,22 +121,20 @@ export function AuthLayout() {
 
   return (
     <Scroll variant="Background" visibility="Hover" size="300" hideTrack>
-      <Box
-        className={classNames(css.AuthLayout, PatternsCss.BackgroundDotPattern)}
-        direction="Column"
-        alignItems="Center"
-        justifyContent="SpaceBetween"
-        gap="400"
-      >
-        <Box direction="Column" className={css.AuthCard}>
-          <Header className={css.AuthHeader} size="600" variant="Surface">
-            <Box grow="Yes" direction="Row" gap="300" alignItems="Center">
-              <img className={css.AuthLogo} src={CinnySVG} alt="Wally Logo" />
-              <Text size="H3" as="h1">Wally</Text>
-            </Box>
-          </Header>
-          <Box className={css.AuthCardContent} direction="Column">
-            <Box direction="Column" gap="100">
+      <div className={css.AuthLayout}>
+        <div className={css.AuthCard}>
+          {/* LEFT: BetterCord logo side (33%) */}
+          <div className={css.AuthLogoSide}>
+            <div className={css.AuthLogoContent}>
+              <div className={css.AuthLogoMark}>BC</div>
+              <h2 className={css.AuthBrandName}>BetterCord</h2>
+              <p className={css.AuthTagline}>Privacy-first communities on Matrix</p>
+            </div>
+          </div>
+
+          {/* RIGHT: Form side (67%) — server picker + auth form */}
+          <div className={css.AuthCardContent}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
               <Text as="label" htmlFor="auth-server-input" size="L400" priority="300">
                 Homeserver
               </Text>
@@ -149,7 +144,8 @@ export function AuthLayout() {
                 allowCustomServer={clientConfig.allowCustomHomeservers}
                 onServerChange={selectServer}
               />
-            </Box>
+            </div>
+
             {discoveryState.status === AsyncStatus.Loading && (
               <AuthLayoutLoading message="Looking for homeserver..." />
             )}
@@ -200,10 +196,10 @@ export function AuthLayout() {
                 </AutoDiscoveryInfoProvider>
               </AuthServerProvider>
             )}
-          </Box>
-        </Box>
+          </div>
+        </div>
         <AuthFooter />
-      </Box>
+      </div>
     </Scroll>
   );
 }

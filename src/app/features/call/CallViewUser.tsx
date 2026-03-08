@@ -2,7 +2,6 @@ import { as, Avatar, Box, Icon, Icons, Text } from 'folds';
 import React from 'react';
 import classNames from 'classnames';
 import { Room } from 'matrix-js-sdk';
-import { CallMembership } from 'matrix-js-sdk/lib/matrixrtc/CallMembership';
 import { UserAvatar } from '../../components/user-avatar';
 import { useMatrixClient } from '../../hooks/useMatrixClient';
 import { getMxIdLocalPart } from '../../utils/matrix';
@@ -14,7 +13,7 @@ import * as css from './CallView.css';
 
 type CallViewUserProps = {
   room: Room;
-  callMembership: CallMembership;
+  userId: string;
 };
 
 export const UserProfileButton = as<'button'>(
@@ -33,12 +32,11 @@ export const CallViewUserBase = as<'div'>(({ className, ...props }, ref) => (
   />
 ));
 
-export function CallViewUser({ room, callMembership }: CallViewUserProps) {
+export function CallViewUser({ room, userId }: CallViewUserProps) {
   const mx = useMatrixClient();
   const useAuthentication = useMediaAuthentication();
   const openProfile = useOpenUserRoomProfile();
   const space = useSpaceOptionally();
-  const userId = callMembership.sender ?? '';
   const avatarMxcUrl = getMemberAvatarMxc(room, userId);
   const avatarUrl = avatarMxcUrl
     ? mx.mxcUrlToHttp(avatarMxcUrl, 32, 32, 'crop', undefined, false, useAuthentication)

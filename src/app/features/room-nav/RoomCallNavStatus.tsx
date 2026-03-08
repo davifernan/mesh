@@ -19,9 +19,6 @@ import {
   VideoCamera,
   VideoCameraSlash,
   Monitor,
-  DotsThree,
-  ChartBar,
-  Waveform,
 } from '@phosphor-icons/react';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useAtomValue } from 'jotai';
@@ -83,14 +80,14 @@ export function CallNavStatus() {
   const mx = useMatrixClient();
   const {
     activeCallRoomId,
-    isActiveCallReady,
+    callStatus,
     isAudioEnabled,
     isVideoEnabled,
     toggleAudio,
     toggleVideo,
+    startScreenShare,
     hangUp,
     setActiveCallRoomId,
-    sendWidgetAction,
     speakingUsers,
   } = useCallState();
 
@@ -98,21 +95,7 @@ export function CallNavStatus() {
   const iMSpeaking = speakingUsers.has(myUserId);
 
   const [showSSModal, setShowSSModal] = useState(false);
-  const [showMoreMenu, setShowMoreMenu] = useState(false);
-  const moreMenuWrapRef = useRef<HTMLDivElement>(null);
   const { navigateRoom } = useRoomNavigate();
-
-  // Close more menu when clicking outside of it
-  useEffect(() => {
-    if (!showMoreMenu) return;
-    const handleOutsideClick = (e: MouseEvent) => {
-      if (moreMenuWrapRef.current && !moreMenuWrapRef.current.contains(e.target as Node)) {
-        setShowMoreMenu(false);
-      }
-    };
-    document.addEventListener('mousedown', handleOutsideClick);
-    return () => document.removeEventListener('mousedown', handleOutsideClick);
-  }, [showMoreMenu]);
 
   const [incomingCalls, setIncomingCalls] = useState<IncomingCall[]>([]);
   const [callPage, setCallPage] = useState(0);
@@ -196,7 +179,7 @@ export function CallNavStatus() {
   const callRingScope = useAtomValue(settingsAtom).callRingScope ?? 'nonVoice';
 
   const hasActiveCall = Boolean(activeCallRoomId);
-  const isConnected = hasActiveCall && isActiveCallReady;
+  const isConnected = hasActiveCall && callStatus === 'connected';
 
   const clearCallTimeout = useCallback((roomId: string) => {
     const t = callTimeoutsRef.current.get(roomId);
@@ -442,14 +425,7 @@ export function CallNavStatus() {
         <ScreenShareModal
           onConfirm={(res, fps, audio) => {
             setShowSSModal(false);
-            // Tell BetterCord-Call to start screenshare with the chosen quality settings.
-            // BC-Call's InCallView listens for this action and calls toggleScreenSharing
-            // with the provided overrides (ssResolution, ssFps, ssAudio).
-            sendWidgetAction('io.bettercord.screenshare_start', {
-              ssResolution: res,
-              ssFps: fps,
-              ssAudio: audio,
-            }).catch(() => {});
+            startScreenShare(res, fps, audio).catch(() => {});
           }}
           onCancel={() => setShowSSModal(false)}
         />
@@ -513,8 +489,8 @@ export function CallNavStatus() {
           </button>
         </div>
 
-        {/* Media section: mute + video + screenshare + more (4-column grid) */}
-        <div className={css.MediaSection} style={{ gridTemplateColumns: 'repeat(4, 1fr)' }}>
+        {/* Media section: mute + video + screenshare (3-column grid) */}
+        <div className={css.MediaSection} style={{ gridTemplateColumns: 'repeat(3, 1fr)' }}>
           <TooltipProvider
             position="Top"
             offset={4}
@@ -583,52 +559,6 @@ export function CallNavStatus() {
               </button>
             )}
           </TooltipProvider>
-          {/* More menu: Stats + Noise Suppression */}
-          <div className={css.MoreMenuWrap} ref={moreMenuWrapRef}>
-            {showMoreMenu && (
-              <div className={css.MoreMenu}>
-                <button
-                  type="button"
-                  className={css.MoreMenuItem}
-                  onClick={() => {
-                    sendWidgetAction('io.bettercord.toggle_stats', {}).catch(() => {});
-                    setShowMoreMenu(false);
-                  }}
-                >
-                  <ChartBar size={14} weight="fill" />
-                  Connection Stats
-                </button>
-                <button
-                  type="button"
-                  className={css.MoreMenuItem}
-                  onClick={() => {
-                    sendWidgetAction('io.bettercord.toggle_noise', {}).catch(() => {});
-                    setShowMoreMenu(false);
-                  }}
-                >
-                  <Waveform size={14} weight="fill" />
-                  Noise Suppression
-                </button>
-              </div>
-            )}
-            <TooltipProvider
-              position="Top"
-              offset={4}
-              tooltip={<Tooltip><Text>More</Text></Tooltip>}
-            >
-              {(triggerRef) => (
-                <button
-                  type="button"
-                  className={css.MediaButton}
-                  ref={triggerRef}
-                  aria-label="More options"
-                  onClick={() => setShowMoreMenu((v) => !v)}
-                >
-                  <DotsThree size={20} weight="bold" />
-                </button>
-              )}
-            </TooltipProvider>
-          </div>
         </div>
       </div>
     </Box>

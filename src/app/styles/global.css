@@ -1,4 +1,4 @@
-/* BetterCord Design System — based on Fluxer/Discord CSS Tokens */
+/* BetterCord Design System — Fluxer-faithful Dark Theme */
 
 @import '@fontsource/ibm-plex-sans/400.css';
 @import '@fontsource/ibm-plex-sans/500.css';
@@ -6,14 +6,16 @@
 @import '@fontsource/ibm-plex-mono/400.css';
 
 :root {
-  /* === LAYOUT === */
+  /* === LAYOUT (1:1 Fluxer dimensions) === */
   --layout-guild-list-width: 4.5rem;
   --layout-sidebar-width: 16.875rem;
   --layout-header-height: 3.5rem;
   --layout-user-area-height: 72px;
+  --footer-row-height: 72px;
   --mobile-bottom-nav-height: 60px;
+  --native-titlebar-height: 32px;
 
-  /* === SPACING === */
+  /* === SPACING (1:1 Fluxer) === */
   --spacing-0: 0;
   --spacing-1: 0.25rem;
   --spacing-1-5: 0.375rem;
@@ -29,7 +31,7 @@
   --spacing-20: 5rem;
   --spacing-24: 6rem;
 
-  /* === BORDER RADIUS === */
+  /* === BORDER RADIUS (1:1 Fluxer) === */
   --radius-sm: 0.25rem;
   --radius-md: 0.375rem;
   --radius-lg: 0.5rem;
@@ -37,132 +39,204 @@
   --radius-2xl: 1rem;
   --radius-full: 9999px;
 
-  /* === Z-INDEX === */
+  /* === Z-INDEX (1:1 Fluxer) === */
   --z-index-base: 0;
   --z-index-elevated-1: 10;
   --z-index-elevated-2: 20;
   --z-index-elevated-3: 30;
   --z-index-modal: 10000;
   --z-index-popout: 15000;
+  --z-index-modal-swap: 25000;
+  --z-index-popout-above-swap: 30000;
   --z-index-overlay: 40000;
   --z-index-tooltip: 45000;
   --z-index-toast: 50000;
+  --z-index-titlebar: 100000;
   --z-index-contextmenu: 2147483647;
 
-  /* === BRAND === */
-  --brand-primary: #4641D9;
-  --focus-primary: #00b0f4;
+  /* === BRAND (1:1 Fluxer: hsl(242, 70%, 55%)) === */
+  --brand-primary:       hsl(242, 70%, 55%);
+  --brand-secondary:     hsl(242, 60%, 49%);
+  --brand-primary-light: hsl(242, 100%, 84%);
+  --brand-primary-fill:  #ffffff;
+  --focus-primary:       hsl(210, 100%, 60%);
 
-  /* === DARK THEME (default) === */
-  /* Surface colors — HSL 220, 13%, neutralDark scale */
-  --background-primary:            hsl(220, 13%, 13.22%);  /* #1e1f22 guild list */
-  --background-secondary:          hsl(220, 13%, 17.5%);   /* #2b2d31 sidebar */
-  --background-secondary-lighter:  hsl(220, 13%, 18.8%);
-  --background-secondary-alt:      hsl(220, 13%, 15%);     /* panels */
-  --background-tertiary:           hsl(220, 13%, 11.5%);   /* deepest bg */
-  --background-channel-header:     hsl(220, 13%, 19.5%);
-  --background-header-primary:     hsl(220, 13%, 20%);
-  --background-header-primary-hover: hsl(220, 13%, 22%);
-  --background-header-secondary:   hsl(220, 13%, 18%);     /* action bar border */
-  --background-textarea:           hsl(220, 13%, 23%);     /* input area */
-  --background-floating:           hsl(220, 13%, 8%);
-  --guild-list-foreground:         hsl(220, 13%, 19%);     /* guild icon bg */
+  /* ================================================================
+     DARK THEME BACKGROUNDS — Fluxer-accurate darkness
+     From fluxer-ui.md (easeOut curve, HSL 220 13%):
+       background-primary    ~5%   = floating / deepest (menus, overlays)
+       background-secondary  ~7.6% = guild strip + channel sidebar + modals
+       bg-secondary-lighter  ~8.4% = chat area (slightly lighter)
+       bg-secondary-alt      ~9.1% = subtle alternates
+       background-tertiary   ~11.4%
+       background-textarea   ~18.7%
+     ================================================================ */
+  --background-tertiary:             hsl(220, 13%, 11.4%); /* inputs/panels (~11.4%) */
+  --background-floating:             hsl(220, 13%, 6%);    /* context menus, tooltips, deepest */
+  --background-secondary:            hsl(220, 13%, 8%);   /* guild list + sidebar + modals */
+  --background-secondary-lighter:    hsl(220, 13%, 9%);   /* chat area (slightly lighter) */
+  --background-secondary-alt:        hsl(220, 13%, 8.5%); /* subtle alt */
+  --background-primary:              hsl(220, 13%, 9.5%); /* main chat background */
+  --background-channel-header:       hsl(220, 13%, 9%);   /* channel topbar */
+  --background-header-primary:       hsl(220, 13%, 8%);   /* modal surface (= sidebar) */
+  --background-header-primary-hover: hsl(220, 13%, 20%);
+  --background-header-secondary:     hsl(220, 13%, 10%);
+  --background-textarea:             hsl(220, 13%, 19%);  /* inputs (~18.7%) */
+  --guild-list-foreground:           hsl(220, 13%, 11%);  /* guild icon no-image bg */
 
-  /* Modifiers */
-  --background-modifier-hover:     hsla(0, 0%, 100%, 0.05);
-  --background-modifier-selected:  hsla(0, 0%, 100%, 0.10);
-  --background-modifier-accent:    hsla(220, 13%, 80%, 0.15);
+  /* Interaction modifiers */
+  --background-modifier-hover:        hsla(220, 13%, 100%, 0.05);
+  --background-modifier-selected:     hsla(220, 13%, 100%, 0.10);
+  --background-modifier-accent:       hsla(220, 13%, 80%, 0.15);
   --background-modifier-accent-focus: hsla(220, 13%, 80%, 0.22);
 
-  /* Text — HSL 220, 13%, range 52–96% */
-  --text-primary:        hsl(220, 13%, 96%);    /* #dcddde */
-  --text-chat:           hsl(220, 13%, 88%);    /* main message text */
-  --text-secondary:      hsl(220, 13%, 80%);    /* #b9bbbe */
-  --text-chat-muted:     hsl(220, 13%, 72%);    /* author info */
-  --text-primary-muted:  hsl(220, 13%, 72%);    /* timestamps */
-  --text-tertiary:       hsl(220, 13%, 58%);    /* #72767d */
-  --text-tertiary-muted: hsl(220, 13%, 52%);
-  --text-muted:          hsl(220, 11%, 50%);    /* #80848e */
-  --text-link:           hsl(210, 100%, 70%);
-  --text-danger:         hsl(359, 70%, 60%);
+  /* === TEXT (Fluxer-accurate) === */
+  --text-primary:            hsl(220, 13%, 96%);
+  --text-chat:               hsl(220, 13%, 87%);
+  --text-secondary:          hsl(220, 13%, 82%);
+  --text-chat-muted:         hsl(220, 13%, 74%);
+  --text-primary-muted:      hsl(220, 13%, 74%);
+  --text-tertiary:           hsl(220, 13%, 65%);
+  --text-tertiary-muted:     hsl(220, 13%, 57%);
+  --text-tertiary-secondary: hsl(220, 13%, 52%);
+  --text-muted:              hsl(220, 11%, 50%);
+  --text-link:               hsl(210, 100%, 70%);
+  --text-danger:             hsl(1, 77%, 60%);
 
+  /* === DIVIDERS & PANELS === */
   --user-area-divider-color: rgba(255, 255, 255, 0.06);
-  --panel-control-bg: #232428;
+  --panel-control-bg:        hsl(220, 13%, 6.5%); /* slightly darker than sidebar */
 
-  /* === MESSAGES (1:1 from Fluxer Message.module.css) === */
-  --message-avatar-size: 40px;
-  --message-avatar-size-compact: 16px;
-  --message-gutter: 16px;
-  --chat-horizontal-padding: 16px;
-  --message-spacing-y: 0.125rem;
-  --message-line-height: 1.375rem;
-  --message-timestamp-color: var(--text-primary-muted);
-  --message-timestamp-font-size: 0.75rem;
+  /* === STATUS COLORS (1:1 Fluxer) === */
+  --status-online:  hsl(142, 76%, 40%);
+  --status-idle:    hsl(45,  93%, 50%);
+  --status-dnd:     hsl(0,   84%, 60%);
+  --status-offline: hsl(218, 11%, 65%);
+  --status-danger:  hsl(1,   77%, 55%);
+
+  /* === BUTTONS (Fluxer: primary = GREEN confirmatory) === */
+  --button-primary-fill: hsl(139, 55%, 44%);
+  --button-danger-fill:  hsl(359, 70%, 54%);
+  --button-primary-text: #ffffff;
+  --button-danger-text:  #ffffff;
+
+  /* === INTERACTIVE (used by RoomCallNavStatus, MobileBottomNav) === */
+  --interactive-normal:  hsl(220, 13%, 74%);
+  --interactive-hover:   hsl(220, 13%, 96%);
+  --interactive-active:  hsl(220, 13%, 96%);
+  --interactive-muted:   hsl(220, 13%, 57%);
+
+  /* === CONTROL BUTTONS (user area icons) === */
+  --control-button-normal-text: hsl(220, 13%, 74%);
+  --control-button-hover-text:  hsl(220, 13%, 96%);
+  --control-button-danger-text: hsl(1, 77%, 60%);
+
+  /* === SCROLLBARS (1:1 Fluxer) === */
+  --scrollbar-thumb-bg:       rgba(121, 122, 124, 0.4);
+  --scrollbar-thumb-bg-hover: rgba(121, 122, 124, 0.7);
+  --scrollbar-track-bg:       transparent;
+
+  /* === SHADOWS (1:1 Fluxer) === */
+  --shadow-sm: 0 1px 2px rgba(0,0,0,0.1);
+  --shadow-md: 0 2px 4px rgba(0,0,0,0.15), 0 1px 2px rgba(0,0,0,0.1);
+  --shadow-lg: 0 4px 8px rgba(0,0,0,0.15), 0 2px 4px rgba(0,0,0,0.1);
+  --shadow-xl: 0 10px 20px rgba(0,0,0,0.15), 0 4px 8px rgba(0,0,0,0.1);
+
+  /* === TRANSITIONS (1:1 Fluxer) === */
+  --transition-fast:   100ms ease;
+  --transition-normal: 200ms ease;
+  --transition-slow:   300ms ease;
+
+  /* === MESSAGES (1:1 Fluxer Message.module.css) === */
+  --message-avatar-size:             40px;
+  --message-avatar-size-compact:     16px;
+  --message-gutter:                  16px;
+  --chat-horizontal-padding:         16px;
+  --message-spacing-y:               0.125rem;
+  --message-line-height:             1.375rem;
+  --message-timestamp-color:         var(--text-primary-muted);
+  --message-timestamp-font-size:     0.75rem;
   --message-compact-timestamp-width: 3.5rem;
-  --message-compact-gap: 0.25rem;
-  --message-compact-indent: calc(var(--message-compact-timestamp-width) + var(--message-compact-gap));
-  --message-highlight-bar-width: 2px;
-  --message-mention-color: rgb(234 197 50);
-  --message-mention-bg: rgb(234 197 50 / 0.1);
-  --message-mention-bg-hover: rgb(234 197 50 / 0.14);
-  --message-reply-color: rgb(59 130 246);
-  --message-reply-bg: rgb(59 130 246 / 0.1);
-  --message-reply-spacing: 4px;
-  --message-reply-height: 1.125rem;
-  --message-reply-font-size: 0.875rem;
-  --message-reply-spine-width: 2px;
-  --message-reply-spine-radius: 6px;
-  --message-container-gap: 0.25rem;
-  --message-container-padding-y: 0.125rem;
-  --message-action-bar-offset: 3rem;
-  --message-transition-highlight: 200ms ease-in-out;
-  --message-avatar-align-offset: clamp(0px, calc((var(--message-line-height) * 2 - var(--message-avatar-size)) / 2), 0.5rem);
-
-  /* === STATUS === */
-  --status-online: #23A55A;
-  --status-idle: #F0B232;
-  --status-dnd: #F23F43;
-  --status-offline: #80848E;
+  --message-compact-gap:             0.25rem;
+  --message-compact-indent:          calc(var(--message-compact-timestamp-width) + var(--message-compact-gap));
+  --message-highlight-bar-width:     2px;
+  --message-mention-color:           rgb(234 197 50);
+  --message-mention-bg:              rgb(234 197 50 / 0.1);
+  --message-mention-bg-hover:        rgb(234 197 50 / 0.14);
+  --message-reply-color:             rgb(59 130 246);
+  --message-reply-bg:                rgb(59 130 246 / 0.1);
+  --message-reply-spacing:           4px;
+  --message-reply-height:            1.125rem;
+  --message-reply-font-size:         0.875rem;
+  --message-reply-spine-width:       2px;
+  --message-reply-spine-radius:      6px;
+  --message-container-gap:           0.25rem;
+  --message-container-padding-y:     0.125rem;
+  --message-action-bar-offset:       3rem;
+  --message-transition-highlight:    200ms ease-in-out;
+  --message-avatar-align-offset:     clamp(0px, calc((var(--message-line-height) * 2 - var(--message-avatar-size)) / 2), 0.5rem);
 
   /* === VOICE === */
-  --voice-surface-4: rgba(255, 255, 255, 0.1);
-  --voice-surface-5: rgba(255, 255, 255, 0.16);
-  --voice-status-success: #23A55A;
-  --voice-status-danger: #F23F43;
-  --voice-status-success-bg-solid: rgba(35, 165, 90, 0.2);
-  --voice-status-danger-bg-solid: rgba(242, 63, 67, 0.2);
+  --voice-surface-4:                     rgba(255, 255, 255, 0.1);
+  --voice-surface-5:                     rgba(255, 255, 255, 0.16);
+  --voice-status-success:                hsl(142, 76%, 40%);
+  --voice-status-danger:                 hsl(1, 77%, 55%);
+  --voice-status-success-bg-solid:       rgba(35, 165, 90, 0.2);
+  --voice-status-danger-bg-solid:        rgba(242, 63, 67, 0.2);
   --voice-status-danger-bg-strong-solid: rgba(242, 63, 67, 0.4);
 
   /* === FONTS === */
-  --font-sans: 'IBM Plex Sans', sans-serif;
-  --font-mono: 'IBM Plex Mono', monospace;
+  --font-sans:  'IBM Plex Sans', sans-serif;
+  --font-mono:  'IBM Plex Mono', monospace;
   --font-emoji: 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji', var(--font-sans), sans-serif;
 
   /* === GUILD ICONS === */
   --guild-icon-size: 44px;
-  --guild-icon-gap: var(--spacing-2);
+  --guild-icon-gap:  var(--spacing-2);
+
+  /* === TYPING INDICATOR === */
+  --typing-floating-offset: 0.5rem;
+  --typing-pill-height:     1.5rem;
+  --typing-indicator-bg:    var(--background-tertiary);
+
+  /* === USER AREA === */
+  --user-area-padding-y:      0.5rem;
+  --user-area-padding-x:      0.5rem;
+  --user-area-content-height: 36px;
 
   /* === CONTENT PADDING === */
-  --content-padding: var(--spacing-4);
+  --content-padding:    var(--spacing-4);
   --content-padding-sm: var(--spacing-3);
   --content-padding-lg: var(--spacing-6);
-  --layout-gap: var(--spacing-4);
-  --layout-gap-sm: var(--spacing-2);
-  --layout-gap-lg: var(--spacing-6);
+  --layout-gap:         var(--spacing-4);
+  --layout-gap-sm:      var(--spacing-2);
+  --layout-gap-lg:      var(--spacing-6);
+
+  /* === ACCESSIBILITY === */
+  --saturation-factor: 1; /* Set to 0 for full grayscale (accessibility) */
 }
 
+/* === LIGHT THEME === */
 .theme-light {
-  --background-primary: #FFFFFF;
-  --background-secondary: #F2F3F5;
-  --background-tertiary: #E3E5E8;
-  --background-floating: #FFFFFF;
-  --text-primary: #060607;
-  --text-secondary: #4E5058;
-  --text-muted: #80848E;
-  --panel-control-bg: #EBEDEF;
+  --background-primary:           #FFFFFF;
+  --background-secondary:         #F2F3F5;
+  --background-secondary-lighter: #E8EAED;
+  --background-tertiary:          #E3E5E8;
+  --background-floating:          #FFFFFF;
+  --text-primary:                 #060607;
+  --text-secondary:               #4E5058;
+  --text-chat:                    #2e3338;
+  --text-muted:                   #80848E;
+  --panel-control-bg:             #EBEDEF;
+  --background-modifier-hover:    rgba(6, 6, 7, 0.08);
+  --background-modifier-selected: rgba(6, 6, 7, 0.16);
+  /* Typing indicator in light theme uses brand color */
+  --typing-indicator-bg: var(--brand-primary);
 }
 
-/* Apply BetterCord font globally */
+/* ================================================================
+   BASE STYLES — IBM Plex Sans ONLY, no Inter
+   ================================================================ */
 html {
   font-family: var(--font-sans);
   font-size: 16px;
@@ -170,226 +244,100 @@ html {
   font-optical-sizing: auto;
 }
 
-/* ============================================
-   BetterCord: Discord-like UI Overrides
-   Override Folds/Cinny components
-   ============================================ */
-
-/* Make sidebar icon bar look like Discord's guild list */
-[aria-label="Main navigation"] {
-  background-color: var(--background-tertiary) !important;
-  border-right: none !important;
-  width: 72px !important;
+body {
+  font-family: var(--font-sans);
+  background-color: var(--background-secondary);
+  color: var(--text-primary);
+  scrollbar-color: var(--scrollbar-thumb-bg) var(--scrollbar-track-bg);
 }
 
-/* Channel list panels use Discord's sidebar color */
+/* Webkit scrollbars */
+::-webkit-scrollbar { width: 8px; height: 8px; }
+::-webkit-scrollbar-track { background: var(--scrollbar-track-bg); }
+::-webkit-scrollbar-thumb { background: var(--scrollbar-thumb-bg); border-radius: 4px; }
+::-webkit-scrollbar-thumb:hover { background: var(--scrollbar-thumb-bg-hover); }
+
+/* ================================================================
+   FLUXER SIGNATURE: App shell with rounded top-left corner
+   Outer shell shows --background-secondary (sidebar bg)
+   Content area "floats" on it with border-top-left-radius
+   ================================================================ */
+.bc-app-shell {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  background-color: var(--background-secondary);
+}
+
+.bc-content {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  overflow: hidden;
+  border-top-left-radius: clamp(12px, 1.6vw, 18px);
+  background-color: var(--background-secondary);
+}
+
+/* ================================================================
+   MODAL SPRING ANIMATION — CSS approximation of framer-motion spring
+   stiffness:400, damping:30, mass:0.8 → overshoot cubic-bezier
+   ================================================================ */
+@keyframes bcModalIn {
+  0%   { opacity: 0; transform: scale(0.94) translateY(4px); }
+  60%  { opacity: 1; transform: scale(1.015) translateY(-1px); }
+  100% { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+@keyframes bcBackdropIn {
+  from { opacity: 0; }
+  to   { opacity: 0.85; }
+}
+
+/* ================================================================
+   GUILD LIST STRIP — 72px left column
+   ================================================================ */
+[aria-label="Main navigation"] {
+  background-color: var(--background-secondary) !important;
+  border-right: none !important;
+  width: var(--layout-guild-list-width) !important;
+  flex-shrink: 0 !important;
+}
+
+/* Guild icon: circle → squircle morph (70ms ease-out — Fluxer signature) */
+[class*="SidebarAvatar"] {
+  transition: border-radius 70ms ease-out, background-color 70ms ease-out, color 70ms ease-out !important;
+}
+
+/* Guild list separator pills (32px wide, 2px tall) */
+[class*="SidebarStackSeparator"],
+[class*="StackSeparator"] {
+  height: 0.125rem !important;
+  width: 2rem !important;
+  margin: 0.375rem auto !important;
+  border-radius: 1px !important;
+  background-color: var(--background-modifier-hover) !important;
+  flex-shrink: 0 !important;
+}
+
+/* ================================================================
+   CHANNEL LIST SIDEBAR — 270px
+   ================================================================ */
 [data-ui-kind="PageNav"],
 [class*="PageNav"] {
   background-color: var(--background-secondary) !important;
+  width: var(--layout-sidebar-width) !important;
+  min-width: var(--layout-sidebar-width) !important;
+  flex-shrink: 0 !important;
+  border-right: none !important;
 }
 
-/* Main chat area */
-[data-ui-kind="Page"],
-[class*="PageContent"] {
-  background-color: var(--background-primary) !important;
-}
-
-/* Apply IBM Plex font to all Folds components */
-body {
-  font-family: var(--font-sans) !important;
-}
-
-/* Discord-style header bar */
-[class*="RoomViewHeader"],
-[class*="PageHeader"] {
-  border-bottom: 1px solid var(--background-modifier-accent) !important;
-  background-color: var(--background-primary) !important;
-}
-
-/* Reduced motion */
-html.reduced-motion * {
-  animation-duration: 0.01ms !important;
-  transition-duration: 0.01ms !important;
-}
-
-/* Mobile: no text-select */
-@media (max-width: 840px) {
-  html {
-    user-select: none;
-    -webkit-user-select: none;
-  }
-  input, textarea {
-    user-select: auto !important;
-    -webkit-user-select: auto !important;
-  }
-}
-
-/* ============================================
-   Phase 4: Discord/Fluxer-style Message UI
-   (Based on fluxer_app/src/styles/Message.module.css)
-   ============================================ */
-
-/* Message row base — remove Cinny border-radius */
-[data-timeline-message] {
-  border-radius: 0 !important;
-  transition: background-color 100ms ease;
-  padding-block: var(--message-spacing-y) !important;
-  padding-inline-end: calc(var(--chat-horizontal-padding) + var(--message-action-bar-offset)) !important;
-  position: relative;
-}
-
-/* Left border indicator slot (Fluxer: message::before) */
-[data-timeline-message]::before {
-  content: '';
-  display: block;
-  position: absolute;
-  inset-block: 0;
-  inset-inline-start: 0;
-  width: var(--message-highlight-bar-width);
-  background-color: transparent;
-  pointer-events: none;
-}
-
-/* Hover */
-[data-timeline-message]:hover {
-  background-color: var(--background-modifier-hover) !important;
-}
-
-/* Context menu active */
-[data-timeline-message]:focus-within {
-  background-color: var(--background-modifier-hover) !important;
-}
-
-/* Mention highlight — Fluxer: .messageMentioned */
-[data-timeline-message][data-highlight="true"]::before {
-  background-color: var(--message-mention-color);
-}
-[data-timeline-message][data-highlight="true"] {
-  background-color: var(--message-mention-bg) !important;
-}
-[data-timeline-message][data-highlight="true"]:hover {
-  background-color: var(--message-mention-bg-hover) !important;
-}
-
-/* Username — Fluxer: .messageUsername */
-[data-timeline-message] [data-user-id] b,
-[data-timeline-message] [data-user-id] strong {
-  font-weight: 500;
-  line-height: var(--message-line-height);
-}
-
-/* Timestamp — Fluxer: .messageTimestamp */
-[data-timeline-message] time {
-  color: var(--message-timestamp-color) !important;
-  font-size: var(--message-timestamp-font-size) !important;
-  opacity: 0.6;
-  white-space: nowrap;
-}
-
-/* Message text — Fluxer: .messageText */
-[data-timeline-message] p,
-[data-timeline-message] [class*="MessageTextBody"] {
-  color: var(--text-chat);
-  font-size: 1rem;
-  line-height: var(--message-line-height);
-  word-break: break-word;
-  white-space: break-spaces;
-}
-
-/* Hover action bar — Fluxer: .actionBar in MessageActionBar.module.css */
-/* background: --background-primary, border: --background-header-secondary, radius: 8px */
-[data-timeline-message] [role="menu"] {
-  background-color: var(--background-header-primary) !important;
-  border: 1px solid var(--background-header-secondary) !important;
-  border-radius: 8px !important;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4) !important;
-  padding: 2px !important;
-}
-
-/* Action bar buttons — Fluxer: .button */
-[data-timeline-message] [role="menu"] button {
-  border-radius: 6px !important;
-  height: 30px !important;
-  min-width: 30px !important;
-  padding: 4px !important;
-  color: var(--text-tertiary) !important;
-  transition: background-color 0.1s ease !important;
-}
-[data-timeline-message] [role="menu"] button:hover {
-  background-color: var(--background-modifier-hover) !important;
-  color: var(--text-primary) !important;
-}
-
-/* Reply spine — Fluxer: .repliedMessage::before */
-[class*="Reply"] [class*="before"],
-[class*="reply"] svg {
-  color: var(--text-chat-muted) !important;
-}
-
-/* Inline code — Fluxer global.css: code */
-[data-timeline-message] code {
-  background-color: var(--bg-code, var(--background-secondary-alt)) !important;
-  border: none !important;
-  border-radius: var(--radius-sm) !important;
-  font-family: var(--font-mono) !important;
-  font-size: 0.875em !important;
-  padding: 0.2em 0.4em !important;
-  color: var(--text-primary) !important;
-}
-[data-timeline-message] pre > code {
-  padding: 0 !important;
-  background: transparent !important;
-}
-[data-timeline-message] pre {
-  background-color: var(--bg-code-block, var(--background-secondary-alt)) !important;
-  border: 1px solid var(--background-modifier-accent) !important;
-  border-radius: var(--radius-md) !important;
-  padding: 0.5rem 1rem !important;
-  margin: 0.25rem 0 !important;
-}
-
-/* Reactions — Fluxer MessageReactions.module.css */
-[data-timeline-message] [class*="Reaction"],
-[data-timeline-message] [class*="reaction"] {
-  background-color: var(--background-secondary) !important;
-  border: 1px solid transparent !important;
-  border-radius: 0.5rem !important;
-}
-[data-timeline-message] [class*="Reaction"]:hover,
-[data-timeline-message] [class*="reaction"]:hover {
-  border-color: var(--background-modifier-accent) !important;
-  background-color: var(--background-modifier-hover) !important;
-}
-
-/* Avatar: 40px circular */
-[data-timeline-message] [class*="Avatar"] img {
-  border-radius: 50% !important;
-}
-
-/* Grouped message: timestamp appears on hover — Fluxer: .messageTimestampHover */
-[data-timeline-message] [class*="AvatarBase"] time {
-  opacity: 0;
-  pointer-events: none;
-  transition: opacity 100ms ease;
-}
-[data-timeline-message]:hover [class*="AvatarBase"] time {
-  opacity: 1;
-  pointer-events: auto;
-}
-
-/* ============================================
-   Phase 5: Layout UI — Fluxer 1:1
-   GuildHeader, ChannelItem, ChannelHeader, UserArea
-   ============================================ */
-
-/* === Space/Guild Header (PageNavHeader) === */
-/* Fluxer GuildHeader.module.css: min-height 56px, border-bottom, bg-secondary */
-[class*="PageNav"] > * > header,
-[class*="PageNavHeader"] {
+/* Guild/Space name header (56px, with bottom border) */
+[class*="PageNavHeader"],
+[class*="PageNav"] > * > header {
   min-height: var(--layout-header-height) !important;
   height: var(--layout-header-height) !important;
-  border-bottom: 1px solid var(--user-area-divider-color) !important;
   background-color: var(--background-secondary) !important;
+  border-bottom: 1px solid var(--user-area-divider-color) !important;
   padding: 0 var(--spacing-3) !important;
 }
 [class*="PageNavHeader"] h1,
@@ -403,87 +351,45 @@ html.reduced-motion * {
   text-overflow: ellipsis !important;
 }
 
-/* === Channel Header (PageHeader = top of chat area) === */
-/* Fluxer ChannelHeader.module.css: bg-secondary-lighter, border-bottom, height=layout-header-height */
-[class*="RoomViewHeader"],
-[class*="PageHeader"] {
-  height: var(--layout-header-height) !important;
-  min-height: var(--layout-header-height) !important;
-  background-color: var(--background-secondary-lighter) !important;
-  border-bottom: 1px solid var(--user-area-divider-color) !important;
-  padding: 0 var(--spacing-4) !important;
-}
-/* Channel name in header */
-[class*="PageHeader"] h3,
-[class*="PageHeader"] h4,
-[class*="PageHeader"] h5 {
-  font-size: 1rem !important;
-  font-weight: 500 !important;
-  color: var(--text-primary) !important;
-}
-/* Header icon buttons — Fluxer ChannelHeader .iconButtonDefault */
-[class*="PageHeader"] button,
-[class*="RoomViewHeader"] button {
-  color: var(--text-primary-muted) !important;
-  border-radius: var(--radius-full) !important;
-  transition: color 80ms ease !important;
-}
-[class*="PageHeader"] button:hover,
-[class*="RoomViewHeader"] button:hover {
-  color: var(--text-primary) !important;
-}
-
-/* === Channel Nav Items — Fluxer ChannelItem.module.css === */
-/* NavItem renders as [role="option"] in RoomNavItem.tsx */
+/* Channel items — Fluxer ChannelItem.module.css */
 [role="option"] {
-  border-radius: 0.375rem !important;
+  border-radius: var(--radius-md) !important;
   min-height: 2.25rem !important;
   background-color: transparent !important;
-  color: var(--text-secondary) !important;
-  transition: background-color 50ms ease, color 50ms ease !important;
+  color: var(--text-tertiary-muted) !important;
+  transition: background-color var(--transition-fast), color var(--transition-fast) !important;
   margin: 0 0.5rem !important;
   padding: 0 !important;
   position: relative !important;
 }
+[role="option"]:hover {
+  background-color: var(--background-modifier-hover) !important;
+  color: var(--text-chat) !important;
+}
+[role="option"][aria-selected="true"] {
+  background-color: var(--background-modifier-selected) !important;
+  color: var(--text-primary) !important;
+}
+[role="option"][data-highlight="true"]:not([aria-selected="true"]) {
+  color: var(--text-primary) !important;
+  font-weight: 600 !important;
+}
 
-/* Fluxer: unreadIndicator — pill on left of channel item */
+/* Left unread pill — Fluxer spec: 0.5rem × 0.5rem, rounded right edge */
 [role="option"][data-highlight="true"]::before {
   content: '' !important;
   position: absolute !important;
   left: -0.625rem !important;
   top: 50% !important;
   transform: translateY(-50%) !important;
-  width: 0.35rem !important;
+  width: 0.5rem !important;
   height: 0.5rem !important;
   border-radius: 0 var(--radius-full) var(--radius-full) 0 !important;
   background-color: var(--text-primary) !important;
   pointer-events: none !important;
 }
 
-/* Hover: slightly more visible background */
-[role="option"]:hover {
-  background-color: rgba(255,255,255,0.08) !important;
-  color: var(--text-primary) !important;
-}
-
-/* Selected */
-[role="option"][aria-selected="true"] {
-  background-color: rgba(255,255,255,0.14) !important;
-  color: var(--text-primary) !important;
-}
-
-/* Unread (highlight) */
-[role="option"][data-highlight="true"]:not([aria-selected="true"]) {
-  color: var(--text-primary) !important;
-  font-weight: 600 !important;
-}
-
-/* Keep selected color even if unread */
-[role="option"][data-highlight="true"][aria-selected="true"] {
-  color: var(--text-primary) !important;
-}
-
-/* NavItemContent padding — restore original left/right, allow natural height */
+/* NavItemContent padding */
 [role="option"] [class*="NavItemContent"],
 [role="option"] [class*="NavLink"] {
   padding-top: 0.375rem !important;
@@ -495,16 +401,14 @@ html.reduced-motion * {
   line-height: 1.25rem !important;
 }
 
-/* Channel icon color follows parent */
+/* Channel icons follow parent text color */
 [role="option"] svg {
   color: inherit !important;
   flex-shrink: 0 !important;
 }
 
-/* NavItemOptions (hover actions) — don't show unless hover */
-[role="option"] [class*="NavItemOptions"] {
-  padding-right: 0.25rem !important;
-}
+/* NavItemOptions (hover action buttons: +, gear) */
+[role="option"] [class*="NavItemOptions"] { padding-right: 0.25rem !important; }
 [role="option"] [class*="NavItemOptions"] button {
   height: 1.5rem !important;
   width: 1.5rem !important;
@@ -517,12 +421,11 @@ html.reduced-motion * {
   color: var(--text-primary) !important;
 }
 
-/* === Category Headers — Fluxer .categoryName === */
-/* RoomNavCategoryButton uses <Chip> — class includes "CategoryButton" */
+/* Category headers — Fluxer: 0.875rem (14px), 600 weight, uppercase */
 [class*="CategoryButton"] {
   color: var(--text-tertiary-muted) !important;
   font-weight: 600 !important;
-  font-size: 0.75rem !important;
+  font-size: 0.875rem !important;
   text-transform: uppercase !important;
   letter-spacing: 0.05em !important;
   background-color: transparent !important;
@@ -530,78 +433,470 @@ html.reduced-motion * {
   padding: 0.25rem 0.375rem !important;
   margin: 0 0.5rem !important;
 }
-[class*="CategoryButton"]:hover {
+[class*="CategoryButton"]:hover { color: var(--text-primary) !important; }
+[class*="CategoryButton"] svg,
+[class*="CategoryButtonIcon"] { color: var(--text-tertiary-muted) !important; opacity: 1 !important; }
+[class*="NavCategory"] { padding-bottom: 0 !important; }
+[class*="NavCategoryHeader"] { padding: 0.25rem 0 !important; margin-top: 1rem !important; }
+
+/* Mention/unread count badge — Fluxer spec: rounded rect 6px, NOT pill */
+[role="option"] [class*="UnreadBadge"] {
+  background-color: var(--status-danger) !important;
+  color: #ffffff !important;
+  font-size: 0.6875rem !important;
+  font-weight: 700 !important;
+  min-width: 1.25rem !important;
+  height: 1.25rem !important;
+  border-radius: 0.375rem !important;
+  padding: 0 0.375rem !important;
+}
+
+/* ================================================================
+   CHANNEL HEADER — 56px topbar of chat area
+   ================================================================ */
+[class*="RoomViewHeader"],
+[class*="PageHeader"] {
+  height: var(--layout-header-height) !important;
+  min-height: var(--layout-header-height) !important;
+  background-color: var(--background-channel-header) !important;
+  border-bottom: 1px solid var(--user-area-divider-color) !important;
+  padding: 0 var(--spacing-4) !important;
+}
+[class*="PageHeader"] h3,
+[class*="PageHeader"] h4,
+[class*="PageHeader"] h5 {
+  font-size: 1rem !important;
+  font-weight: 500 !important;
   color: var(--text-primary) !important;
 }
-[class*="CategoryButton"] svg,
-[class*="CategoryButtonIcon"] {
-  color: var(--text-tertiary-muted) !important;
+[class*="PageHeader"] button,
+[class*="RoomViewHeader"] button {
+  color: var(--text-primary-muted) !important;
+  transition: color var(--transition-fast) !important;
+}
+[class*="PageHeader"] button:hover,
+[class*="RoomViewHeader"] button:hover { color: var(--text-primary) !important; }
+
+/* ================================================================
+   MAIN CONTENT AREA
+   ================================================================ */
+[data-ui-kind="Page"],
+[class*="PageContent"] {
+  background-color: var(--background-primary) !important;
+}
+
+/* ================================================================
+   INPUTS — Fluxer Input.module.css
+   border-radius: 8px, border, padding: 0.625rem 1rem, 0.875rem font-size
+   transition: 150ms cubic-bezier(0.4, 0, 0.2, 1)
+   ================================================================ */
+input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="file"]),
+textarea {
+  background-color: var(--background-textarea) !important;
+  border: 1px solid var(--background-modifier-accent) !important;
+  border-radius: 0.5rem !important;
+  color: var(--text-primary) !important;
+  font-family: var(--font-sans) !important;
+  font-size: 0.875rem !important;
+  line-height: 1.25rem !important;
+  transition: border-color 150ms cubic-bezier(0.4, 0, 0.2, 1), box-shadow 150ms cubic-bezier(0.4, 0, 0.2, 1) !important;
+}
+input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="file"]):focus,
+textarea:focus {
+  border-color: var(--background-modifier-accent-focus) !important;
+  outline: none !important;
+  box-shadow: none !important;
+}
+input::placeholder,
+textarea::placeholder {
+  color: var(--text-tertiary) !important;
   opacity: 1 !important;
 }
 
-/* === NavCategory gap/padding === */
-[class*="NavCategory"] {
-  padding-bottom: 0 !important;
-}
-[class*="NavCategoryHeader"] {
-  padding: 0.25rem 0 !important;
-  margin-top: 1rem !important;
+/* ================================================================
+   MESSAGES — Fluxer Message.module.css faithful clone
+   ================================================================ */
+
+/* Message row: no border-radius, minimal vertical padding */
+[data-timeline-message] {
+  border-radius: 0 !important;
+  transition: background-color 100ms ease;
+  padding-block: var(--message-spacing-y) !important;
+  padding-inline-end: calc(var(--chat-horizontal-padding) + var(--message-action-bar-offset)) !important;
+  position: relative;
 }
 
-/* === User area (bottom of sidebar) — Fluxer UserArea.module.css === */
-/* panel-control-bg, 72px height */
+/* Left border slot (mention/reply bar) */
+[data-timeline-message]::before {
+  content: '';
+  display: block;
+  position: absolute;
+  inset-block: 0;
+  inset-inline-start: 0;
+  width: var(--message-highlight-bar-width);
+  background-color: transparent;
+  pointer-events: none;
+}
+
+/* Hover + focus-within */
+[data-timeline-message]:hover { background-color: var(--background-modifier-hover) !important; }
+[data-timeline-message]:focus-within { background-color: var(--background-modifier-hover) !important; }
+
+/* Mention highlight — yellow */
+[data-timeline-message][data-highlight="true"]::before { background-color: var(--message-mention-color); }
+[data-timeline-message][data-highlight="true"] { background-color: var(--message-mention-bg) !important; }
+[data-timeline-message][data-highlight="true"]:hover { background-color: var(--message-mention-bg-hover) !important; }
+
+/* Username */
+[data-timeline-message] [data-user-id] b,
+[data-timeline-message] [data-user-id] strong { font-weight: 500; line-height: var(--message-line-height); }
+
+/* Timestamp */
+[data-timeline-message] time {
+  color: var(--message-timestamp-color) !important;
+  font-size: var(--message-timestamp-font-size) !important;
+  opacity: 0.6;
+  white-space: nowrap;
+}
+
+/* Grouped message: hover timestamp — Fluxer translateX animation */
+[data-timeline-message] [class*="AvatarBase"] time {
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 100ms ease, transform 100ms ease;
+  transform: translateX(8px);
+}
+[data-timeline-message]:hover [class*="AvatarBase"] time {
+  opacity: 1;
+  pointer-events: auto;
+  transform: translateX(0);
+}
+
+/* Message text */
+[data-timeline-message] p,
+[data-timeline-message] [class*="MessageTextBody"] {
+  color: var(--text-chat);
+  font-size: 1rem;
+  line-height: var(--message-line-height);
+  word-break: break-word;
+  white-space: break-spaces;
+}
+
+/* Avatar */
+[data-timeline-message] [class*="Avatar"] img { border-radius: 50% !important; }
+
+/* Message action bar — dark panel with 8px radius */
+[data-timeline-message] [role="menu"] {
+  background-color: var(--background-header-secondary) !important;
+  border: 1px solid var(--background-modifier-accent) !important;
+  border-radius: 8px !important;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4) !important;
+  padding: 2px !important;
+}
+[data-timeline-message] [role="menu"] button {
+  border-radius: 6px !important;
+  height: 30px !important;
+  min-width: 30px !important;
+  padding: 4px !important;
+  color: var(--text-tertiary) !important;
+  transition: background-color 0.1s ease !important;
+}
+[data-timeline-message] [role="menu"] button:hover {
+  background-color: var(--background-modifier-hover) !important;
+  color: var(--text-primary) !important;
+}
+
+/* Reactions — Fluxer: pill shape, 0.5rem radius, border on hover */
+[data-timeline-message] [class*="Reaction"],
+[data-timeline-message] [class*="reaction"] {
+  background-color: var(--background-secondary) !important;
+  border: 1px solid transparent !important;
+  border-radius: 0.5rem !important;
+  transition: background-color 0.1s ease, border-color 0.1s ease !important;
+}
+[data-timeline-message] [class*="Reaction"]:hover,
+[data-timeline-message] [class*="reaction"]:hover {
+  border-color: var(--background-modifier-accent) !important;
+  background-color: var(--background-modifier-hover) !important;
+}
+
+/* Code inline */
+[data-timeline-message] code {
+  background-color: var(--background-secondary-alt) !important;
+  border: none !important;
+  border-radius: var(--radius-sm) !important;
+  font-family: var(--font-mono) !important;
+  font-size: 0.875em !important;
+  padding: 0.2em 0.4em !important;
+  color: var(--text-primary) !important;
+}
+[data-timeline-message] pre > code { padding: 0 !important; background: transparent !important; }
+[data-timeline-message] pre {
+  background-color: var(--background-secondary-alt) !important;
+  border: 1px solid var(--background-modifier-accent) !important;
+  border-radius: var(--radius-md) !important;
+  padding: 0.5rem 1rem !important;
+  margin: 0.25rem 0 !important;
+}
+
+/* Reply spine */
+[class*="Reply"] [class*="before"],
+[class*="reply"] svg { color: var(--text-chat-muted) !important; }
+
+/* ================================================================
+   MODALS & OVERLAYS — Fluxer Modal.module.css
+   Modal surface uses --background-secondary (same as sidebar!)
+   ================================================================ */
+
+/* Backdrop: 85% black, animated */
+[class*="OverlayBackdrop"],
+[class*="Backdrop"] {
+  background: hsl(0deg 0% 0%) !important;
+  opacity: 0.85 !important;
+  animation: bcBackdropIn 0.2s ease forwards !important;
+}
+
+/* Modal shell: 8px radius, spring entrance, exact Fluxer shadow stack */
+[class*="Modal"],
+[class*="Dialog"]:not([class*="DropArea"]),
+[role="dialog"] {
+  background-color: var(--background-secondary) !important;
+  border: 1px solid var(--background-header-secondary) !important;
+  border-radius: 8px !important;
+  box-shadow:
+    0 0 0 1px hsla(223, 7%, 20%, 0.08),
+    0 8px 24px -4px rgba(0,0,0,0.25),
+    0 20px 48px -8px rgba(0,0,0,0.2) !important;
+  overflow: hidden !important;
+  animation: bcModalIn 0.22s cubic-bezier(0.34, 1.56, 0.64, 1) both !important;
+}
+
+/* Modal header */
+[class*="Modal"] > header,
+[role="dialog"] > header {
+  background-color: var(--background-secondary) !important;
+  border-bottom: 1px solid var(--background-modifier-accent) !important;
+  padding: 1rem !important;
+}
+[class*="Modal"] > header h1,
+[class*="Modal"] > header h2,
+[class*="Modal"] > header h3,
+[role="dialog"] > header h1,
+[role="dialog"] > header h2 {
+  font-size: 18px !important;
+  font-weight: 600 !important;
+  color: var(--text-primary) !important;
+}
+
+/* Modal close button */
+[class*="Modal"] > header button,
+[role="dialog"] > header button {
+  opacity: 0.5 !important;
+  border-radius: 4px !important;
+  transition: opacity 0.2s ease !important;
+}
+[class*="Modal"] > header button:hover,
+[role="dialog"] > header button:hover { opacity: 1 !important; }
+
+/* ================================================================
+   CONTEXT MENU — Fluxer: sharp 4px corners, darkest bg, drop-shadow
+   ================================================================ */
+[class*="MenuRoot"],
+[class*="PopOut"] > [class*="Menu"] {
+  background-color: var(--background-floating) !important;
+  border: 1px solid var(--background-modifier-accent) !important;
+  border-radius: 4px !important;
+  padding: 8px !important;
+  min-width: 220px !important;
+  max-width: 360px !important;
+  filter:
+    drop-shadow(0 2px 0 rgba(0,0,0,0.35))
+    drop-shadow(0 4px 8px rgba(0,0,0,0.2))
+    drop-shadow(0 8px 16px rgba(0,0,0,0.12)) !important;
+  z-index: var(--z-index-contextmenu) !important;
+}
+[class*="MenuItem"] {
+  padding: 8px 10px !important;
+  border-radius: 4px !important;
+  font-size: 14px !important;
+  font-weight: 500 !important;
+  color: var(--text-secondary) !important;
+  min-height: 36px !important;
+  transition: background-color 0.1s ease !important;
+}
+[class*="MenuItem"]:hover {
+  background-color: var(--background-modifier-hover) !important;
+  color: var(--text-primary) !important;
+}
+[class*="MenuItem"][data-variant="Critical"],
+[class*="MenuItem"].danger { color: var(--status-danger) !important; }
+[class*="MenuItem"][data-variant="Critical"]:hover,
+[class*="MenuItem"].danger:hover {
+  background-color: var(--button-danger-fill) !important;
+  color: #ffffff !important;
+}
+
+/* ================================================================
+   TOOLTIPS — Fluxer Tooltip.module.css
+   background = --background-primary (Fluxer darkest ~5%) ≡ our --background-floating
+   ================================================================ */
+[class*="Tooltip"] {
+  background-color: var(--background-floating) !important;
+  border: 1px solid var(--background-header-secondary) !important;
+  border-radius: 8px !important;
+  font-size: 14px !important;
+  font-weight: 600 !important;
+  color: var(--text-primary) !important;
+  padding: 8px 12px !important;
+  max-width: 190px !important;
+  z-index: var(--z-index-tooltip) !important;
+}
+
+/* Tooltip arrow (downward triangle — tooltip appears above target) */
+[class*="Tooltip"]::after {
+  content: '';
+  position: absolute;
+  bottom: -5px;
+  left: 50%;
+  transform: translateX(-50%);
+  border: 5px solid transparent;
+  border-top-color: var(--background-floating) !important;
+  border-bottom: none !important;
+  pointer-events: none;
+}
+/* When tooltip is below target (data-placement="bottom") */
+[class*="Tooltip"][data-placement="bottom"]::after,
+[class*="Tooltip"][data-side="bottom"]::after {
+  bottom: auto;
+  top: -5px;
+  border-top-color: transparent !important;
+  border-bottom: 5px solid var(--background-floating) !important;
+}
+
+/* ================================================================
+   TOAST NOTIFICATIONS — Fluxer: pill shape (border-radius: 9999px)
+   ================================================================ */
+[class*="Toast"] {
+  border-radius: 9999px !important;
+  border: 1px solid var(--background-modifier-accent) !important;
+  background-color: var(--background-floating) !important;
+  box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1) !important;
+  padding: 0.75rem 1.25rem !important;
+  font-weight: 600 !important;
+  color: var(--text-primary) !important;
+  z-index: var(--z-index-toast) !important;
+}
+
+/* ================================================================
+   USER AREA — bottom of channel sidebar (72px)
+   ================================================================ */
 [class*="CallNavStatus"],
 [data-ui-kind="PageNav"] > * > * > * > div:last-child {
   background-color: var(--panel-control-bg) !important;
   border-top: 1px solid var(--user-area-divider-color) !important;
+  min-height: var(--layout-user-area-height) !important;
 }
 
-/* === Sidebar width match — enforce 270px for channel list === */
-[class*="PageNav"] {
-  width: 16.875rem !important;
-  min-width: 16.875rem !important;
-  flex-shrink: 0 !important;
-  background-color: var(--background-secondary) !important;
-  border-right: none !important;
+/* Control buttons (mic, deafen, settings) */
+[class*="RoomCallNavStatus"] button,
+[class*="CallNavStatus"] button {
+  height: 32px !important;
+  width: 32px !important;
+  border-radius: var(--radius-md) !important;
+  color: var(--control-button-normal-text) !important;
+  background: transparent !important;
+  transition: background-color var(--transition-fast), color var(--transition-fast) !important;
+}
+[class*="RoomCallNavStatus"] button:hover,
+[class*="CallNavStatus"] button:hover {
+  background: color-mix(in srgb, var(--control-button-normal-text) 10%, transparent) !important;
+  color: var(--control-button-hover-text) !important;
 }
 
-/* === Guild list (sidebar) separator line === */
-/* Fluxer: .guildDivider */
-[class*="SidebarStackSeparator"],
-[class*="StackSeparator"] {
-  height: 0.125rem !important;
-  width: 2rem !important;
-  margin: 0.375rem auto !important;
-  border-radius: 1px !important;
-  background-color: var(--background-modifier-hover) !important;
-  flex-shrink: 0 !important;
+/* ================================================================
+   TYPING INDICATOR — Fluxer: floating pill with staggered dots
+   ================================================================ */
+@keyframes bcTypingBlink {
+  50% { opacity: 0; }
 }
 
-/* Unread badge in channel nav items — Fluxer style */
-[role="option"] [class*="UnreadBadge"] {
-  background-color: var(--text-primary) !important;
-  color: var(--background-primary) !important;
-  font-size: 0.75rem !important;
-  font-weight: 700 !important;
-  min-width: 1.25rem !important;
-  height: 1.25rem !important;
-  border-radius: var(--radius-full) !important;
-  padding: 0 0.375rem !important;
-}
-[role="option"][aria-selected="true"] [class*="UnreadBadge"] {
-  background-color: var(--text-primary) !important;
+[class*="TypingUsers"],
+[class*="TypingIndicator"] {
+  border-radius: var(--radius-2xl) !important;
+  background-color: var(--typing-indicator-bg) !important;
+  border: 1px solid color-mix(in srgb, var(--background-modifier-accent) 80%, transparent) !important;
+  padding: 0 0.45rem !important;
+  min-height: var(--typing-pill-height) !important;
+  font-size: 12px !important;
+  line-height: 16px !important;
 }
 
-/* === Phase 8: PWA Mobile === */
+/* ================================================================
+   FOLDS BUTTONS — Fluxer's green primary, red danger
+   ================================================================ */
+[class*="Button_"][class*="primary"],
+[class*="button_"][class*="primary"] {
+  background-color: var(--button-primary-fill) !important;
+  color: var(--button-primary-text) !important;
+  border-radius: 8px !important;
+  font-size: 14px !important;
+  font-weight: 600 !important;
+}
+[class*="Button_"][class*="primary"]:hover,
+[class*="button_"][class*="primary"]:hover {
+  background-color: color-mix(in srgb, var(--button-primary-fill) 85%, #000) !important;
+}
+[class*="Button_"][class*="danger"],
+[class*="button_"][class*="danger"] {
+  background-color: var(--button-danger-fill) !important;
+  color: var(--button-danger-text) !important;
+  border-radius: 8px !important;
+}
+
+/* ================================================================
+   MOBILE ADAPTATIONS
+   ================================================================ */
+@media (max-width: 840px) {
+  html { user-select: none; -webkit-user-select: none; }
+  input, textarea { user-select: auto !important; -webkit-user-select: auto !important; }
+}
 @media (max-width: 750px) {
-  /* Add padding for bottom nav bar */
-  #root {
-    padding-bottom: calc(3.75rem + env(safe-area-inset-bottom));
-  }
+  #root { padding-bottom: calc(3.75rem + env(safe-area-inset-bottom)); }
+  body { padding-left: env(safe-area-inset-left); padding-right: env(safe-area-inset-right); }
+}
 
-  /* Safe area insets for iPhone notch/home bar */
-  body {
-    padding-left: env(safe-area-inset-left);
-    padding-right: env(safe-area-inset-right);
-  }
+/* ================================================================
+   GUILD HEADER HOVER-ROLL — Fluxer Sektion 14
+   Home + Direct headers use .bc-header-title / .bc-header-subtitle spans.
+   SpaceHeader uses Space.css.ts (vanilla-extract) with headerBtn selector.
+   Pattern: clip at 1.0625rem, title slides -107% out, subtitle slides in.
+   ================================================================ */
+
+/* Title span — starts visible, slides up on PageNavHeader hover */
+[class*="PageNavHeader"] .bc-header-title {
+  transform: translateY(0);
+  transition: transform 0.22s ease !important;
+}
+[class*="PageNavHeader"]:hover .bc-header-title {
+  transform: translateY(-107%) !important;
+}
+
+/* Subtitle span — starts below, slides up and fades in on hover */
+[class*="PageNavHeader"] .bc-header-subtitle {
+  transform: translateY(0);
+  transition: transform 0.22s ease, opacity 0.15s ease !important;
+}
+[class*="PageNavHeader"]:hover .bc-header-subtitle {
+  transform: translateY(-107%) !important;
+  opacity: 1 !important;
+}
+
+/* ================================================================
+   REDUCED MOTION
+   ================================================================ */
+html.reduced-motion * {
+  animation-duration: 0.01ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.01ms !important;
+  scroll-behavior: auto !important;
 }

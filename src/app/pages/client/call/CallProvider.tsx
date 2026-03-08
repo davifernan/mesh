@@ -8,62 +8,37 @@ import React, {
   useEffect,
   useRef,
 } from 'react';
-import {
-  WidgetApiToWidgetAction,
-  WidgetApiAction,
-  ClientWidgetApi,
-  IWidgetApiRequestData,
-} from 'matrix-widget-api';
 import { ClientEvent, MatrixEvent } from 'matrix-js-sdk';
 import { MatrixRTCSession } from 'matrix-js-sdk/lib/matrixrtc/MatrixRTCSession';
-import { useParams } from 'react-router-dom';
-import { SmallWidget } from '../../../features/call/SmallWidget';
+import type { Room } from 'livekit-client';
+import { useNativeCall, type CallStatus } from '../../../features/call/nativeCallEngine';
 import { useMatrixClient } from '../../../hooks/useMatrixClient';
-
-interface MediaStatePayload {
-  data?: {
-    audio_enabled?: boolean;
-    video_enabled?: boolean;
-  };
-}
-
-const WIDGET_MEDIA_STATE_UPDATE_ACTION = 'io.element.device_mute';
-const WIDGET_HANGUP_ACTION = 'im.vector.hangup';
-const WIDGET_JOIN_ACTION = 'io.element.join';
-const WIDGET_TILE_UPDATE = 'io.element.tile_layout';
-// NOTE: set_always_on_screen is handled by SmallWidget.ts (stickyPromise support).
+import { useChannelAVOverride } from '../../../hooks/useChannelAVOverride';
 
 interface CallContextState {
   activeCallRoomId: string | null;
   setActiveCallRoomId: (roomId: string | null, isVoiceRoom?: boolean) => void;
   viewedCallRoomId: string | null;
   setViewedCallRoomId: (roomId: string | null) => void;
-  hangUp: () => void;
-  activeClientWidgetApi: ClientWidgetApi | null;
-  activeClientWidget: SmallWidget | null;
-  registerActiveClientWidgetApi: (
-    roomId: string | null,
-    clientWidgetApi: ClientWidgetApi | null,
-    clientWidget: SmallWidget | null,
-    activeClientIframeRef: HTMLIFrameElement | null
-  ) => void;
-  sendWidgetAction: <T extends IWidgetApiRequestData = IWidgetApiRequestData>(
-    action: WidgetApiToWidgetAction | string,
-    data: T
-  ) => Promise<void>;
-  isAudioEnabled: boolean;
-  isVideoEnabled: boolean;
-  isChatOpen: boolean;
   isCallViewOpen: boolean;
-  isActiveCallReady: boolean;
-  resetActiveCallReady: () => void;
+  toggleCallView: () => void;
+  isChatOpen: boolean;
+  toggleChat: () => void;
+  hangUp: () => void;
   toggleAudio: () => Promise<void>;
   toggleVideo: () => Promise<void>;
-  toggleChat: () => Promise<void>;
-  toggleCallView: () => void;
+  startScreenShare: (ssRes: string, ssFps: number, ssAudio: boolean) => Promise<void>;
+  stopScreenShare: () => Promise<void>;
+  isAudioEnabled: boolean;
+  isVideoEnabled: boolean;
+  isScreenShareEnabled: boolean;
+  isDeafened: boolean;
+  toggleDeafen: () => void;
   speakingUsers: Set<string>;
-  participantStates: Map<string, { audioEnabled: boolean; videoEnabled: boolean }>;
-  screensharingUsers: Set<string>;
+  remoteParticipantStates: Map<string, { audioEnabled: boolean; videoEnabled: boolean; isScreenSharing: boolean }>;
+  livekitRoom: Room | null;
+  callStatus: CallStatus;
+  callError: Error | null;
 }
 
 const CallContext = createContext<CallContextState | undefined>(undefined);
@@ -71,10 +46,6 @@ const CallContext = createContext<CallContextState | undefined>(undefined);
 interface CallProviderProps {
   children: ReactNode;
 }
-
-const DEFAULT_AUDIO_ENABLED = true;
-const DEFAULT_VIDEO_ENABLED = false;
-const DEFAULT_CHAT_OPENED = false;
 
 // Play a short two-note ascending/descending tone (Web Audio API).
 function playCallSound(ascending: boolean) {
@@ -105,29 +76,13 @@ export function CallProvider({ children }: CallProviderProps) {
   const mx = useMatrixClient();
   const [activeCallRoomId, setActiveCallRoomIdState] = useState<string | null>(null);
   const [viewedCallRoomId, setViewedCallRoomIdState] = useState<string | null>(null);
-
-  const [activeClientWidgetApi, setActiveClientWidgetApiState] = useState<ClientWidgetApi | null>(
-    null
-  );
-  const [activeClientWidget, setActiveClientWidget] = useState<SmallWidget | null>(null);
-  const [activeClientWidgetApiRoomId, setActiveClientWidgetApiRoomId] = useState<string | null>(
-    null
-  );
-  const [activeClientWidgetIframeRef, setActiveClientWidgetIframeRef] =
-    useState<HTMLIFrameElement | null>(null);
-
-  const [isAudioEnabled, setIsAudioEnabledState] = useState<boolean>(DEFAULT_AUDIO_ENABLED);
-  const [isVideoEnabled, setIsVideoEnabledState] = useState<boolean>(DEFAULT_VIDEO_ENABLED);
-  const [isChatOpen, setIsChatOpenState] = useState<boolean>(DEFAULT_CHAT_OPENED);
+  const [isChatOpen, setIsChatOpenState] = useState<boolean>(false);
   const [isCallViewOpen, setIsCallViewOpenState] = useState<boolean>(false);
-  const [isActiveCallReady, setIsActiveCallReady] = useState<boolean>(false);
-  const isActiveCallReadyRef = useRef(isActiveCallReady);
-  isActiveCallReadyRef.current = isActiveCallReady;
-  const [speakingUsers, setSpeakingUsers] = useState<Set<string>>(new Set());
-  const [participantStates, setParticipantStates] = useState<Map<string, { audioEnabled: boolean; videoEnabled: boolean }>>(new Map());
-  const [screensharingUsers, setScreensharingUsers] = useState<Set<string>>(new Set());
 
-  const { roomIdOrAlias: viewedRoomId } = useParams<{ roomIdOrAlias: string }>();
+  const engine = useNativeCall(activeCallRoomId);
+
+  // Keep channelAVOverrideAtom in sync with the active call room's state event
+  useChannelAVOverride(activeCallRoomId);
 
   const setActiveCallRoomId = useCallback(
     (roomId: string | null, isVoiceRoom = false) => {
@@ -218,14 +173,18 @@ export function CallProvider({ children }: CallProviderProps) {
     // Snapshot current members without playing sounds (baseline on join/room switch)
     if (initializedRef.current !== activeCallRoomId) {
       knownSendersRef.current = new Set(
-        MatrixRTCSession.callMembershipsForRoom(room).map((m) => m.sender)
+        MatrixRTCSession.callMembershipsForRoom(room)
+          .map((m) => m.sender)
+          .filter((s): s is string => s !== undefined)
       );
       initializedRef.current = activeCallRoomId;
     }
 
     const checkMemberships = () => {
       const current = MatrixRTCSession.callMembershipsForRoom(room);
-      const currentSenders = new Set(current.map((m) => m.sender));
+      const currentSenders = new Set(
+        current.map((m) => m.sender).filter((s): s is string => s !== undefined)
+      );
       const known = knownSendersRef.current;
 
       for (const sender of currentSenders) {
@@ -257,324 +216,57 @@ export function CallProvider({ children }: CallProviderProps) {
     [setViewedCallRoomIdState]
   );
 
-  const setActiveClientWidgetApi = useCallback(
-    (
-      clientWidgetApi: ClientWidgetApi | null,
-      clientWidget: SmallWidget | null,
-      roomId: string | null,
-      clientWidgetIframeRef: HTMLIFrameElement | null
-    ) => {
-      setActiveClientWidgetApiState(clientWidgetApi);
-      setActiveClientWidget(clientWidget);
-      setActiveClientWidgetApiRoomId(roomId);
-      setActiveClientWidgetIframeRef(clientWidgetIframeRef);
-    },
-    []
-  );
-
-  const registerActiveClientWidgetApi = useCallback(
-    (
-      roomId: string | null,
-      clientWidgetApi: ClientWidgetApi | null,
-      clientWidget: SmallWidget | null,
-      clientWidgetIframeRef: HTMLIFrameElement | null
-    ) => {
-      if (roomId && clientWidgetApi) {
-        setActiveClientWidgetApi(clientWidgetApi, clientWidget, roomId, clientWidgetIframeRef);
-      } else if (roomId === activeClientWidgetApiRoomId || roomId === null) {
-        setActiveClientWidgetApi(null, null, null, null);
-      }
-    },
-    [activeClientWidgetApiRoomId, setActiveClientWidgetApi]
-  );
-
   const hangUp = useCallback(() => {
-    if (isActiveCallReady) playCallSound(false); // descending tone: user left call
-    setActiveClientWidgetApi(null, null, null, null);
+    engine.hangUp();
+    playCallSound(false);
     setActiveCallRoomIdState(null);
-    activeClientWidgetApi?.transport.send(`${WIDGET_HANGUP_ACTION}`, {});
-    setIsActiveCallReady(false);
     setIsCallViewOpenState(false);
-  }, [isActiveCallReady, activeClientWidgetApi?.transport, setActiveClientWidgetApi]);
+  }, [engine]);
 
-  const sendWidgetAction = useCallback(
-    async <T extends IWidgetApiRequestData = IWidgetApiRequestData>(
-      action: WidgetApiToWidgetAction | string,
-      data: T
-    ): Promise<void> => {
-      if (!activeClientWidgetApi) {
-        return Promise.reject(new Error('No active call clientWidgetApi'));
-      }
-      if (!activeClientWidgetApiRoomId || activeClientWidgetApiRoomId !== activeCallRoomId) {
-        return Promise.reject(new Error('Mismatched active call clientWidgetApi'));
-      }
-
-      await activeClientWidgetApi.transport.send(action as WidgetApiAction, data);
-
-      return Promise.resolve();
-    },
-    [activeClientWidgetApi, activeCallRoomId, activeClientWidgetApiRoomId]
-  );
-
-  const toggleAudio = useCallback(async () => {
-    const newState = !isAudioEnabled;
-    setIsAudioEnabledState(newState);
-
-    if (isActiveCallReady) {
-      try {
-        await sendWidgetAction(WIDGET_MEDIA_STATE_UPDATE_ACTION, {
-          audio_enabled: newState,
-          video_enabled: isVideoEnabled,
-        });
-      } catch (error) {
-        setIsAudioEnabledState(!newState);
-        throw error;
-      }
-    }
-  }, [isAudioEnabled, isVideoEnabled, sendWidgetAction, isActiveCallReady]);
-
-  const toggleVideo = useCallback(async () => {
-    const newState = !isVideoEnabled;
-    setIsVideoEnabledState(newState);
-
-    if (isActiveCallReady) {
-      try {
-        await sendWidgetAction(WIDGET_MEDIA_STATE_UPDATE_ACTION, {
-          audio_enabled: isAudioEnabled,
-          video_enabled: newState,
-        });
-      } catch (error) {
-        setIsVideoEnabledState(!newState);
-        throw error;
-      }
-    }
-  }, [isVideoEnabled, isAudioEnabled, sendWidgetAction, isActiveCallReady]);
-
-  useEffect(() => {
-    if (!activeCallRoomId && !viewedCallRoomId) {
-      return;
-    }
-
-    if (!activeClientWidgetApi) {
-      return;
-    }
-
-    const handleHangup = (ev: CustomEvent) => {
-      ev.preventDefault();
-      if (isActiveCallReadyRef.current && ev.detail.widgetId === activeClientWidgetApi.widget.id) {
-        activeClientWidgetApi.transport.reply(ev.detail, {});
-        setActiveCallRoomIdState(null);
-        setActiveClientWidgetApi(null, null, null, null);
-        setIsActiveCallReady(false);
-        setIsCallViewOpenState(false);
-      }
-    };
-
-    const handleMediaStateUpdate = (ev: CustomEvent<MediaStatePayload>) => {
-      if (!isActiveCallReadyRef.current) return;
-      ev.preventDefault();
-
-      /* eslint-disable camelcase */
-      const { audio_enabled, video_enabled } = ev.detail.data ?? {};
-
-      if (typeof audio_enabled === 'boolean') setIsAudioEnabledState(audio_enabled);
-      if (typeof video_enabled === 'boolean') setIsVideoEnabledState(video_enabled);
-      /* eslint-enable camelcase */
-    };
-
-    // NOTE: set_always_on_screen is intentionally NOT handled here.
-    // SmallWidget.ts handles it (with stickyPromise support + single reply).
-    // Having a handler here too causes a double-reply after EC joins the lobby.
-
-    const handleOnTileLayout = (ev: CustomEvent) => {
-      ev.preventDefault();
-
-      activeClientWidgetApi.transport.reply(ev.detail, {});
-    };
-
-    const handleSpeaking = (ev: CustomEvent<{ data?: { userId?: string; speaking?: boolean } }>) => {
-      ev.preventDefault();
-      activeClientWidgetApi.transport.reply(ev.detail, {});
-      const { userId: speakingUserId, speaking } = ev.detail.data ?? {};
-      if (typeof speakingUserId === 'string' && typeof speaking === 'boolean') {
-        setSpeakingUsers((prev) => {
-          const next = new Set(prev);
-          if (speaking) next.add(speakingUserId);
-          else next.delete(speakingUserId);
-          return next;
-        });
-      }
-    };
-
-    const handleParticipantState = (ev: CustomEvent<{ data?: { userId?: string; audioEnabled?: boolean; videoEnabled?: boolean } }>) => {
-      ev.preventDefault();
-      activeClientWidgetApi.transport.reply(ev.detail, {});
-      const { userId: uid, audioEnabled, videoEnabled } = ev.detail.data ?? {};
-      if (typeof uid === 'string' && typeof audioEnabled === 'boolean' && typeof videoEnabled === 'boolean') {
-        setParticipantStates((prev) => {
-          const next = new Map(prev);
-          next.set(uid, { audioEnabled, videoEnabled });
-          return next;
-        });
-      }
-    };
-
-    const handleScreenshareState = (ev: CustomEvent<{ data?: { screensharingUserIds?: string[] } }>) => {
-      ev.preventDefault();
-      activeClientWidgetApi.transport.reply(ev.detail, {});
-      const { screensharingUserIds } = ev.detail.data ?? {};
-      if (Array.isArray(screensharingUserIds)) {
-        setScreensharingUsers(new Set(screensharingUserIds));
-      }
-    };
-
-    const handleJoin = (ev: CustomEvent) => {
-      ev.preventDefault();
-
-      activeClientWidgetApi.transport.reply(ev.detail, {});
-
-      // Wrap iframe access in try-catch to prevent cross-origin errors
-      // when Element Call is hosted on a different domain
-      try {
-        const iframeDoc =
-          activeClientWidgetIframeRef?.contentWindow?.document ||
-          activeClientWidgetIframeRef?.contentDocument;
-
-        if (iframeDoc) {
-          const observer = new MutationObserver(() => {
-            const button = iframeDoc.querySelector('[data-testid="incall_leave"]');
-            if (button) {
-              button.addEventListener('click', () => {
-                hangUp();
-              });
-            }
-            observer.disconnect();
-          });
-          observer.observe(iframeDoc, { childList: true, subtree: true });
-        }
-      } catch (error) {
-        // Ignore cross-origin errors - they're expected when Element Call is on a different domain
-      }
-
-      playCallSound(true); // ascending tone: user joined call
-      setIsActiveCallReady(true);
-    };
-
-    activeClientWidgetApi.on(`action:${WIDGET_HANGUP_ACTION}`, handleHangup);
-    activeClientWidgetApi.on(`action:${WIDGET_MEDIA_STATE_UPDATE_ACTION}`, handleMediaStateUpdate);
-    activeClientWidgetApi.on(`action:${WIDGET_TILE_UPDATE}`, handleOnTileLayout);
-    activeClientWidgetApi.on(`action:${WIDGET_JOIN_ACTION}`, handleJoin);
-    activeClientWidgetApi.on('action:io.bettercord.speaking', handleSpeaking as EventListener);
-    activeClientWidgetApi.on('action:io.bettercord.participant_state', handleParticipantState as EventListener);
-    activeClientWidgetApi.on('action:io.bettercord.screenshare_state', handleScreenshareState as EventListener);
-
-    return () => {
-      activeClientWidgetApi.off(`action:${WIDGET_HANGUP_ACTION}`, handleHangup);
-      activeClientWidgetApi.off(`action:${WIDGET_MEDIA_STATE_UPDATE_ACTION}`, handleMediaStateUpdate);
-      activeClientWidgetApi.off(`action:${WIDGET_TILE_UPDATE}`, handleOnTileLayout);
-      activeClientWidgetApi.off(`action:${WIDGET_JOIN_ACTION}`, handleJoin);
-      activeClientWidgetApi.off('action:io.bettercord.speaking', handleSpeaking as EventListener);
-      activeClientWidgetApi.off('action:io.bettercord.participant_state', handleParticipantState as EventListener);
-      activeClientWidgetApi.off('action:io.bettercord.screenshare_state', handleScreenshareState as EventListener);
-    };
-  }, [
-    activeClientWidgetIframeRef,
-    activeClientWidgetApi,
-    activeCallRoomId,
-    activeClientWidgetApiRoomId,
-    hangUp,
-    isChatOpen,
-    viewedRoomId,
-    viewedCallRoomId,
-    setViewedCallRoomId,
-    activeClientWidget?.iframe?.contentDocument,
-    activeClientWidget?.iframe?.contentWindow?.document,
-  ]);
-
-  // Separate effect: sync mute state to EC whenever it changes.
-  // Do NOT gate on isActiveCallReady — that flag may never be set due to a
-  // race condition with the io.element.join listener registration.  EC ignores
-  // the message if it isn't ready yet; errors are swallowed via .catch().
-  useEffect(() => {
-    if (!activeClientWidgetApi) return;
-    void activeClientWidgetApi.transport.send(WIDGET_MEDIA_STATE_UPDATE_ACTION as WidgetApiAction, {
-      audio_enabled: isAudioEnabled,
-      video_enabled: isVideoEnabled,
-    } as IWidgetApiRequestData).catch(() => {});
-  }, [isAudioEnabled, isVideoEnabled, activeClientWidgetApi]);
-
-  // Clear real-time state only when call fully ends (activeCallRoomId → null)
-  useEffect(() => {
-    if (!activeCallRoomId) {
-      setSpeakingUsers(new Set());
-      setParticipantStates(new Map());
-      setScreensharingUsers(new Set());
-    }
-  }, [activeCallRoomId]);
-
-  const toggleChat = useCallback(async () => {
-    const newState = !isChatOpen;
-    setIsChatOpenState(newState);
-  }, [isChatOpen]);
-
-  const resetActiveCallReady = useCallback(() => {
-    setIsActiveCallReady(false);
+  const toggleChat = useCallback(() => {
+    setIsChatOpenState((prev) => !prev);
   }, []);
 
   const toggleCallView = useCallback(() => {
     setIsCallViewOpenState((prev) => !prev);
   }, []);
 
-  const contextValue = useMemo<CallContextState>(
-    () => ({
-      activeCallRoomId,
-      setActiveCallRoomId,
-      viewedCallRoomId,
-      setViewedCallRoomId,
-      hangUp,
-      activeClientWidgetApi,
-      registerActiveClientWidgetApi,
-      activeClientWidget,
-      sendWidgetAction,
-      isChatOpen,
-      isCallViewOpen,
-      isAudioEnabled,
-      isVideoEnabled,
-      isActiveCallReady,
-      resetActiveCallReady,
-      toggleAudio,
-      toggleVideo,
-      toggleChat,
-      toggleCallView,
-      speakingUsers,
-      participantStates,
-      screensharingUsers,
-    }),
-    [
-      activeCallRoomId,
-      setActiveCallRoomId,
-      viewedCallRoomId,
-      setViewedCallRoomId,
-      hangUp,
-      activeClientWidgetApi,
-      registerActiveClientWidgetApi,
-      activeClientWidget,
-      sendWidgetAction,
-      isChatOpen,
-      isCallViewOpen,
-      isAudioEnabled,
-      isVideoEnabled,
-      isActiveCallReady,
-      resetActiveCallReady,
-      toggleAudio,
-      toggleVideo,
-      toggleChat,
-      toggleCallView,
-      speakingUsers,
-      participantStates,
-      screensharingUsers,
-    ]
-  );
+  const contextValue = useMemo<CallContextState>(() => ({
+    activeCallRoomId,
+    setActiveCallRoomId,
+    viewedCallRoomId,
+    setViewedCallRoomId,
+    isCallViewOpen,
+    toggleCallView,
+    isChatOpen,
+    toggleChat,
+    hangUp,
+    toggleAudio: engine.toggleAudio,
+    toggleVideo: engine.toggleVideo,
+    startScreenShare: engine.startScreenShare,
+    stopScreenShare: engine.stopScreenShare,
+    isAudioEnabled: engine.isAudioEnabled,
+    isVideoEnabled: engine.isVideoEnabled,
+    isScreenShareEnabled: engine.isScreenShareEnabled,
+    isDeafened: engine.isDeafened,
+    toggleDeafen: engine.toggleDeafen,
+    speakingUsers: engine.speakingUsers,
+    remoteParticipantStates: engine.remoteParticipantStates,
+    livekitRoom: engine.livekitRoom,
+    callStatus: engine.status,
+    callError: engine.error,
+  }), [
+    activeCallRoomId,
+    setActiveCallRoomId,
+    viewedCallRoomId,
+    setViewedCallRoomId,
+    isCallViewOpen,
+    toggleCallView,
+    isChatOpen,
+    toggleChat,
+    hangUp,
+    engine,
+  ]);
 
   return <CallContext.Provider value={contextValue}>{children}</CallContext.Provider>;
 }
@@ -585,4 +277,9 @@ export function useCallState(): CallContextState {
     throw new Error('useCallState must be used within a CallProvider');
   }
   return context;
+}
+
+/** Returns the call context, or undefined if no CallProvider is mounted. */
+export function useCallStateOptional(): CallContextState | undefined {
+  return useContext(CallContext);
 }

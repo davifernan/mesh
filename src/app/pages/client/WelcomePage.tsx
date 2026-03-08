@@ -1,104 +1,98 @@
 import React from 'react';
-import { Box, Button, Icon, Icons, Text, config, toRem } from 'folds';
-import { Page, PageHero, PageHeroSection } from '../../components/page';
-import CinnySVG from '../../../../public/res/svg/cinny.svg';
-
-const PATCHES: Array<{ name: string; desc: string }> = [
-  { name: 'emoji-font', desc: 'Custom emoji font with Bahá\'í symbols' },
-  { name: 'element-call', desc: 'Voice and video calling via Element Call, with configurable ringtone and auto-join settings' },
-  { name: 'pronouns', desc: 'Pronouns, timezone, and extended profile fields' },
-  { name: 'accessibility', desc: 'ARIA roles, keyboard shortcuts, notification sounds, and screen-reader labels on all login forms' },
-  { name: 'issue-tracker', desc: 'Schema-driven issue board stored in Matrix room state' },
-  { name: 'multi-account', desc: 'Multiple Matrix accounts open simultaneously' },
-  { name: 'threads', desc: 'Thread panel for viewing and replying to threads' },
-  { name: 'idb-retry', desc: 'Automatic retry when IndexedDB fails on startup' },
-  { name: 'issue-widget', desc: 'Issue tracker as an embeddable Matrix Widget API widget' },
-  { name: 'ux-fixes', desc: 'Room sort options, inbox unread view, and navigation improvements' },
-  { name: 'widgets-support', desc: 'Generic widget drawer for room widgets via the Matrix Widget API' },
-];
+import { Box, Text } from 'folds';
+import { Page } from '../../components/page';
 
 export function WelcomePage() {
   return (
     <Page>
       <Box
         grow="Yes"
-        style={{ padding: config.space.S400, paddingBottom: config.space.S700 }}
         alignItems="Center"
         justifyContent="Center"
+        direction="Column"
+        style={{ gap: '1.5rem', padding: '2rem', textAlign: 'center' }}
       >
-        <PageHeroSection>
-          <PageHero
-            icon={<img width="70" height="70" src={CinnySVG} alt="Wally Logo" />}
-            title="Welcome to Wally"
-            subTitle={
-              <span>
-                A Cinny fork.{' '}
-                <a
-                  href="https://github.com/cinnyapp/cinny/releases"
-                  target="_blank"
-                  rel="noreferrer noopener"
-                >
-                  v4.10.5
-                </a>
-              </span>
-            }
+        {/* BetterCord logo mark — squircle, same design as auth page */}
+        <div
+          style={{
+            width: '5rem',
+            height: '5rem',
+            borderRadius: '30%',
+            backgroundColor: 'var(--brand-primary)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            fontSize: '1.5rem',
+            fontWeight: '700',
+            color: '#ffffff',
+            letterSpacing: '-0.02em',
+            flexShrink: 0,
+            boxShadow: '0 4px 16px rgba(0,0,0,0.3)',
+          }}
+        >
+          BC
+        </div>
+
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+          <Text
+            size="H4"
+            style={{
+              color: 'var(--text-primary)',
+              fontWeight: 700,
+              fontSize: '1.375rem',
+              margin: 0,
+            }}
           >
-            <Box direction="Column" gap="500" alignItems="Center">
-              <Box justifyContent="Center">
-                <Box grow="Yes" style={{ maxWidth: toRem(300) }} direction="Column" gap="300">
-                  <Button
-                    as="a"
-                    href="https://codeberg.org/lapingvino/cinny"
-                    target="_blank"
-                    rel="noreferrer noopener"
-                    before={<Icon size="200" src={Icons.Code} />}
-                  >
-                    <Text as="span" size="B400" truncate>
-                      Source Code
-                    </Text>
-                  </Button>
-                  <Button
-                    as="a"
-                    href="https://cinny.in/#sponsor"
-                    target="_blank"
-                    rel="noreferrer noopener"
-                    fill="Soft"
-                    before={<Icon size="200" src={Icons.Heart} />}
-                  >
-                    <Text as="span" size="B400" truncate>
-                      Support Cinny
-                    </Text>
-                  </Button>
-                </Box>
-              </Box>
-              <Box direction="Column" gap="200" style={{ maxWidth: toRem(480) }}>
-                <Text size="L400">Active patches</Text>
-                <Box
-                  as="ul"
-                  direction="Column"
-                  gap="100"
-                  style={{ margin: 0, paddingLeft: config.space.S400 }}
-                >
-                  {PATCHES.map(({ name, desc }) => (
-                    <li key={name}>
-                      <Text size="T300">
-                        <a
-                          href={`https://codeberg.org/lapingvino/cinny/src/branch/${name}`}
-                          target="_blank"
-                          rel="noreferrer noopener"
-                        >
-                          {name}
-                        </a>
-                        {' \u2014 '}
-                        {desc}
-                      </Text>
-                    </li>
-                  ))}
-                </Box>
-              </Box>
-            </Box>
-          </PageHero>
-        </PageHeroSection>
+            Welcome to BetterCord
+          </Text>
+          <Text
+            size="T300"
+            style={{
+              color: 'var(--text-tertiary)',
+              maxWidth: '32ch',
+              lineHeight: '1.5',
+              margin: '0 auto',
+            }}
+          >
+            Select a channel from the left to start chatting, or join a community to get started.
+          </Text>
+        </div>
+
+        {/* Privacy badge */}
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '0.5rem',
+            padding: '0.5rem 1rem',
+            borderRadius: '9999px',
+            backgroundColor: 'var(--background-modifier-hover)',
+            border: '1px solid var(--background-modifier-accent)',
+          }}
+        >
+          <svg
+            width="14"
+            height="14"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="var(--status-online)"
+            strokeWidth="2.5"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          >
+            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+          </svg>
+          <Text
+            size="T200"
+            style={{
+              color: 'var(--text-tertiary)',
+              fontSize: '0.75rem',
+              fontWeight: 600,
+            }}
+          >
+            End-to-end encrypted · Privacy first · Open source
+          </Text>
+        </div>
       </Box>
     </Page>
   );

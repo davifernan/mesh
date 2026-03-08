@@ -26,6 +26,9 @@ import {
 } from 'folds';
 import { useAtom, useAtomValue } from 'jotai';
 import { Room } from 'matrix-js-sdk';
+import { SpeakerHigh } from '@phosphor-icons/react';
+import { selectSpaceHasVoiceActivity } from '../../../state/voiceActivity';
+import { useSpaceVoiceActivity } from '../../../hooks/useSpaceVoiceActivity';
 import {
   draggable,
   dropTargetForElements,
@@ -421,6 +424,8 @@ function SpaceTab({
   const dropState = useDropTarget(spaceDraggable, targetRef);
   const dropType = dropState?.type;
 
+  const hasVoiceActivity = useAtomValue(selectSpaceHasVoiceActivity(space.roomId));
+
   const [menuAnchor, setMenuAnchor] = useState<RectCords>();
 
   const handleContextMenu: MouseEventHandler<HTMLButtonElement> = (evt) => {
@@ -470,6 +475,11 @@ function SpaceTab({
           {unread && (
             <SidebarItemBadge hasCount={unread.total > 0}>
               <UnreadBadge highlight={unread.highlight > 0} count={unread.total} />
+            </SidebarItemBadge>
+          )}
+          {!unread && hasVoiceActivity && (
+            <SidebarItemBadge hasCount={false} title="Voice activity">
+              <SpeakerHigh size={10} color="#23A55A" weight="fill" />
             </SidebarItemBadge>
           )}
           {menuAnchor && (
@@ -628,6 +638,8 @@ export function SpaceTabs({ scrollRef }: SpaceTabsProps) {
   const navToActivePath = useAtomValue(useNavToActivePathAtom());
   const [openedFolder, setOpenedFolder] = useAtom(useOpenedSidebarFolderAtom());
   const [draggingItem, setDraggingItem] = useState<SidebarDraggable>();
+
+  useSpaceVoiceActivity(orphanSpaces);
 
   useDnDMonitor(
     scrollRef,

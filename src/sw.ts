@@ -106,6 +106,62 @@ self.addEventListener('message', (event: ExtendableMessageEvent) => {
 
 const MEDIA_PATHS = ['/_matrix/client/v1/media/download', '/_matrix/client/v1/media/thumbnail'];
 
+// ---------------------------------------------------------------------------
+// CacheFirst for Matrix media
+// ---------------------------------------------------------------------------
+const MEDIA_CACHE = 'matrix-media-v1';
+const MEDIA_CACHE_MAX = 200;
+const MEDIA_CACHE_TTL = 7 * 24 * 60 * 60 * 1000; // 7 days in ms
+
+/**
+ * Try to serve the request from the media cache first.
+ * Returns the cached Response if it exists and is within TTL, otherwise null.
+ */
+async function getFromMediaCache(request: Request): Promise<Response | null> {
+  const cache = await caches.open(MEDIA_CACHE);
+  const cached = await cache.match(request);
+  if (!cached) return null;
+  const cachedAt = cached.headers.get('sw-cached-at');
+  if (!cachedAt || Date.now() - Number(cachedAt) >= MEDIA_CACHE_TTL) {
+    // Stale — delete and re-fetch
+    await cache.delete(request);
+    return null;
+  }
+  return cached;
+}
+
+/**
+ * Store a successful media response in the cache, injecting a timestamp header.
+ * Enforces a max-entries limit by deleting the oldest entry when over MEDIA_CACHE_MAX.
+ */
+async function putInMediaCache(request: Request, response: Response): Promise<void> {
+  if (response.status !== 200) return;
+  try {
+    const cache = await caches.open(MEDIA_CACHE);
+
+    // Clone and inject the cache timestamp as a custom header
+    const headersInit: Record<string, string> = { 'sw-cached-at': String(Date.now()) };
+    response.headers.forEach((value, key) => {
+      headersInit[key] = value;
+    });
+    const cachedResponse = new Response(await response.clone().arrayBuffer(), {
+      status: response.status,
+      statusText: response.statusText,
+      headers: headersInit,
+    });
+
+    await cache.put(request, cachedResponse);
+
+    // Evict oldest entry if over limit
+    const keys = await cache.keys();
+    if (keys.length > MEDIA_CACHE_MAX) {
+      await cache.delete(keys[0]);
+    }
+  } catch {
+    // Cache write failure is non-fatal
+  }
+}
+
 function mediaPath(url: string): boolean {
   try {
     const { pathname } = new URL(url);
@@ -131,6 +187,25 @@ function fetchConfig(token: string): RequestInit {
   };
 }
 
+/**
+ * Fetch media with auth header, cache the result, and return the response.
+ */
+async function fetchAndCacheMedia(request: Request, token: string): Promise<Response> {
+  // Cache-first: serve from cache when available
+  const fromCache = await getFromMediaCache(request);
+  if (fromCache) return fromCache;
+
+  // Network fetch
+  const response = await fetch(request.url, fetchConfig(token));
+
+  // Cache successful responses in the background (don't await to avoid delaying the response)
+  if (response.ok) {
+    void putInMediaCache(request, response.clone());
+  }
+
+  return response;
+}
+
 self.addEventListener('fetch', (event: FetchEvent) => {
   const { url, method } = event.request;
 
@@ -142,7 +217,7 @@ self.addEventListener('fetch', (event: FetchEvent) => {
   const session = sessions.get(clientId);
   if (session) {
     if (validMediaRequest(url, session.baseUrl)) {
-      event.respondWith(fetch(url, fetchConfig(session.accessToken)));
+      event.respondWith(fetchAndCacheMedia(event.request, session.accessToken));
     }
     return;
   }
@@ -150,7 +225,7 @@ self.addEventListener('fetch', (event: FetchEvent) => {
   event.respondWith(
     requestSessionWithTimeout(clientId).then((s) => {
       if (s && validMediaRequest(url, s.baseUrl)) {
-        return fetch(url, fetchConfig(s.accessToken));
+        return fetchAndCacheMedia(event.request, s.accessToken);
       }
       return fetch(event.request);
     })

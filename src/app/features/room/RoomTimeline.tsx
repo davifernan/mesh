@@ -126,6 +126,7 @@ import { useAccessiblePowerTagColors, useGetMemberPowerTag } from '../../hooks/u
 import { useTheme } from '../../hooks/useTheme';
 import { useRoomCreatorsTag } from '../../hooks/useRoomCreatorsTag';
 import { usePowerLevelTags } from '../../hooks/usePowerLevelTags';
+import { WelcomeCard } from '../../components/welcome-card/WelcomeCard';
 
 const TimelineFloat = as<'div', css.TimelineFloatVariants>(
   ({ position, className, ...props }, ref) => (
@@ -1410,6 +1411,14 @@ export function RoomTimeline({ room, eventId, roomInputRef, editor, threadId }: 
         const membershipChanged = isMembershipChanged(mEvent);
         if (membershipChanged && hideMembershipEvents) return null;
         if (!membershipChanged && hideNickAvatarEvents) return null;
+
+        // New join: show WelcomeCard instead of a standard system message.
+        const isNewJoin =
+          mEvent.getContent().membership === 'join' &&
+          mEvent.getPrevContent().membership !== 'join';
+        if (isNewJoin) {
+          return <WelcomeCard key={mEvent.getId()} event={mEvent} />;
+        }
 
         const highlighted = focusItem?.index === item && focusItem.highlight;
         const parsed = parseMemberEvent(mEvent);
