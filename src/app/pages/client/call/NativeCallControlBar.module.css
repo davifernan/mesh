@@ -131,3 +131,29 @@
   min-width: 160px;
   z-index: 100;
 }
+
+/* ── Mobile: compact pill so all buttons fit on small screens ──────────────── */
+@media (max-width: 768px) {
+  .bar {
+    gap: 2px;
+    padding: 6px 8px;
+  }
+  .btn {
+    width: 32px;
+    height: 32px;
+  }
+  .btnHangup {
+    width: 32px;
+    height: 32px;
+    margin-left: 6px;
+  }
+  .caretBtn {
+    width: 16px;
+    height: 16px;
+    top: -3px;
+    right: -3px;
+  }
+  .leftSection {
+    display: none; /* hide room name + timer on mobile — space is tight */
+  }
+}

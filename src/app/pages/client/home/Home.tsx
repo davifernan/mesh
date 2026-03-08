@@ -36,6 +36,7 @@ import {
   getHomeCreatePath,
   getHomeRoomPath,
   getHomeSearchPath,
+  getSpacePath,
   withSearchParam,
 } from '../../pathUtils';
 import { getCanonicalAliasOrRoomId } from '../../../utils/matrix';
@@ -71,6 +72,16 @@ import { RoomListbox } from '../../../components/room-listbox/RoomListbox';
 import { UseStateProvider } from '../../../components/UseStateProvider';
 import { JoinAddressPrompt } from '../../../components/join-address-prompt';
 import { _RoomSearchParams } from '../../paths';
+import { useOrphanSpaces } from '../../../state/hooks/roomList';
+import { allRoomsAtom } from '../../../state/room-list/roomList';
+import { roomToParentsAtom } from '../../../state/room/roomToParents';
+import { useSidebarItems } from '../../../hooks/useSidebarItems';
+import { getRoomAvatarUrl } from '../../../utils/room';
+import { nameInitials } from '../../../utils/common';
+import { useMediaAuthentication } from '../../../hooks/useMediaAuthentication';
+import { useRoomUnread } from '../../../state/hooks/unread';
+import { ScreenSize, useScreenSizeContext } from '../../../hooks/useScreenSize';
+import homeStyles from './Home.module.css';
 
 type HomeMenuProps = {
   requestClose: () => void;
@@ -229,6 +240,81 @@ function HomeHeader() {
   );
 }
 
+/** Single space card in the mobile grid */
+type HomeSpaceCardProps = {
+  roomId: string;
+  selected: boolean;
+  onClick: (roomId: string) => void;
+};
+function HomeSpaceCard({ roomId, selected, onClick }: HomeSpaceCardProps) {
+  const mx = useMatrixClient();
+  const useAuthentication = useMediaAuthentication();
+  const unread = useRoomUnread(roomId, roomToUnreadAtom);
+  const space = mx.getRoom(roomId);
+  if (!space) return null;
+
+  const avatarUrl = getRoomAvatarUrl(mx, space, 96, useAuthentication);
+
+  return (
+    <button
+      type="button"
+      className={`${homeStyles.spaceCard} ${selected ? homeStyles.spaceCardActive : ''}`}
+      onClick={() => onClick(roomId)}
+      aria-label={`${space.name} space`}
+    >
+      <div className={homeStyles.spaceAvatar}>
+        {avatarUrl ? (
+          <img src={avatarUrl} alt={space.name} />
+        ) : (
+          <span className={homeStyles.spaceAvatarFallback}>{nameInitials(space.name, 2)}</span>
+        )}
+        {unread && unread.total > 0 && (
+          <div
+            className={`${homeStyles.spaceUnreadDot} ${unread.highlight > 0 ? homeStyles.spaceUnreadHighlight : ''}`}
+          />
+        )}
+      </div>
+      <span className={homeStyles.spaceName}>{space.name}</span>
+    </button>
+  );
+}
+
+/** Spaces grid — only rendered on mobile */
+function HomeSpacesSection() {
+  const mx = useMatrixClient();
+  const navigate = useNavigate();
+  const roomToParents = useAtomValue(roomToParentsAtom);
+  const orphanSpaces = useOrphanSpaces(mx, allRoomsAtom, roomToParents);
+  const [sidebarItems] = useSidebarItems(orphanSpaces);
+
+  // Flatten: skip folder objects, just show top-level space IDs
+  const spaceIds = sidebarItems.filter((item): item is string => typeof item === 'string');
+
+  const handleSpaceClick = (roomId: string) => {
+    navigate(getSpacePath(getCanonicalAliasOrRoomId(mx, roomId)));
+  };
+
+  return (
+    <div className={homeStyles.spacesSection}>
+      <div className={homeStyles.spacesSectionTitle}>Spaces</div>
+      <div className={homeStyles.spacesGrid}>
+        {spaceIds.length === 0 ? (
+          <span className={homeStyles.spacesEmpty}>No spaces joined yet</span>
+        ) : (
+          spaceIds.map((roomId) => (
+            <HomeSpaceCard
+              key={roomId}
+              roomId={roomId}
+              selected={false}
+              onClick={handleSpaceClick}
+            />
+          ))
+        )}
+      </div>
+    </div>
+  );
+}
+
 function HomeEmpty() {
   const navigate = useNavigate();
 
@@ -275,6 +361,8 @@ export function Home() {
   const mx = useMatrixClient();
   useNavToActivePathMapper('home');
   const scrollRef = useRef<HTMLDivElement>(null);
+  const screenSize = useScreenSizeContext();
+  const isMobile = screenSize === ScreenSize.Mobile;
   const rooms = useHomeRooms();
   const notificationPreferences = useRoomsNotificationPreferencesContext();
   const roomToUnread = useAtomValue(roomToUnreadAtom);
@@ -338,6 +426,8 @@ export function Home() {
       ) : (
         <PageNavContent scrollRef={scrollRef}>
           <Box direction="Column" gap="300">
+            {isMobile && <HomeSpacesSection />}
+            {isMobile && <div className={homeStyles.sectionDivider} />}
             <NavCategory>
               <NavItem variant="Background" radii="400" aria-selected={createRoomSelected}>
                 <NavButton onClick={() => navigate(getHomeCreatePath())}>

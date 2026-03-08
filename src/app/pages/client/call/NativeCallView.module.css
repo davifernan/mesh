@@ -139,10 +139,17 @@
   display: flex;
   justify-content: center;
   padding-bottom: 24px;
+  /* extra clearance on mobile so pill floats above bottom nav */
+  padding-bottom: calc(24px + env(safe-area-inset-bottom, 0px));
   opacity: var(--voice-hud-opacity);
   pointer-events: var(--voice-hud-pointer-events);
   transition: opacity 0.2s ease;
-  /* no background — the bar itself has a pill shape */
+}
+
+@media (max-width: 768px) {
+  .controlBarWrap {
+    padding-bottom: calc(var(--mobile-bottom-nav-height, 60px) + 12px);
+  }
 }
 
 /* ── Status / error views (shown before connected) ─────────────────────────── */

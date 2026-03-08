@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Box } from 'folds';
 import { useParams } from 'react-router-dom';
+import styles from './Room.module.css';
 import { isKeyHotkey } from 'is-hotkey';
 import { RoomView } from './RoomView';
 import { MembersDrawer } from './MembersDrawer';
@@ -139,6 +140,9 @@ export function Room() {
   // Regular rooms with call: only show chat when explicitly toggled (isChatOpen).
   const showChatPanel = !isCallLayout || isChatOpen || (isVoiceRoom && !isCallViewOpen);
   const showBoth = showCallPanel && showChatPanel && screenSize === ScreenSize.Desktop;
+  // On mobile with an active call: chat renders as a bottom-sheet overlay, not a flex sibling.
+  const isMobile = screenSize === ScreenSize.Mobile;
+  const showMobileChatSheet = isMobile && isCallLayout && showCallPanel && showChatPanel;
 
   const containerRef = useRef<HTMLDivElement>(null);
   const splitRatioRef = useRef(0.5);
@@ -196,7 +200,7 @@ export function Room() {
             onToggleWidgetsDrawer={handleToggleWidgetsDrawer}
             onTogglePeopleDrawer={handleTogglePeopleDrawer}
           />
-          <Box grow="Yes" ref={containerRef}>
+          <Box grow="Yes" ref={containerRef} className={isCallLayout && isMobile ? styles.callChatContainer : undefined}>
             {isIssueBoard ? (
               <IssueBoard room={room} />
             ) : (
@@ -230,13 +234,20 @@ export function Room() {
                     onPointerDown={handleDividerPointerDown}
                   />
                 )}
-                <Box
-                  grow={showChatPanel ? 'Yes' : undefined}
-                  direction="Column"
-                  style={{ display: showChatPanel ? 'flex' : 'none' }}
-                >
-                  <RoomView room={room} eventId={eventId} />
-                </Box>
+                {/* Mobile: chat as sliding bottom-sheet overlay on top of call */}
+                {showMobileChatSheet ? (
+                  <div className={styles.mobileChatSheet}>
+                    <RoomView room={room} eventId={eventId} />
+                  </div>
+                ) : (
+                  <Box
+                    grow={showChatPanel ? 'Yes' : undefined}
+                    direction="Column"
+                    style={{ display: showChatPanel ? 'flex' : 'none' }}
+                  >
+                    <RoomView room={room} eventId={eventId} />
+                  </Box>
+                )}
               </>
             )}
           </Box>

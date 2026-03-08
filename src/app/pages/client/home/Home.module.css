@@ -1,0 +1,124 @@
+/* ── Spaces section (shown on mobile at top of Home) ── */
+.spacesSection {
+  padding: 12px 8px 4px;
+}
+
+.spacesSectionTitle {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+  padding: 0 4px 8px;
+}
+
+.spacesGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(72px, 1fr));
+  gap: 8px;
+}
+
+/* Individual space card */
+.spaceCard {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 4px;
+  border-radius: 12px;
+  cursor: pointer;
+  background: none;
+  border: none;
+  color: var(--text-secondary);
+  text-align: center;
+  transition: background 120ms ease, color 120ms ease;
+  -webkit-tap-highlight-color: transparent;
+  width: 100%;
+}
+
+.spaceCard:hover,
+.spaceCard:active {
+  background: var(--background-modifier-hover);
+  color: var(--text-primary);
+}
+
+.spaceCard.spaceCardActive {
+  color: var(--text-primary);
+}
+
+/* Avatar circle */
+.spaceAvatar {
+  width: 48px;
+  height: 48px;
+  border-radius: 16px;
+  overflow: hidden;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--background-tertiary);
+  transition: border-radius 200ms ease;
+  position: relative;
+}
+
+.spaceCard:hover .spaceAvatar,
+.spaceCardActive .spaceAvatar {
+  border-radius: 12px;
+}
+
+.spaceAvatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+/* Fallback initials */
+.spaceAvatarFallback {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--text-primary);
+  user-select: none;
+}
+
+/* Unread dot on space avatar */
+.spaceUnreadDot {
+  position: absolute;
+  bottom: -2px;
+  right: -2px;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: var(--brand-primary);
+  border: 2px solid var(--background-primary);
+}
+
+.spaceUnreadDot.spaceUnreadHighlight {
+  background: #F23F43;
+}
+
+.spaceName {
+  font-size: 11px;
+  font-weight: 500;
+  line-height: 1.2;
+  max-width: 100%;
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+
+/* "No spaces" state inside the spaces grid */
+.spacesEmpty {
+  grid-column: 1 / -1;
+  padding: 12px 4px;
+  font-size: 13px;
+  color: var(--text-muted);
+  text-align: center;
+}
+
+/* Divider between spaces and rooms sections */
+.sectionDivider {
+  height: 1px;
+  background: var(--background-modifier-hover);
+  margin: 4px 12px 0;
+}
