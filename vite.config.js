@@ -27,6 +27,10 @@ const copyFiles = {
       dest: '',
     },
     {
+      src: 'config.template.json',
+      dest: '',
+    },
+    {
       src: 'public/manifest.json',
       dest: '',
     },

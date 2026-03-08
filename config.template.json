@@ -1,14 +1,14 @@
 {
   "defaultHomeserver": 0,
   "homeserverList": [
-    "matrix.org"
+    "${BETTERCORD_HOMESERVER}"
   ],
-  "allowCustomHomeservers": true,
+  "allowCustomHomeservers": false,
 
   "hashRouter": {
     "enabled": false,
     "basename": "/"
   },
 
-  "livekitServiceUrl": ""
+  "livekitServiceUrl": "${BETTERCORD_LIVEKIT_URL}"
 }

@@ -38,10 +38,11 @@ function send(win: BrowserWindow | null, event: UpdaterEvent) {
 }
 
 export function registerUpdater(getMainWindow: () => BrowserWindow | null) {
+	// Uses GitHub Releases as update source — owner/repo come from app-update.yml
+	// which electron-builder embeds at build time from electron-builder.config.cjs publish config.
 	updateElectronApp({
 		updateSource: {
-			type: UpdateSourceType.StaticStorage,
-			baseUrl: `https://DEINE-DOMAIN.com/dl/desktop/${BUILD_CHANNEL}/${process.platform}/${process.arch}`, // TODO: Update-Server URL eintragen oder GitHub Releases nutzen
+			type: UpdateSourceType.ElectronPublisherGitHubRelease,
 		},
 		updateInterval: '12 hours',
 		logger: log,
