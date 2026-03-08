@@ -1,12 +1,13 @@
-import { Avatar, Badge, Box, Icon, Icons, Text, Tooltip, TooltipProvider } from 'folds';
+import { Avatar, Badge, Box, Icon, Icons, Text } from 'folds';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Room } from 'matrix-js-sdk';
-import { MicrophoneSlash, VideoCamera } from '@phosphor-icons/react';
+import { MicrophoneSlash, SpeakerSlash, VideoCamera } from '@phosphor-icons/react';
 import { Track } from 'livekit-client';
 import { NavButton, NavItem, NavItemContent } from '../../components/nav';
 import { UserAvatar } from '../../components/user-avatar';
 import { useMatrixClient } from '../../hooks/useMatrixClient';
 import { useCallState } from '../../pages/client/call/CallProvider';
+import { getPresenceBadgeKinds, getPresenceSummary, PRESENCE_BADGE_LABEL } from '../call/presenceBadges';
 import { getMxIdLocalPart } from '../../utils/matrix';
 import { getMemberAvatarMxc, getMemberDisplayName } from '../../utils/room';
 import { useMediaAuthentication } from '../../hooks/useMediaAuthentication';
@@ -44,6 +45,7 @@ export function RoomNavUser({ room, userId }: RoomNavUserProps) {
     remoteParticipantStates,
     isAudioEnabled,
     isVideoEnabled,
+    isDeafened: isCallDeafened,
     isScreenShareEnabled,
     livekitRoom,
     callStatus,
@@ -61,9 +63,22 @@ export function RoomNavUser({ room, userId }: RoomNavUserProps) {
 
   const pState = isActiveCall ? remoteParticipantStates.get(userId) : undefined;
   const hasPresenceState = isActiveCall && (isLocalUser || pState !== undefined);
-  const isAudioMuted = hasPresenceState && (isLocalUser ? !isAudioEnabled : !pState!.audioEnabled);
-  const hasVideo = hasPresenceState && (isLocalUser ? isVideoEnabled : pState!.videoEnabled);
-  const isScreensharing = hasPresenceState && (isLocalUser ? isScreenShareEnabled : pState!.isScreenSharing);
+  const isAudioMuted = hasPresenceState && (isLocalUser ? !isAudioEnabled : !(pState?.audioEnabled ?? true));
+  const isCameraOn = hasPresenceState && (isLocalUser ? isVideoEnabled : pState?.videoEnabled ?? false);
+  const isDeafened = hasPresenceState && isLocalUser && isCallDeafened;
+  const isScreensharing =
+    hasPresenceState && (isLocalUser ? isScreenShareEnabled : pState?.isScreenSharing ?? false);
+
+  const presenceState = useMemo(
+    () => ({
+      isScreenSharing: isScreensharing,
+      isCameraOn,
+      isDeafened,
+      isMicMuted: isAudioMuted,
+    }),
+    [isScreensharing, isCameraOn, isDeafened, isAudioMuted]
+  );
+  const badgeKinds = useMemo(() => getPresenceBadgeKinds(presenceState), [presenceState]);
 
   const [showPreview, setShowPreview] = useState(false);
   const previewRef = useRef<HTMLVideoElement>(null);
@@ -78,16 +93,15 @@ export function RoomNavUser({ room, userId }: RoomNavUserProps) {
       return (localPub?.track as AttachableVideoTrack | undefined) ?? null;
     }
 
-    for (const participant of livekitRoom.remoteParticipants.values()) {
-      if (extractUserId(participant.identity) !== userId) continue;
-      for (const pub of participant.trackPublications.values()) {
-        if (pub.source === Track.Source.ScreenShare && pub.track) {
-          return pub.track as AttachableVideoTrack;
-        }
-      }
-    }
+    const remoteParticipant = Array.from(livekitRoom.remoteParticipants.values()).find(
+      (participant) => extractUserId(participant.identity) === userId
+    );
+    if (!remoteParticipant) return null;
 
-    return null;
+    const screenSharePub = Array.from(remoteParticipant.trackPublications.values()).find(
+      (pub) => pub.source === Track.Source.ScreenShare && pub.track
+    );
+    return (screenSharePub?.track as AttachableVideoTrack | undefined) ?? null;
   }, [
     isScreensharing,
     livekitRoom,
@@ -100,16 +114,18 @@ export function RoomNavUser({ room, userId }: RoomNavUserProps) {
 
   useEffect(() => {
     const video = previewRef.current;
-    if (!video || !showPreview || !previewTrack) return;
+    if (video && showPreview && previewTrack) {
+      previewTrack.attach(video);
+      video.muted = true;
+      video.autoplay = true;
+      video.playsInline = true;
 
-    previewTrack.attach(video);
-    video.muted = true;
-    video.autoplay = true;
-    video.playsInline = true;
+      return () => {
+        previewTrack.detach(video);
+      };
+    }
 
-    return () => {
-      previewTrack.detach(video);
-    };
+    return undefined;
   }, [showPreview, previewTrack]);
 
   const handleNavUserClick: React.MouseEventHandler<HTMLButtonElement> = (evt) => {
@@ -125,7 +141,8 @@ export function RoomNavUser({ room, userId }: RoomNavUserProps) {
     setActiveCallRoomId(room.roomId, true);
   };
 
-  const ariaLabel = `${getName}${isSpeaking ? ' (speaking)' : ''}`;
+  const presenceSummary = getPresenceSummary(presenceState);
+  const ariaLabel = `${getName}${isSpeaking ? ', speaking' : ''}. ${presenceSummary}.`;
 
   return (
     <NavItem variant="Background" radii="400">
@@ -135,15 +152,7 @@ export function RoomNavUser({ room, userId }: RoomNavUserProps) {
             <Box alignItems="Center" gap="200">
               <Avatar
                 size="200"
-                style={
-                  isSpeaking
-                    ? {
-                        boxShadow: '0 0 0 2px #23a55a',
-                        borderRadius: '50%',
-                        transition: 'box-shadow 0.15s ease',
-                      }
-                    : { transition: 'box-shadow 0.15s ease' }
-                }
+                className={isSpeaking ? styles.speakingAvatar : undefined}
               >
                 <UserAvatar
                   userId={userId}
@@ -156,59 +165,60 @@ export function RoomNavUser({ room, userId }: RoomNavUserProps) {
                 {getName}
               </Text>
               <Box alignItems="Center" gap="100" shrink="No">
-                {isScreensharing && (
-                  <TooltipProvider
-                    position="Top"
-                    offset={4}
-                    tooltip={
-                      <Tooltip>
-                        <Text>Watching stream</Text>
-                      </Tooltip>
+                {badgeKinds.includes('live') && (
+                  <button
+                    type="button"
+                    className={styles.liveBadgeButton}
+                    onClick={handleLiveBadgeClick}
+                    aria-label={
+                      activeCallRoomId === room.roomId
+                        ? 'Watching live stream'
+                        : 'Join call and watch live stream'
                     }
+                    onMouseEnter={() => setShowPreview(true)}
+                    onMouseLeave={() => setShowPreview(false)}
                   >
-                    {(triggerRef) => (
-                      <button
-                        ref={triggerRef as React.RefCallback<HTMLButtonElement>}
-                        type="button"
-                        className={styles.liveBadgeButton}
-                        onClick={handleLiveBadgeClick}
-                        aria-label="Watch stream"
-                        onMouseEnter={() => setShowPreview(true)}
-                        onMouseLeave={() => setShowPreview(false)}
+                    <Badge
+                      size="300"
+                      fill="Soft"
+                      radii="Pill"
+                      className={styles.liveBadge}
+                    >
+                      <Text
+                        as="span"
+                        size="L400"
+                        style={{ fontSize: '9px', fontWeight: 700, letterSpacing: '0.04em' }}
                       >
-                        <Badge
-                          size="300"
-                          fill="Soft"
-                          radii="Pill"
-                          className={styles.liveBadge}
-                        >
-                          <Text
-                            as="span"
-                            size="L400"
-                            style={{ fontSize: '9px', fontWeight: 700, letterSpacing: '0.04em' }}
-                          >
-                            LIVE
-                          </Text>
-                        </Badge>
+                        LIVE
+                      </Text>
+                    </Badge>
 
-                        {showPreview && (
-                          <div className={styles.livePreview}>
-                            {previewTrack ? (
-                              <video ref={previewRef} className={styles.livePreviewVideo} />
-                            ) : (
-                              <span className={styles.livePreviewText}>Open call to preview</span>
-                            )}
-                          </div>
-                        )}
-                      </button>
+                    {showPreview && previewTrack && (
+                      <div className={styles.livePreview}>
+                        <video ref={previewRef} className={styles.livePreviewVideo}>
+                          <track kind="captions" />
+                        </video>
+                      </div>
                     )}
-                  </TooltipProvider>
+                  </button>
                 )}
-                {isAudioMuted && (
-                  <MicrophoneSlash size={12} style={{ color: '#f23f43', opacity: 0.85 }} />
+                {badgeKinds.includes('camera') && (
+                  <span className={`${styles.presenceIcon} ${styles.cameraIcon}`} title={PRESENCE_BADGE_LABEL.camera}>
+                    <VideoCamera size={12} aria-hidden="true" />
+                  </span>
                 )}
-                {hasVideo && (
-                  <VideoCamera size={12} style={{ color: '#23a55a', opacity: 0.85 }} />
+                {badgeKinds.includes('deafened') && (
+                  <span
+                    className={`${styles.presenceIcon} ${styles.deafenedIcon}`}
+                    title={PRESENCE_BADGE_LABEL.deafened}
+                  >
+                    <SpeakerSlash size={12} aria-hidden="true" />
+                  </span>
+                )}
+                {badgeKinds.includes('muted') && (
+                  <span className={`${styles.presenceIcon} ${styles.mutedIcon}`} title={PRESENCE_BADGE_LABEL.muted}>
+                    <MicrophoneSlash size={12} aria-hidden="true" />
+                  </span>
                 )}
               </Box>
             </Box>

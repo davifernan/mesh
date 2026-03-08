@@ -9,7 +9,13 @@ export function ClientLayout({ nav, children }: ClientLayoutProps) {
   return (
     <Box grow="Yes" className="bc-app-shell">
       <Box shrink="No">{nav}</Box>
-      <Box grow="Yes" className="bc-content">{children}</Box>
+      <Box
+        grow="Yes"
+        className="bc-content"
+        style={{ overflowX: 'visible', overflowY: 'hidden' }}
+      >
+        {children}
+      </Box>
     </Box>
   );
 }

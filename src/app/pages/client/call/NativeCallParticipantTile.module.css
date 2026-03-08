@@ -1,3 +1,13 @@
+@keyframes livePulse {
+  0%, 100% {
+    opacity: 1;
+  }
+
+  50% {
+    opacity: 0.6;
+  }
+}
+
 /* ── Tile base ─────────────────────────────────────────────────────────── */
 .tile {
   position: relative;
@@ -87,8 +97,8 @@
   top: 0.5rem;
   /* Leave space for pin button: pinButton is 32px wide + 0.5rem gap */
   right: calc(0.5rem + 32px + 6px);
-  color: var(--text-primary);
-  background: var(--voice-overlay-strong);
+  color: var(--text-on-solid-primary, #fff);
+  background: var(--voice-status-danger, #f23f43);
   border-radius: 9999px;
   padding: 4px 8px;
   display: flex;
@@ -96,7 +106,9 @@
   gap: 4px;
   font-size: 11px;
   font-weight: 600;
+  letter-spacing: 0.04em;
   z-index: 10;
+  animation: livePulse 1.5s ease-in-out infinite;
 }
 
 /* ── Pin button (top-right, hover-revealed) ────────────────────────────── */
@@ -180,7 +192,21 @@
   white-space: nowrap;
 }
 
-.muteIcon {
-  color: var(--voice-status-danger);
+.badgeIcon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   flex-shrink: 0;
+}
+
+.cameraIcon {
+  color: var(--voice-status-success, #23a55a);
+}
+
+.deafenedIcon {
+  color: var(--status-idle, #faa61a);
+}
+
+.mutedIcon {
+  color: var(--voice-status-danger, #f23f43);
 }

@@ -39,6 +39,11 @@
   --voice-hud-pointer-events: auto;
 }
 
+.voiceRoot:focus-within {
+  --voice-hud-opacity: 1;
+  --voice-hud-pointer-events: auto;
+}
+
 /* ── Header chrome ─────────────────────────────────────────────────────────── */
 .voiceHeader {
   position: absolute;

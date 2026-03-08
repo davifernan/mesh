@@ -1,5 +1,5 @@
 import React, { FormEventHandler, useCallback, useEffect, useState } from 'react';
-import { MatrixError, Room, JoinRule } from 'matrix-js-sdk';
+import { EventType, MatrixError, Room, JoinRule } from 'matrix-js-sdk';
 import {
   Box,
   Button,
@@ -39,7 +39,7 @@ import {
   useAdditionalCreators,
   CreateRoomVoice,
 } from '../../components/create-room';
-import { RoomType, StateEvent } from '../../../types/matrix/room';
+import { RoomType } from '../../../types/matrix/room';
 import { IPowerLevels } from '../../hooks/usePowerLevels';
 import { CreateRoomVoiceSelector } from '../../components/create-room/CreateRoomVoiceSelector';
 import { getRoomIconSrc } from '../../utils/room';
@@ -92,7 +92,7 @@ export function CreateRoomForm({
   const { additionalCreators, addAdditionalCreator, removeAdditionalCreator } =
     useAdditionalCreators();
   const [federation, setFederation] = useState(true);
-  const [encryption, setEncryption] = useState(false);
+  const [encryption, setEncryption] = useState(true);
   const [knock, setKnock] = useState(false);
   const [advance, setAdvance] = useState(false);
 
@@ -143,7 +143,7 @@ export function CreateRoomForm({
     };
     if (voice === CreateRoomVoice.VoiceRoom) {
       roomType = RoomType.Call;
-      powerOverrides.events![StateEvent.GroupCallMemberPrefix] = 0;
+      powerOverrides.events![EventType.GroupCallMemberPrefix] = 0;
     }
 
     create({

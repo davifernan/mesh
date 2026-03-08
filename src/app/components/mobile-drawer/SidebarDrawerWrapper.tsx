@@ -27,7 +27,7 @@ export function SidebarDrawerWrapper({ children }: SidebarDrawerWrapperProps) {
         aria-hidden="true"
       />
       {/* Drawer wrapper */}
-      <div className={css.mobileDrawer} data-open={String(isOpen)}>
+      <div id="mobile-sidebar-drawer" className={css.mobileDrawer} data-open={String(isOpen)}>
         {children}
       </div>
     </>

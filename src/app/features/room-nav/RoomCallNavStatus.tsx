@@ -1,6 +1,5 @@
 import {
   Box,
-  Line,
   Spinner,
   Text,
   Tooltip,
@@ -39,11 +38,7 @@ import {
 import { settingsAtom } from '../../state/settings';
 import * as css from './RoomCallNavStatus.css';
 
-// Module-level: persists across tab switches (Direct/Home/Space each mount their own CallNavStatus).
-// Stores rooms where the ring timed out so we don't re-ring on remount.
 const timedOutCalls = new Set<string>();
-// Rooms the user explicitly hung up or dismissed — SessionStarted won't clear these,
-// so the call can't re-ring until it truly ends (SessionEnded) and restarts.
 const hungUpCalls = new Set<string>();
 
 const RING_TIMEOUT_MS = 30_000;
@@ -122,12 +117,10 @@ export function CallNavStatus() {
 
   const [showSSModal, setShowSSModal] = useState(false);
   const [showVoicePopout, setShowVoicePopout] = useState(false);
-  const [showMembersPopout, setShowMembersPopout] = useState(false);
   const [latencyMs, setLatencyMs] = useState<number | null>(null);
   const rttHistoryRef = useRef<number[]>([]);
   const { navigateRoom } = useRoomNavigate();
 
-  // Poll LiveKit engine latency (~1s) when connected
   useEffect(() => {
     if (!livekitRoom || callStatus !== 'connected') {
       setLatencyMs(null);
@@ -148,15 +141,11 @@ export function CallNavStatus() {
   }, [livekitRoom, callStatus]);
 
   const [incomingCalls, setIncomingCalls] = useState<IncomingCall[]>([]);
-  const [callPage, setCallPage] = useState(0);
 
   const dismissedRef = useRef<Set<string>>(new Set());
-  // Per-call ring timeout handles
   const callTimeoutsRef = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
-  // Track which incoming call we've already announced to avoid re-announcing on re-render
   const announcedCallRef = useRef<string | null>(null);
 
-  // Ringtone
   const audioCtxRef = useRef<AudioContext | null>(null);
   const ringTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const audioElRef = useRef<HTMLAudioElement | null>(null);
@@ -231,7 +220,6 @@ export function CallNavStatus() {
   const hasActiveCall = Boolean(activeCallRoomId);
   const isConnected = hasActiveCall && callStatus === 'connected';
 
-  // Members currently in the active call channel (for avatar stack)
   const callMembers = useCallMembers(mx, activeCallRoomId ?? '');
 
   const clearCallTimeout = useCallback((roomId: string) => {
@@ -242,7 +230,6 @@ export function CallNavStatus() {
     }
   }, []);
 
-  // Clean up all per-call timeouts on unmount
   useEffect(
     () => () => {
       callTimeoutsRef.current.forEach((t) => clearTimeout(t));
@@ -298,9 +285,6 @@ export function CallNavStatus() {
     }
 
     const handleSessionStarted = (roomId: string, session: MatrixRTCSession) => {
-      // New session means a fresh call — clear timeout/dismiss state, UNLESS the user
-      // explicitly hung up or dismissed this room (hungUpCalls). In that case, keep
-      // suppressing the ring until SessionEnded confirms the call truly ended.
       if (!hungUpCalls.has(roomId)) {
         timedOutCalls.delete(roomId);
         dismissedRef.current.delete(roomId);
@@ -310,7 +294,6 @@ export function CallNavStatus() {
     };
 
     const handleSessionEnded = (roomId: string) => {
-      // Session truly ended — clear all state including explicit hang-up, allow re-ring next time.
       timedOutCalls.delete(roomId);
       hungUpCalls.delete(roomId);
       dismissedRef.current.delete(roomId);
@@ -337,7 +320,7 @@ export function CallNavStatus() {
     [setActiveCallRoomId, navigateRoom, clearCallTimeout]
   );
 
-  const handleDismiss = useCallback(
+  const handleReject = useCallback(
     (roomId: string) => {
       clearCallTimeout(roomId);
       timedOutCalls.add(roomId);
@@ -348,7 +331,16 @@ export function CallNavStatus() {
     [clearCallTimeout]
   );
 
-  // Ring while incoming calls are waiting; announce the first call to screen readers
+  const handleIgnore = useCallback(
+    (roomId: string) => {
+      clearCallTimeout(roomId);
+      timedOutCalls.add(roomId);
+      dismissedRef.current.add(roomId);
+      setIncomingCalls((prev) => prev.filter((c) => c.roomId !== roomId));
+    },
+    [clearCallTimeout]
+  );
+
   useEffect(() => {
     if (!hasActiveCall && incomingCalls.length > 0) {
       startRingtone();
@@ -365,12 +357,8 @@ export function CallNavStatus() {
     return stopRingtone;
   }, [hasActiveCall, incomingCalls, startRingtone, stopRingtone, mx]);
 
-  // Clamp page index when calls list shrinks
-  const safeIndex = Math.min(callPage, Math.max(0, incomingCalls.length - 1));
-
   if (!hasActiveCall && incomingCalls.length === 0) return null;
 
-  // Incoming call(s) — glassmorphism card (rendered as fixed overlay, not in flow)
   if (!hasActiveCall) {
     return (
       <AnimatePresence>
@@ -378,16 +366,15 @@ export function CallNavStatus() {
           <IncomingCallCard
             key={call.roomId}
             roomId={call.roomId}
+            stackIndex={idx}
             onAccept={(roomId) => {
               handleJoin(roomId);
             }}
             onReject={(roomId) => {
-              handleDismiss(roomId);
-              setCallPage((p) => Math.max(0, p - 1));
+              handleReject(roomId);
             }}
             onIgnore={(roomId) => {
-              handleDismiss(roomId);
-              setCallPage((p) => Math.max(0, p - 1));
+              handleIgnore(roomId);
             }}
           />
         ))}
@@ -395,7 +382,6 @@ export function CallNavStatus() {
     );
   }
 
-  // Active call — Fluxer-style voice connection panel
   const channelName = activeCallRoomId
     ? mx.getRoom(activeCallRoomId)?.name ?? activeCallRoomId
     : '';

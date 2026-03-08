@@ -8,6 +8,7 @@ import * as css from './RoomCallNavStatus.css';
 
 interface IncomingCallCardProps {
   roomId: string;
+  stackIndex: number;
   onAccept: (roomId: string) => void;
   onReject: (roomId: string) => void;
   onIgnore: (roomId: string) => void;
@@ -15,6 +16,7 @@ interface IncomingCallCardProps {
 
 export function IncomingCallCard({
   roomId,
+  stackIndex,
   onAccept,
   onReject,
   onIgnore,
@@ -62,7 +64,12 @@ export function IncomingCallCard({
       transition={{ duration: 0.14, ease: 'easeOut' }}
       drag
       dragMomentum={false}
-      style={{ position: 'fixed', zIndex: 2001, bottom: '80px', right: '16px' }}
+      style={{
+        position: 'fixed',
+        zIndex: 2001 + stackIndex,
+        bottom: `${80 + stackIndex * 18}px`,
+        right: `${16 + stackIndex * 10}px`,
+      }}
     >
       {/* Drag handle pill at top */}
       <div className={css.dragHandle} />

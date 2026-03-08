@@ -312,6 +312,7 @@ export const incomingCallCard = style({
   gap: toRem(12),
   boxShadow: '0 8px 32px rgba(0,0,0,0.4)',
   cursor: 'grab',
+  touchAction: 'none',
   selectors: {
     '&:active': { cursor: 'grabbing' },
   },

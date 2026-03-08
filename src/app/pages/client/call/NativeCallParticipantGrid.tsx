@@ -19,7 +19,11 @@ function ScreenShareTile({
   const tileRef = useRef<HTMLDivElement>(null);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [isPiPActive, setIsPiPActive] = useState(false);
+  const [isPopoutActive, setIsPopoutActive] = useState(false);
+  const popoutWindowRef = useRef<Window | null>(null);
+  const popoutVideoRef = useRef<HTMLMediaElement | null>(null);
   const name = trackRef.participant?.name ?? trackRef.participant?.identity ?? 'Someone';
+  const isElectron = typeof window !== 'undefined' && !!window.electron;
 
   const getVideoElement = useCallback(() => {
     if (!tileRef.current) return null;
@@ -87,8 +91,99 @@ function ScreenShareTile({
     }
   }, [getVideoElement, supportsPiP]);
 
+  const closePopoutWindow = useCallback(() => {
+    const track = trackRef.publication?.track as
+      | { detach: (element?: HTMLMediaElement) => HTMLMediaElement[] }
+      | undefined;
+
+    if (track && popoutVideoRef.current) {
+      track.detach(popoutVideoRef.current);
+    }
+    popoutVideoRef.current = null;
+
+    if (popoutWindowRef.current && !popoutWindowRef.current.closed) {
+      popoutWindowRef.current.close();
+    }
+    popoutWindowRef.current = null;
+    setIsPopoutActive(false);
+  }, [trackRef.publication]);
+
+  const toggleElectronPopout = useCallback(() => {
+    const track = trackRef.publication?.track as
+      | {
+          attach: (element?: HTMLMediaElement) => HTMLMediaElement;
+          detach: (element?: HTMLMediaElement) => HTMLMediaElement[];
+        }
+      | undefined;
+
+    if (!track) return;
+
+    if (popoutWindowRef.current && !popoutWindowRef.current.closed) {
+      closePopoutWindow();
+      return;
+    }
+
+    const popoutWindow = window.open(
+      '',
+      `bettercord_stream_popout_${trackRef.participant?.identity ?? 'stream'}`,
+      'popup=yes,width=1000,height=620,resizable=yes,scrollbars=no'
+    );
+    if (!popoutWindow) return;
+
+    popoutWindow.document.title = `${name} screen`;
+    popoutWindow.document.body.innerHTML = '';
+    popoutWindow.document.body.style.margin = '0';
+    popoutWindow.document.body.style.background = '#000';
+    popoutWindow.document.body.style.display = 'flex';
+    popoutWindow.document.body.style.alignItems = 'center';
+    popoutWindow.document.body.style.justifyContent = 'center';
+
+    const mediaElement = track.attach();
+    mediaElement.style.width = '100%';
+    mediaElement.style.height = '100%';
+    mediaElement.style.objectFit = 'contain';
+    popoutWindow.document.body.appendChild(mediaElement);
+
+    popoutWindowRef.current = popoutWindow;
+    popoutVideoRef.current = mediaElement;
+    setIsPopoutActive(true);
+
+    popoutWindow.addEventListener('beforeunload', () => {
+      if (track && popoutVideoRef.current) {
+        track.detach(popoutVideoRef.current);
+      }
+      popoutVideoRef.current = null;
+      popoutWindowRef.current = null;
+      setIsPopoutActive(false);
+    });
+  }, [closePopoutWindow, name, trackRef.participant?.identity, trackRef.publication]);
+
+  useEffect(() => {
+    if (!trackRef.publication?.track) {
+      closePopoutWindow();
+    }
+  }, [closePopoutWindow, trackRef.publication?.track]);
+
+  useEffect(
+    () => () => {
+      closePopoutWindow();
+    },
+    [closePopoutWindow]
+  );
+
   const dims = trackRef.publication?.dimensions;
-  const fps = trackRef.publication?.track?.mediaStreamTrack?.getSettings()?.frameRate;
+  const mediaSettings = trackRef.publication?.track?.mediaStreamTrack?.getSettings();
+  const trackFps = mediaSettings?.frameRate;
+
+  const qualityLabel = useMemo(() => {
+    const width = dims?.width ?? mediaSettings?.width;
+    const height = dims?.height ?? mediaSettings?.height;
+    if (!width || !height) {
+      return null;
+    }
+
+    return `${width}x${height}${trackFps ? ` · ${Math.round(trackFps)}fps` : ''}`;
+  }, [dims?.height, dims?.width, mediaSettings?.height, mediaSettings?.width, trackFps]);
 
   return (
     <div className={styles.screenTile} ref={tileRef}>
@@ -108,28 +203,27 @@ function ScreenShareTile({
           <CornersOut size={14} weight="bold" />
         </button>
 
-        {supportsPiP && (
+        {(supportsPiP || isElectron) && (
           <button
             type="button"
             className={styles.screenActionBtn}
             onClick={(e) => {
               e.stopPropagation();
-              void togglePiP();
+              if (isElectron) {
+                toggleElectronPopout();
+              } else {
+                void togglePiP();
+              }
             }}
-            aria-label={isPiPActive ? 'Close popout' : 'Popout screen share'}
-            title={isPiPActive ? 'Close popout' : 'Popout'}
+            aria-label={(isElectron ? isPopoutActive : isPiPActive) ? 'Close popout' : 'Open popout'}
+            title={(isElectron ? isPopoutActive : isPiPActive) ? 'Close popout' : 'Open popout'}
           >
             <ArrowSquareOut size={14} weight="bold" />
           </button>
         )}
       </div>
 
-      {dims && (
-        <div className={styles.screenQualityPill}>
-          {dims.width}x{dims.height}
-          {fps ? ` · ${Math.round(fps)}fps` : ''}
-        </div>
-      )}
+      {qualityLabel && <div className={styles.screenQualityPill}>{qualityLabel}</div>}
 
       <div className={styles.screenTileLabel}>
         <Monitor size={13} weight="bold" style={{ flexShrink: 0 }} />
@@ -144,7 +238,7 @@ function ScreenShareTile({
               onWatch();
             }}
           >
-            Stream anschauen
+            Watch Stream
           </button>
         )}
       </div>
@@ -169,6 +263,7 @@ export function NativeCallParticipantGrid({ onPin }: NativeCallParticipantGridPr
     () => allSSTracks.filter((t): t is TrackReference => 'publication' in t && !!t.publication),
     [allSSTracks],
   );
+  const isSingleParticipantView = participants.length === 1 && screenShareTracks.length === 0;
 
   // Auto-pin on screenshare: when a participant starts screensharing, auto-pin them.
   useEffect(() => {
@@ -264,7 +359,7 @@ export function NativeCallParticipantGrid({ onPin }: NativeCallParticipantGridPr
 
   // ── GRID MODE ────────────────────────────────────────────────────────────────
   return (
-    <div className={styles.grid}>
+    <div className={`${styles.grid}${isSingleParticipantView ? ` ${styles.gridSingle}` : ''}`}>
       {/* Screenshare tiles first */}
       {screenShareTracks.map((t) => (
         <div key={`ss-${t.participant?.identity}`} className={styles.screenTileWrap}>
@@ -281,12 +376,22 @@ export function NativeCallParticipantGrid({ onPin }: NativeCallParticipantGridPr
 
       {/* Regular participant camera tiles */}
       {participants.map((participant) => (
-        <NativeCallParticipantTile
-          key={participant.identity}
-          participant={participant}
-          onPin={handlePin}
-          className={styles.tile}
-        />
+        isSingleParticipantView ? (
+          <div key={participant.identity} className={styles.gridSingleCard}>
+            <NativeCallParticipantTile
+              participant={participant}
+              onPin={handlePin}
+              className={styles.tile}
+            />
+          </div>
+        ) : (
+          <NativeCallParticipantTile
+            key={participant.identity}
+            participant={participant}
+            onPin={handlePin}
+            className={styles.tile}
+          />
+        )
       ))}
     </div>
   );

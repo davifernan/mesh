@@ -44,6 +44,7 @@ function AudioUnblockButton() {
       backdropFilter: 'blur(4px)',
     }}>
       <button
+        type="button"
         style={{
           background: 'var(--brand-primary)',
           color: '#fff',
@@ -74,6 +75,16 @@ export function NativeCallView() {
 
   const roomName = activeCallRoomId ? (mx.getRoom(activeCallRoomId)?.name ?? '') : '';
 
+  useEffect(() => {
+    const wakeHud = () => activate();
+    window.addEventListener('keydown', wakeHud);
+    window.addEventListener('touchstart', wakeHud, { passive: true });
+    return () => {
+      window.removeEventListener('keydown', wakeHud);
+      window.removeEventListener('touchstart', wakeHud);
+    };
+  }, [activate]);
+
   if (callStatus === 'connecting') {
     return (
       <div className={styles.statusView}>
@@ -102,6 +113,9 @@ export function NativeCallView() {
       className={`${styles.voiceRoot}${isActive ? ` ${styles.pointerActive}` : ''}`}
       onPointerMove={activate}
       onPointerDown={activate}
+      onTouchStart={activate}
+      onFocusCapture={activate}
+      onKeyDownCapture={activate}
     >
       {/* Header chrome (auto-hiding) */}
       <div className={styles.voiceHeader}>

@@ -1,10 +1,17 @@
 import React, { useMemo } from 'react';
 import { type Participant, LocalParticipant, Track } from 'livekit-client';
 import { VideoTrack, useTracks, type TrackReference } from '@livekit/components-react';
-import { MicrophoneSlash, MonitorPlay, CornersOut, SpeakerSlash } from '@phosphor-icons/react';
+import {
+  MicrophoneSlash,
+  MonitorPlay,
+  CornersOut,
+  SpeakerSlash,
+  VideoCamera,
+} from '@phosphor-icons/react';
 import { useMatrixClient } from '../../../hooks/useMatrixClient';
 import { useMediaAuthentication } from '../../../hooks/useMediaAuthentication';
 import { useCallState } from './CallProvider';
+import { getPresenceBadgeKinds, getPresenceSummary, PRESENCE_BADGE_LABEL } from '../../../features/call/presenceBadges';
 import { getMemberAvatarMxc } from '../../../utils/room';
 import styles from './NativeCallParticipantTile.module.css';
 
@@ -12,10 +19,10 @@ import styles from './NativeCallParticipantTile.module.css';
 const AVATAR_COLORS = ['#5865f2', '#3ba55d', '#faa61a', '#ed4245', '#9b59b6'];
 
 function getColorFromIdentity(identity: string): string {
-  let hash = 0;
-  for (let i = 0; i < identity.length; i++) {
-    hash = identity.charCodeAt(i) + ((hash << 5) - hash);
-  }
+  const hash = Array.from(identity).reduce(
+    (acc, char, index) => acc + char.charCodeAt(0) * (index + 1),
+    0
+  );
   return AVATAR_COLORS[Math.abs(hash) % AVATAR_COLORS.length];
 }
 
@@ -49,7 +56,7 @@ interface NativeCallParticipantTileProps {
 export function NativeCallParticipantTile({
   participant,
   onPin,
-  isPinned: _isPinned,
+  isPinned = false,
   className,
 }: NativeCallParticipantTileProps) {
   const mx = useMatrixClient();
@@ -116,6 +123,28 @@ export function NativeCallParticipantTile({
     return pState !== undefined ? !pState.audioEnabled : !participant.isMicrophoneEnabled;
   }, [isLocal, isAudioEnabled, remoteParticipantStates, userId, participant.isMicrophoneEnabled]);
 
+  const isCameraOn = useMemo(() => {
+    if (isLocal) return participant.isCameraEnabled;
+    const pState = remoteParticipantStates.get(userId);
+    return pState !== undefined ? pState.videoEnabled : participant.isCameraEnabled;
+  }, [isLocal, remoteParticipantStates, userId, participant.isCameraEnabled]);
+
+  const isParticipantDeafened = isLocal && isDeafened;
+
+  const presenceState = useMemo(
+    () => ({
+      isScreenSharing: hasScreenShare,
+      isCameraOn,
+      isDeafened: isParticipantDeafened,
+      isMicMuted: isMuted,
+    }),
+    [hasScreenShare, isCameraOn, isParticipantDeafened, isMuted]
+  );
+  const badgeKinds = useMemo(() => getPresenceBadgeKinds(presenceState), [presenceState]);
+  const tileAriaLabel = `${displayName}${participant.isSpeaking ? ', speaking' : ''}. ${getPresenceSummary(
+    presenceState
+  )}.`;
+
   // ── Tile accent color from identity hash ──────────────────────────────
   const tileAccentColor = useMemo(
     () => getColorFromIdentity(participant.identity),
@@ -133,7 +162,10 @@ export function NativeCallParticipantTile({
     <div
       className={[styles.tile, className].filter(Boolean).join(' ')}
       data-speaking={participant.isSpeaking ? 'true' : 'false'}
+      data-pinned={isPinned ? 'true' : 'false'}
       style={{ '--voice-tile-accent-color': tileAccentColor } as React.CSSProperties}
+      role="group"
+      aria-label={tileAriaLabel}
     >
       {/* ── Camera / Avatar ─────────────────────────────────────────── */}
       <div
@@ -173,9 +205,9 @@ export function NativeCallParticipantTile({
       {isLocal && <div className={styles.selfBadge}>You</div>}
 
       {/* ── Screen share badge ───────────────────────────────────────── */}
-      {hasScreenShare && (
+      {badgeKinds.includes('live') && (
         <div className={styles.screenBadge}>
-          <MonitorPlay size={11} weight="fill" />
+          <MonitorPlay size={11} weight="fill" aria-hidden="true" />
           LIVE
         </div>
       )}
@@ -204,12 +236,20 @@ export function NativeCallParticipantTile({
       {/* ── Metadata bar (hover-revealed, bottom; always shown on mobile) ── */}
       <div className={styles.metadata}>
         <span className={styles.metaName}>{displayName}</span>
-        {isMuted && (
-          <MicrophoneSlash className={styles.muteIcon} size={14} weight="fill" />
+        {badgeKinds.includes('camera') && (
+          <span className={`${styles.badgeIcon} ${styles.cameraIcon}`} title={PRESENCE_BADGE_LABEL.camera}>
+            <VideoCamera size={14} weight="fill" aria-hidden="true" />
+          </span>
         )}
-        {/* Deafen indicator: only meaningful for the local participant */}
-        {isLocal && isDeafened && (
-          <SpeakerSlash className={styles.muteIcon} size={14} weight="fill" />
+        {badgeKinds.includes('deafened') && (
+          <span className={`${styles.badgeIcon} ${styles.deafenedIcon}`} title={PRESENCE_BADGE_LABEL.deafened}>
+            <SpeakerSlash size={14} weight="fill" aria-hidden="true" />
+          </span>
+        )}
+        {badgeKinds.includes('muted') && (
+          <span className={`${styles.badgeIcon} ${styles.mutedIcon}`} title={PRESENCE_BADGE_LABEL.muted}>
+            <MicrophoneSlash size={14} weight="fill" aria-hidden="true" />
+          </span>
         )}
       </div>
     </div>

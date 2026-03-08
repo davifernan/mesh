@@ -13,6 +13,46 @@
   justify-items: center;
 }
 
+.gridSingle {
+  align-content: center;
+  justify-items: center;
+  padding: clamp(14px, 3.2vw, 32px);
+  gap: 12px;
+}
+
+.gridSingleCard {
+  position: relative;
+  width: min(100%, clamp(360px, 72vw, 860px));
+  display: grid;
+  place-items: center;
+}
+
+.gridSingleCard::before {
+  content: '';
+  position: absolute;
+  inset: auto 3.5% -10px;
+  height: 86%;
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--voice-surface-2) 74%, black);
+  opacity: 0.5;
+  transform: scale(0.985);
+  z-index: 0;
+  pointer-events: none;
+}
+
+.gridSingleCard .tile {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  height: auto;
+  aspect-ratio: 16 / 9;
+  max-height: min(62vh, 540px);
+  border-radius: 12px;
+  box-shadow:
+    0 12px 34px color-mix(in srgb, black 46%, transparent),
+    0 0 0 1px color-mix(in srgb, var(--text-primary) 7%, transparent);
+}
+
 /* Generic tile class for grid children */
 .tile {
   width: 100%;

@@ -159,16 +159,6 @@ const SpaceMenu = forwardRef<HTMLDivElement, SpaceMenuProps>(({ room, requestClo
           />
         )}
         <MenuItem
-          onClick={() => setRoomSortOrder('admin')}
-          size="300"
-          after={roomSortOrder === 'admin' ? <Icon size="100" src={Icons.Check} /> : undefined}
-          radii="300"
-        >
-          <Text style={{ flexGrow: 1 }} as="span" size="T300" truncate>
-            Admin Order
-          </Text>
-        </MenuItem>
-        <MenuItem
           onClick={() => setRoomSortOrder('activity')}
           size="300"
           after={roomSortOrder === 'activity' ? <Icon size="100" src={Icons.Check} /> : undefined}
@@ -503,55 +493,124 @@ export function Space() {
   // hoist all unread rooms from every sub-space into a single group at the top.
   // When a room becomes read, it disappears from the virtual group and returns to its sub-space.
   const VIRTUAL_UNREAD_ID = '__virtual-unread__';
+  const VIRTUAL_TEXT_SECTION_ID = '__virtual-text-section__';
+  const VIRTUAL_VOICE_SECTION_ID = '__virtual-voice-section__';
+  const isVirtualTextSection = (roomId: string) => roomId.startsWith(VIRTUAL_TEXT_SECTION_ID);
+  const isVirtualVoiceSection = (roomId: string) => roomId.startsWith(VIRTUAL_VOICE_SECTION_ID);
+
+  const addChannelSections = useCallback(
+    (items: HierarchyItem[]): HierarchyItem[] => {
+      const withSections: HierarchyItem[] = [];
+      let currentParentId = space.roomId;
+      let sectionSeed = 0;
+      let hasTextInSection = false;
+      let hasVoiceInSection = false;
+
+      items.forEach((item) => {
+        if ('space' in item && item.space) {
+          withSections.push(item);
+          currentParentId = item.roomId;
+          hasTextInSection = false;
+          hasVoiceInSection = false;
+          return;
+        }
+
+        const room = mx.getRoom(item.roomId);
+        if (!room) {
+          withSections.push(item);
+          return;
+        }
+
+        if (room.isCallRoom()) {
+          if (!hasVoiceInSection) {
+            withSections.push({
+              roomId: `${VIRTUAL_VOICE_SECTION_ID}:${currentParentId}:${sectionSeed++}`,
+              content: {},
+              ts: 0,
+              space: true,
+            } as unknown as HierarchyItem);
+            hasVoiceInSection = true;
+          }
+        } else if (!hasTextInSection) {
+          withSections.push({
+            roomId: `${VIRTUAL_TEXT_SECTION_ID}:${currentParentId}:${sectionSeed++}`,
+            content: {},
+            ts: 0,
+            space: true,
+          } as unknown as HierarchyItem);
+          hasTextInSection = true;
+        }
+
+        withSections.push(item);
+      });
+
+      return withSections;
+    },
+    [mx, space.roomId]
+  );
+
   const displayHierarchy = useMemo((): HierarchyItem[] => {
-    if (roomSortOrder !== 'unread') return hierarchy;
-    // Only activate virtual group when there's more than one space section
-    const hasSubSpaces = hierarchy.some(
-      (item) => 'space' in item && item.space && item.roomId !== space.roomId
-    );
-    if (!hasSubSpaces) return hierarchy;
+    let baseHierarchy = hierarchy;
+    if (roomSortOrder === 'unread') {
+      // Only activate virtual group when there's more than one space section
+      const hasSubSpaces = hierarchy.some(
+        (item) => 'space' in item && item.space && item.roomId !== space.roomId
+      );
+      if (hasSubSpaces) {
+        // Collect all unread non-space rooms from any sub-space
+        const unreadItems = hierarchy.filter(
+          (item) => !('space' in item && item.space) && roomToUnread.has(item.roomId)
+        );
 
-    // Collect all unread non-space rooms from any sub-space
-    const unreadItems = hierarchy.filter(
-      (item) => !('space' in item && item.space) && roomToUnread.has(item.roomId)
-    );
-    if (unreadItems.length === 0) return hierarchy;
+        if (unreadItems.length > 0) {
+          // Sort unread rooms: highlights first, then total, then activity
+          const sortFn = factoryRoomIdByUnreadFirst(
+            (id) => roomToUnread.get(id)?.highlight ?? 0,
+            (id) => roomToUnread.get(id)?.total ?? 0,
+            factoryRoomIdByActivity(mx)
+          );
+          const sortedUnread = [...unreadItems].sort((a, b) => sortFn(a.roomId, b.roomId));
+          const unreadSet = new Set(sortedUnread.map((i) => i.roomId));
 
-    // Sort unread rooms: highlights first, then total, then activity
-    const sortFn = factoryRoomIdByUnreadFirst(
-      (id) => roomToUnread.get(id)?.highlight ?? 0,
-      (id) => roomToUnread.get(id)?.total ?? 0,
-      factoryRoomIdByActivity(mx)
-    );
-    const sortedUnread = [...unreadItems].sort((a, b) => sortFn(a.roomId, b.roomId));
-    const unreadSet = new Set(sortedUnread.map((i) => i.roomId));
+          // Virtual header item — roomId is a sentinel, not a real room
+          const virtualHeader = {
+            roomId: VIRTUAL_UNREAD_ID,
+            content: {},
+            ts: 0,
+            space: true,
+          } as unknown as HierarchyItem;
 
-    // Virtual header item — roomId is a sentinel, not a real room
-    const virtualHeader = {
-      roomId: VIRTUAL_UNREAD_ID,
-      content: {},
-      ts: 0,
-      space: true,
-    } as unknown as HierarchyItem;
+          // When the virtual group is collapsed, hide its rooms too
+          const virtualGroupClosed = closedCategories.has(
+            makeNavCategoryId(space.roomId, VIRTUAL_UNREAD_ID)
+          );
 
-    // When the virtual group is collapsed, hide its rooms too
-    const virtualGroupClosed = closedCategories.has(
-      makeNavCategoryId(space.roomId, VIRTUAL_UNREAD_ID)
-    );
+          // Remaining hierarchy: keep all space headers + read rooms.
+          // Sub-space headers whose rooms are all in the virtual group still appear —
+          // rooms will bounce back to them once read.
+          const remaining = hierarchy.filter(
+            (item) => ('space' in item && item.space ? true : !unreadSet.has(item.roomId))
+          );
 
-    // Remaining hierarchy: keep all space headers + read rooms.
-    // Sub-space headers whose rooms are all in the virtual group still appear —
-    // rooms will bounce back to them once read.
-    const remaining = hierarchy.filter(
-      (item) => 'space' in item && item.space ? true : !unreadSet.has(item.roomId)
-    );
+          baseHierarchy = [
+            virtualHeader,
+            ...(virtualGroupClosed ? [] : sortedUnread),
+            ...remaining,
+          ];
+        }
+      }
+    }
 
-    return [
-      virtualHeader,
-      ...(virtualGroupClosed ? [] : sortedUnread),
-      ...remaining,
-    ];
-  }, [hierarchy, roomSortOrder, roomToUnread, mx, space.roomId, closedCategories]);
+    return addChannelSections(baseHierarchy);
+  }, [
+    hierarchy,
+    roomSortOrder,
+    roomToUnread,
+    mx,
+    space.roomId,
+    closedCategories,
+    addChannelSections,
+  ]);
 
   const virtualizer = useVirtualizer({
     count: displayHierarchy.length,
@@ -678,6 +737,24 @@ export function Space() {
                   );
                 }
 
+                if (isVirtualTextSection(roomId) || isVirtualVoiceSection(roomId)) {
+                  return (
+                    <VirtualTile
+                      virtualItem={vItem}
+                      key={vItem.key}
+                      ref={virtualizer.measureElement}
+                    >
+                      <div style={{ paddingTop: config.space.S200 }}>
+                        <NavCategoryHeader>
+                          <Text as="span" size="T200" style={{ opacity: 0.8 }}>
+                            {isVirtualVoiceSection(roomId) ? 'Voice Channels' : 'Text Channels'}
+                          </Text>
+                        </NavCategoryHeader>
+                      </div>
+                    </VirtualTile>
+                  );
+                }
+
                 const room = mx.getRoom(roomId);
                 if (!room) return null;
 
@@ -726,7 +803,7 @@ export function Space() {
           </NavCategory>
         </Box>
       </PageNavContent>
-      <CallNavStatus space={space} />
+      <CallNavStatus />
       <UserArea />
     </PageNav>
   );

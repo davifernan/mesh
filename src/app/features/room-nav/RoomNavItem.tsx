@@ -55,7 +55,7 @@ import { useRoomCreators } from '../../hooks/useRoomCreators';
 import { useRoomPermissions } from '../../hooks/useRoomPermissions';
 import { InviteUserPrompt } from '../../components/invite-user-prompt';
 import { useCallState } from '../../pages/client/call/CallProvider';
-import { SpeakerHigh } from '@phosphor-icons/react';
+import { MicrophoneSlash, SpeakerHigh, SpeakerSlash } from '@phosphor-icons/react';
 import { useCallMembers } from '../../hooks/useCallMemberships';
 import { useRoomNavigate } from '../../hooks/useRoomNavigate';
 import { RoomNavUser } from './RoomNavUser';
@@ -265,6 +265,8 @@ export function RoomNavItem({
     setActiveCallRoomId,
     setViewedCallRoomId,
     isChatOpen,
+    isAudioEnabled,
+    isDeafened,
     toggleChat,
     hangUp,
     callStatus,
@@ -462,6 +464,28 @@ export function RoomNavItem({
                   >
                     {formatCallDuration(callDuration)}
                   </span>
+                )}
+                {room.isCallRoom() && isActiveCall && (!isAudioEnabled || isDeafened) && (
+                  <Box as="span" alignItems="Center" gap="100" shrink="No">
+                    {isDeafened && (
+                      <span
+                        aria-label="Sound output muted"
+                        title="Sound output muted"
+                        style={{ color: 'var(--status-idle, #faa61a)', display: 'inline-flex' }}
+                      >
+                        <SpeakerSlash size={12} aria-hidden="true" />
+                      </span>
+                    )}
+                    {!isAudioEnabled && (
+                      <span
+                        aria-label="Microphone muted"
+                        title="Microphone muted"
+                        style={{ color: 'var(--voice-status-danger, #f23f43)', display: 'inline-flex' }}
+                      >
+                        <MicrophoneSlash size={12} aria-hidden="true" />
+                      </span>
+                    )}
+                  </Box>
                 )}
               </Box>
               {/* Speaker icon when others are in this voice channel */}

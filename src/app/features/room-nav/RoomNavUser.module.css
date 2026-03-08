@@ -4,10 +4,35 @@
 }
 
 .liveBadge {
-  background-color: #f23f43 !important;
-  color: #fff !important;
+  background-color: var(--voice-status-danger, #f23f43) !important;
+  color: var(--text-on-solid-primary, #fff) !important;
   animation: livePulse 1.5s ease-in-out infinite;
   border: none !important;
+}
+
+.speakingAvatar {
+  box-shadow: 0 0 0 2px var(--voice-status-success, #23a55a);
+  border-radius: 50%;
+  transition: box-shadow 0.15s ease;
+}
+
+.presenceIcon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0.9;
+}
+
+.cameraIcon {
+  color: var(--voice-status-success, #23a55a);
+}
+
+.deafenedIcon {
+  color: var(--status-idle, #faa61a);
+}
+
+.mutedIcon {
+  color: var(--voice-status-danger, #f23f43);
 }
 
 .liveBadgeButton {
@@ -41,16 +66,4 @@
   height: 100%;
   object-fit: cover;
   display: block;
-}
-
-.livePreviewText {
-  width: 100%;
-  height: 100%;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  color: var(--text-secondary);
-  font-size: 11px;
-  text-align: center;
-  padding: 0 8px;
 }
