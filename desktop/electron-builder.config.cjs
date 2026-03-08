@@ -147,10 +147,12 @@ module.exports = {
 			},
 		],
 		desktop: {
-			Name: productName,
-			Comment: 'Instant messaging and VoIP application',
-			Categories: 'Network;InstantMessaging;',
-			StartupWMClass: isCanary ? 'bettercord-canary' : 'bettercord',
+			entry: {
+				Name: productName,
+				Comment: 'Instant messaging and VoIP application',
+				Categories: 'Network;InstantMessaging;',
+				StartupWMClass: isCanary ? 'bettercord-canary' : 'bettercord',
+			},
 		},
 	},
 
