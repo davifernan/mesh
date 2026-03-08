@@ -146,16 +146,24 @@ export function NativeCallControlBar() {
     (deviceId: string) => {
       setUserSettings({ ...userSettings, micDeviceId: deviceId });
       setShowMicMenu(false);
+      // Apply immediately to the live call — no rejoin needed
+      if (livekitRoom) {
+        void livekitRoom.switchActiveDevice('audioinput', deviceId);
+      }
     },
-    [userSettings, setUserSettings],
+    [userSettings, setUserSettings, livekitRoom],
   );
 
   const selectCamDevice = useCallback(
     (deviceId: string) => {
       setUserSettings({ ...userSettings, cameraDeviceId: deviceId });
       setShowCamMenu(false);
+      // Apply immediately to the live call — no rejoin needed
+      if (livekitRoom) {
+        void livekitRoom.switchActiveDevice('videoinput', deviceId);
+      }
     },
-    [userSettings, setUserSettings],
+    [userSettings, setUserSettings, livekitRoom],
   );
 
   // ── Screen share handler ───────────────────────────────────────────────────

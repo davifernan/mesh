@@ -21,7 +21,7 @@ import { useMatrixClient } from '../../hooks/useMatrixClient';
 import { useClientConfig } from '../../hooks/useClientConfig';
 import { effectiveAVSettingsAtom } from '../../state/avQuality';
 import { settingsAtom } from '../../state/settings';
-import { buildLiveKitRoomOptions, buildSSCaptureOptions, type AVSettings } from './avPresets';
+import { buildLiveKitRoomOptions, buildSSCaptureOptions, buildSSPublishOptions, type AVSettings } from './avPresets';
 import { MatrixKeyProvider } from './matrixKeyProvider';
 import { getSFUConfigWithOpenID } from './sfuToken';
 
@@ -454,7 +454,8 @@ export function useNativeCall(roomId: string | null): NativeCallEngine {
     async (ssRes: string, ssFps: number, ssAudio: boolean) => {
       if (!roomRef.current) return;
       const captureOpts = buildSSCaptureOptions(ssRes, ssFps, ssAudio);
-      await roomRef.current.localParticipant.setScreenShareEnabled(true, captureOpts as any);
+      const publishOpts = buildSSPublishOptions(ssRes, ssFps);
+      await roomRef.current.localParticipant.setScreenShareEnabled(true, captureOpts as any, publishOpts);
       setIsScreenShareEnabled(true);
     },
     [],
