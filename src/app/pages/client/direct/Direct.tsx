@@ -53,6 +53,7 @@ import {
 } from '../../../hooks/useRoomsNotificationPreferences';
 import { useDirectCreateSelected } from '../../../hooks/router/useDirectSelected';
 import { CallNavStatus } from '../../../features/room-nav/RoomCallNavStatus';
+import { UserArea } from '../../../components/user-area/UserArea';
 import { useRoomListKeyboard } from '../../../hooks/useRoomListKeyboard';
 import { RoomListbox } from '../../../components/room-listbox/RoomListbox';
 import { searchModalAtom, searchModalInitialCharAtom } from '../../../state/searchModal';
@@ -138,10 +139,49 @@ function DirectHeader() {
     <>
       <PageNavHeader>
         <Box alignItems="Center" grow="Yes" gap="300">
-          <Box grow="Yes">
-            <Text size="H4" as="h1" truncate>
-              Direct Messages
-            </Text>
+          <Box grow="Yes" style={{ overflow: 'hidden' }}>
+            <div
+              style={{
+                height: '1.0625rem',
+                overflow: 'hidden',
+                display: 'flex',
+                flexDirection: 'column',
+              }}
+            >
+              <span
+                className="bc-header-title"
+                style={{
+                  flexShrink: 0,
+                  height: '1.0625rem',
+                  lineHeight: '1.0625rem',
+                  fontSize: '1rem',
+                  fontWeight: 600,
+                  color: 'var(--text-primary)',
+                  whiteSpace: 'nowrap',
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                }}
+              >
+                Direct Messages
+              </span>
+              <span
+                className="bc-header-subtitle"
+                style={{
+                  flexShrink: 0,
+                  height: '1.0625rem',
+                  lineHeight: '1.0625rem',
+                  fontSize: '0.6875rem',
+                  fontWeight: 400,
+                  color: 'var(--text-muted)',
+                  whiteSpace: 'nowrap',
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                  opacity: 0,
+                }}
+              >
+                Your conversations
+              </span>
+            </div>
           </Box>
           <Box>
             <IconButton aria-pressed={!!menuAnchor} variant="Background" onClick={handleOpenMenu}>
@@ -351,6 +391,7 @@ export function Direct() {
         </PageNavContent>
       )}
       <CallNavStatus />
+      <UserArea />
     </PageNav>
   );
 }

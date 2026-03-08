@@ -17,6 +17,7 @@ import { Permissions } from './permissions';
 import { RoomSettingsPage } from '../../state/roomSettings';
 import { useRoom } from '../../hooks/useRoom';
 import { DeveloperTools } from '../common-settings/developer-tools';
+import { RoomVoiceOverride } from './RoomVoiceOverride';
 
 type RoomSettingsMenuItem = {
   page: RoomSettingsPage;
@@ -51,6 +52,11 @@ const useRoomSettingsMenuItems = (): RoomSettingsMenuItem[] =>
         page: RoomSettingsPage.DeveloperToolsPage,
         name: 'Developer Tools',
         icon: Icons.Terminal,
+      },
+      {
+        page: RoomSettingsPage.VoicePage,
+        name: 'Voice',
+        icon: Icons.Mic,
       },
     ],
     []
@@ -166,6 +172,9 @@ export function RoomSettings({ initialPage, requestClose }: RoomSettingsProps) {
       )}
       {activePage === RoomSettingsPage.DeveloperToolsPage && (
         <DeveloperTools requestClose={handlePageRequestClose} />
+      )}
+      {activePage === RoomSettingsPage.VoicePage && (
+        <RoomVoiceOverride requestClose={handlePageRequestClose} />
       )}
     </PageRoot>
   );

@@ -1,0 +1,46 @@
+.view {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  height: 100%;
+  background: #313338;
+  position: relative;
+  overflow: hidden;
+}
+
+.statusView {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  background: #313338;
+  gap: 12px;
+  font-family: 'IBM Plex Sans', sans-serif;
+}
+
+.statusText {
+  color: #949ba4;
+  font-size: 14px;
+}
+
+.errorText {
+  color: #f23f43;
+  font-size: 14px;
+  text-align: center;
+  max-width: 320px;
+}
+
+.spinner {
+  width: 32px;
+  height: 32px;
+  border: 3px solid #35373c;
+  border-top-color: #5865f2;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}

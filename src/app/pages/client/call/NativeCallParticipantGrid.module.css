@@ -1,0 +1,36 @@
+.grid {
+  flex: 1;
+  display: grid;
+  gap: 8px;
+  padding: 12px;
+  overflow: auto;
+  align-content: start;
+  background: #313338;
+}
+
+/* Screenshare tile — same border-radius as camera tiles, 16:9 aspect */
+.screenTile {
+  position: relative;
+  border-radius: 8px;
+  overflow: hidden;
+  background: #111214;
+  aspect-ratio: 16 / 9;
+  min-height: 120px;
+  outline: 2px solid #5865f2;
+  outline-offset: -2px;
+}
+
+.screenTileLabel {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  padding: 20px 10px 7px;
+  background: linear-gradient(transparent, rgba(0,0,0,0.75));
+  font-size: 12px;
+  font-family: 'IBM Plex Sans', sans-serif;
+  color: #dbdee1;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}

@@ -98,101 +98,102 @@ export const silverTheme = createTheme(color, {
   },
 });
 
-// BetterCord: Discord color palette for dark theme
+// BetterCord: Fluxer color palette for dark theme
+// From fluxer-ui.md: bg-secondary ~7.6%, bg-secondary-lighter ~8.4%
 const darkThemeData = {
   Background: {
-    Container: '#2B2D31',         // Discord: sidebar/channel list bg
-    ContainerHover: '#35373C',   // Discord: hover state
-    ContainerActive: '#404249',  // Discord: active/selected
-    ContainerLine: '#1E1F22',    // Discord: dividers
-    OnContainer: '#DBDEE1',      // Discord: primary text
+    Container: '#121317',         // sidebar + modals (hsl(220,13%,8%))
+    ContainerHover: '#161820',
+    ContainerActive: '#1a1c26',
+    ContainerLine: '#0d0f11',     // darkest dividers (hsl(220,13%,6%))
+    OnContainer: '#e8eaf0',       // near-white text
   },
 
   Surface: {
-    Container: '#313338',         // Discord: main chat bg
-    ContainerHover: '#3A3C41',
-    ContainerActive: '#404249',
-    ContainerLine: '#232428',
-    OnContainer: '#DBDEE1',
+    Container: '#14161a',         // chat area (hsl(220,13%,9.5%))
+    ContainerHover: '#181b20',
+    ContainerActive: '#1c1f26',
+    ContainerLine: '#121317',
+    OnContainer: '#e8eaf0',
   },
 
   SurfaceVariant: {
-    Container: '#1E1F22',         // Discord: tertiary bg (guild list)
-    ContainerHover: '#25272B',
-    ContainerActive: '#2B2D31',
-    ContainerLine: '#17181A',
-    OnContainer: '#B5BAC1',
+    Container: '#0d0f11',         // deepest bg / guild list (hsl(220,13%,6%))
+    ContainerHover: '#111317',
+    ContainerActive: '#161820',
+    ContainerLine: '#090a0e',
+    OnContainer: '#9da4b5',       // muted text on dark
   },
 
   Primary: {
-    Main: '#5865F2',              // Discord brand blue/purple
-    MainHover: '#4752C4',
-    MainActive: '#3C45A5',
-    MainLine: '#3440A0',
+    Main: '#5865d5',              // Fluxer brand (hsl(242, 70%, 55%))
+    MainHover: '#4a56c2',
+    MainActive: '#3c45a5',
+    MainLine: '#3440a0',
     OnMain: '#FFFFFF',
-    Container: '#3C3F8A',
+    Container: '#3c3f8a',
     ContainerHover: '#444899',
-    ContainerActive: '#4C51A8',
-    ContainerLine: '#5459B8',
-    OnContainer: '#C9CEFF',
+    ContainerActive: '#4c51a8',
+    ContainerLine: '#5459b8',
+    OnContainer: '#c9ceff',
   },
 
   Secondary: {
-    Main: '#DBDEE1',              // Discord: primary text
-    MainHover: '#C4C9CE',
-    MainActive: '#B5BAC1',
-    MainLine: '#A1A6AF',
-    OnMain: '#1E1F22',
-    Container: '#35373C',
-    ContainerHover: '#3A3C41',
-    ContainerActive: '#404249',
-    ContainerLine: '#4E5058',
-    OnContainer: '#DBDEE1',
+    Main: '#e8eaf0',
+    MainHover: '#d0d4de',
+    MainActive: '#c0c5d0',
+    MainLine: '#b0b6c5',
+    OnMain: '#0d0f14',
+    Container: '#1a1c26',
+    ContainerHover: '#1e202e',
+    ContainerActive: '#222636',
+    ContainerLine: '#2a2e3c',
+    OnContainer: '#e8eaf0',
   },
 
   Success: {
-    Main: '#23A55A',              // Discord: online green
-    MainHover: '#1F9350',
-    MainActive: '#1C8A4A',
-    MainLine: '#198145',
+    Main: '#2ea84d',              // Fluxer: primary button = GREEN (hsl(139, 55%, 44%))
+    MainHover: '#279443',
+    MainActive: '#22863c',
+    MainLine: '#1e7535',
     OnMain: '#FFFFFF',
-    Container: '#1A4731',
-    ContainerHover: '#1E5138',
-    ContainerActive: '#225B3E',
-    ContainerLine: '#266645',
-    OnContainer: '#A0DCBB',
+    Container: '#1a3828',
+    ContainerHover: '#1e4030',
+    ContainerActive: '#224838',
+    ContainerLine: '#265040',
+    OnContainer: '#a0dcb8',
   },
 
   Warning: {
-    Main: '#F0B232',              // Discord: idle yellow
+    Main: '#F0B232',
     MainHover: '#D99E2B',
     MainActive: '#CC9529',
     MainLine: '#BF8C26',
     OnMain: '#000000',
     Container: '#4A3A15',
     ContainerHover: '#54411A',
-    ContainerActive: '#5E491E',
+    ContainerActive: '#5e491e',
     ContainerLine: '#685122',
     OnContainer: '#F5D390',
   },
 
   Critical: {
-    Main: '#F23F43',              // Discord: danger red / DND
-    MainHover: '#DA383C',
-    MainActive: '#CE3438',
-    MainLine: '#C13033',
+    Main: '#e03a3a',              // Fluxer status-danger (hsl(1, 77%, 55%))
+    MainHover: '#cb3434',
+    MainActive: '#c02e2e',
+    MainLine: '#b42b2b',
     OnMain: '#FFFFFF',
-    Container: '#5C1F21',
-    ContainerHover: '#672326',
-    ContainerActive: '#72272A',
-    ContainerLine: '#7D2B2E',
-    OnContainer: '#F9A8AA',
+    Container: '#4a1a1a',
+    ContainerHover: '#551e1e',
+    ContainerActive: '#622222',
+    ContainerLine: '#702626',
+    OnContainer: '#f5a0a0',
   },
 
   Other: {
     FocusRing: 'rgba(255, 255, 255, 0.5)',
     Shadow: 'rgba(0, 0, 0, 0.85)',
-    Overlay: 'rgba(0, 0, 0, 0.7)',
+    Overlay: 'rgba(0, 0, 0, 0.85)',
   },
 };
 

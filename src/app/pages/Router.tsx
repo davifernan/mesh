@@ -53,7 +53,7 @@ import { WelcomePage } from './client/WelcomePage';
 import { SidebarNav } from './client/SidebarNav';
 import { PageRoot } from '../components/page';
 import { ScreenSize } from '../hooks/useScreenSize';
-import { MobileFriendlyPageNav, MobileFriendlyClientNav } from './MobileFriendly';
+import { MobileFriendlyPageNav } from './MobileFriendly';
 import { ClientInitStorageAtom } from './client/ClientInitStorageAtom';
 import { ClientNonUIFeatures } from './client/ClientNonUIFeatures';
 import { AuthRouteThemeManager, UnAuthRouteThemeManager } from './ThemeManager';
@@ -74,6 +74,7 @@ import { IncomingCallNotification } from '../features/call/IncomingCallNotificat
 import { GlobalKeyboardShortcuts } from '../components/GlobalKeyboardShortcuts';
 import { getFallbackSession } from '../state/sessions';
 import { MobileBottomNav } from '../components/mobile-bottom-nav';
+import { MobileDrawerProvider, SidebarDrawerWrapper } from '../components/mobile-drawer';
 import { ElectronUpdateBanner } from '../components/electron/ElectronUpdateBanner';
 import { ElectronScreensharePicker } from '../components/electron/ElectronScreensharePicker';
 
@@ -132,12 +133,13 @@ export const createRouter = (clientConfig: ClientConfig, screenSize: ScreenSize,
                 <ClientRoomsNotificationPreferences>
                   <ClientBindAtoms>
                     <ClientNonUIFeatures>
+                      <MobileDrawerProvider>
                       <CallProvider>
                         <ClientLayout
                           nav={
-                            <MobileFriendlyClientNav>
+                            <SidebarDrawerWrapper>
                               <SidebarNav />
-                            </MobileFriendlyClientNav>
+                            </SidebarDrawerWrapper>
                           }
                         >
                           <PersistentCallContainer>
@@ -170,6 +172,7 @@ export const createRouter = (clientConfig: ClientConfig, screenSize: ScreenSize,
                       <SpaceSettingsRenderer />
                       <ReceiveSelfDeviceVerification />
                       <AutoRestoreBackupOnVerification />
+                      </MobileDrawerProvider>
                     </ClientNonUIFeatures>
                   </ClientBindAtoms>
                 </ClientRoomsNotificationPreferences>

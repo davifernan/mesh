@@ -1,0 +1,120 @@
+.overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+}
+.modal {
+  background: #2b2d31;
+  border: 1px solid #3f4147;
+  border-radius: 12px;
+  padding: 20px;
+  width: 380px;
+  max-width: 90vw;
+  font-family: 'IBM Plex Sans', sans-serif;
+}
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 20px;
+}
+.title {
+  font-size: 16px;
+  font-weight: 600;
+  color: #dbdee1;
+  margin: 0;
+}
+.closeBtn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: #949ba4;
+  padding: 0;
+  display: flex;
+}
+.closeBtn:hover { color: #dbdee1; }
+.field { margin-bottom: 16px; }
+.label {
+  display: block;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #949ba4;
+  margin-bottom: 8px;
+}
+.options { display: flex; gap: 6px; flex-wrap: wrap; }
+.option {
+  background: #35373c;
+  border: 1px solid #3f4147;
+  border-radius: 6px;
+  color: #dbdee1;
+  cursor: pointer;
+  font-size: 13px;
+  padding: 6px 12px;
+  font-family: 'IBM Plex Sans', sans-serif;
+  transition: background 80ms;
+}
+.option:hover { background: #404249; }
+.option.selected {
+  background: #5865f2;
+  border-color: #5865f2;
+  color: #fff;
+}
+.toggleField {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 20px;
+}
+.toggle {
+  width: 40px;
+  height: 22px;
+  background: #35373c;
+  border: none;
+  border-radius: 11px;
+  cursor: pointer;
+  position: relative;
+  transition: background 120ms;
+  padding: 0;
+}
+.toggle.toggleOn { background: #23A55A; }
+.toggleThumb {
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #fff;
+  transition: transform 120ms;
+}
+.toggleOn .toggleThumb { transform: translateX(18px); }
+.actions { display: flex; justify-content: flex-end; gap: 8px; }
+.cancelBtn {
+  background: #35373c;
+  border: none;
+  border-radius: 6px;
+  color: #dbdee1;
+  cursor: pointer;
+  font-size: 14px;
+  padding: 8px 16px;
+  font-family: 'IBM Plex Sans', sans-serif;
+}
+.cancelBtn:hover { background: #404249; }
+.confirmBtn {
+  background: #5865f2;
+  border: none;
+  border-radius: 6px;
+  color: #fff;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 600;
+  padding: 8px 20px;
+  font-family: 'IBM Plex Sans', sans-serif;
+}
+.confirmBtn:hover { background: #4752c4; }

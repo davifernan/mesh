@@ -86,11 +86,11 @@ export const SidebarItem = recipe({
         },
         '&::before': {
           content: '',
-          display: 'none',
+          display: 'block',
           position: 'absolute',
           left: toRem(-11.5 - PUSH_X),
           width: toRem(3 + PUSH_X),
-          height: toRem(16),
+          height: toRem(8),
           borderRadius: `0 ${toRem(4)} ${toRem(4)} 0`,
           background: 'CurrentColor',
           transition: 'height 200ms linear',
@@ -98,6 +98,7 @@ export const SidebarItem = recipe({
         '&:hover::before': {
           display: 'block',
           width: toRem(3),
+          height: toRem(16),
         },
       },
     },
@@ -155,7 +156,7 @@ export const SidebarAvatar = recipe({
     {
       // Discord squircle: circle → squircle on hover/active
       borderRadius: '50%',
-      transition: 'border-radius 150ms ease-out, background-color 150ms ease-out, color 150ms ease-out',
+      transition: 'border-radius 70ms ease-out, background-color 70ms ease-out, color 70ms ease-out',
       backgroundColor: 'var(--background-primary)',
       color: 'var(--text-secondary)',
       display: 'flex',

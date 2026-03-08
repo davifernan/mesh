@@ -23,6 +23,10 @@ export const Reply = style({
   minWidth: 0,
   maxWidth: '100%',
   minHeight: config.lineHeight.T300,
+  borderLeft: `var(--message-reply-spine-width) solid var(--message-reply-color)`,
+  borderRadius: `0 var(--message-reply-spine-radius) var(--message-reply-spine-radius) 0`,
+  paddingLeft: `var(--message-reply-spacing)`,
+  backgroundColor: 'var(--message-reply-bg)',
   selectors: {
     'button&': {
       cursor: 'pointer',

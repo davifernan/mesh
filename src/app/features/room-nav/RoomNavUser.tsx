@@ -1,4 +1,4 @@
-import { Avatar, Badge, Box, Icon, Icons, Text } from 'folds';
+import { Avatar, Badge, Box, Icon, Icons, Text, Tooltip, TooltipProvider } from 'folds';
 import React from 'react';
 import { Room } from 'matrix-js-sdk';
 import { MicrophoneSlash, VideoCamera } from '@phosphor-icons/react';
@@ -11,6 +11,7 @@ import { getMemberAvatarMxc, getMemberDisplayName } from '../../utils/room';
 import { useMediaAuthentication } from '../../hooks/useMediaAuthentication';
 import { useOpenUserRoomProfile } from '../../state/hooks/userRoomProfile';
 import { useSpaceOptionally } from '../../hooks/useSpace';
+import styles from './RoomNavUser.module.css';
 
 type RoomNavUserProps = {
   room: Room;
@@ -21,27 +22,35 @@ export function RoomNavUser({ room, userId }: RoomNavUserProps) {
   const useAuthentication = useMediaAuthentication();
   const openProfile = useOpenUserRoomProfile();
   const space = useSpaceOptionally();
-  const { activeCallRoomId, speakingUsers, participantStates, screensharingUsers } = useCallState();
-  // Use activeCallRoomId directly — don't gate on isActiveCallReady which can
-  // miss the io.element.join event due to a registration race condition.
+  const { activeCallRoomId, setActiveCallRoomId, speakingUsers, remoteParticipantStates } =
+    useCallState();
   const isActiveCall = activeCallRoomId === room.roomId;
   const avatarMxcUrl = getMemberAvatarMxc(room, userId);
   const avatarUrl = avatarMxcUrl
     ? mx.mxcUrlToHttp(avatarMxcUrl, 32, 32, 'crop', undefined, false, useAuthentication)
     : undefined;
   const getName = getMemberDisplayName(room, userId) ?? getMxIdLocalPart(userId);
-  const isCallParticipant = isActiveCall && userId !== mx.getUserId();
   const isSpeaking = isActiveCall && speakingUsers.has(userId);
-  const pState = participantStates.get(userId);
+
+  const pState = isActiveCall ? remoteParticipantStates.get(userId) : undefined;
   const isAudioMuted = isActiveCall && pState !== undefined && !pState.audioEnabled;
   const hasVideo = isActiveCall && pState !== undefined && pState.videoEnabled;
-  const isScreensharing = isActiveCall && screensharingUsers.has(userId);
+  const isScreensharing = isActiveCall && pState !== undefined && pState.isScreenSharing;
 
   const handleNavUserClick: React.MouseEventHandler<HTMLButtonElement> = (evt) => {
     openProfile(room.roomId, space?.roomId, userId, evt.currentTarget.getBoundingClientRect());
   };
 
-  const ariaLabel = isCallParticipant ? `Call Participant: ${getName}` : getName;
+  const handleLiveBadgeClick: React.MouseEventHandler<HTMLButtonElement> = (evt) => {
+    evt.stopPropagation();
+    if (activeCallRoomId === room.roomId) {
+      // Already watching this call — do nothing
+      return;
+    }
+    setActiveCallRoomId(room.roomId, true);
+  };
+
+  const ariaLabel = `${getName}${isSpeaking ? ' (speaking)' : ''}`;
 
   return (
     <NavItem variant="Background" radii="400">
@@ -53,7 +62,11 @@ export function RoomNavUser({ room, userId }: RoomNavUserProps) {
                 size="200"
                 style={
                   isSpeaking
-                    ? { boxShadow: '0 0 0 2px #23a55a', borderRadius: '50%', transition: 'box-shadow 0.15s ease' }
+                    ? {
+                        boxShadow: '0 0 0 2px #23a55a',
+                        borderRadius: '50%',
+                        transition: 'box-shadow 0.15s ease',
+                      }
                     : { transition: 'box-shadow 0.15s ease' }
                 }
               >
@@ -69,9 +82,40 @@ export function RoomNavUser({ room, userId }: RoomNavUserProps) {
               </Text>
               <Box alignItems="Center" gap="100" shrink="No">
                 {isScreensharing && (
-                  <Badge size="300" variant="Success" fill="Soft" radii="Pill">
-                    <Text as="span" size="L400" style={{ fontSize: '9px', fontWeight: 700, letterSpacing: '0.04em' }}>LIVE</Text>
-                  </Badge>
+                  <TooltipProvider
+                    position="Top"
+                    offset={4}
+                    tooltip={
+                      <Tooltip>
+                        <Text>Watching stream</Text>
+                      </Tooltip>
+                    }
+                  >
+                    {(triggerRef) => (
+                      <button
+                        ref={triggerRef as React.RefCallback<HTMLButtonElement>}
+                        type="button"
+                        className={styles.liveBadgeButton}
+                        onClick={handleLiveBadgeClick}
+                        aria-label="Watch stream"
+                      >
+                        <Badge
+                          size="300"
+                          fill="Soft"
+                          radii="Pill"
+                          className={styles.liveBadge}
+                        >
+                          <Text
+                            as="span"
+                            size="L400"
+                            style={{ fontSize: '9px', fontWeight: 700, letterSpacing: '0.04em' }}
+                          >
+                            LIVE
+                          </Text>
+                        </Badge>
+                      </button>
+                    )}
+                  </TooltipProvider>
                 )}
                 {isAudioMuted && (
                   <MicrophoneSlash size={12} style={{ color: '#f23f43', opacity: 0.85 }} />

@@ -28,7 +28,7 @@ import {
   TooltipProvider,
   config,
 } from 'folds';
-import { MatrixClient, Room, RoomMember } from 'matrix-js-sdk';
+import { MatrixClient, Room, RoomMember, UserEvent } from 'matrix-js-sdk';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import classNames from 'classnames';
 
@@ -59,9 +59,37 @@ import { MemberSortMenu } from '../../components/MemberSortMenu';
 import { useOpenUserRoomProfile, useUserRoomProfileState } from '../../state/hooks/userRoomProfile';
 import { useSpaceOptionally } from '../../hooks/useSpace';
 import { ContainerColor } from '../../styles/ContainerColor.css';
-import { useFlattenPowerTagMembers, useGetMemberPowerTag } from '../../hooks/useMemberPowerTag';
+import { useGetMemberPowerTag } from '../../hooks/useMemberPowerTag';
 import { useRoomCreators } from '../../hooks/useRoomCreators';
 import { isKeyHotkey } from 'is-hotkey';
+import { Presence } from '../../hooks/useUserPresence';
+
+// Discriminated union for the virtualizer items list.
+// MemberPowerTag has `name` and no `userId`; RoomMember has `userId`.
+// PresenceSectionHeader has `__presenceHeader` to distinguish it.
+type PresenceSectionHeader = {
+  __presenceHeader: true;
+  label: string;
+  count: number;
+};
+
+function isPresenceHeader(
+  item: PresenceSectionHeader | object
+): item is PresenceSectionHeader {
+  return '__presenceHeader' in item && (item as PresenceSectionHeader).__presenceHeader === true;
+}
+
+function getMemberPresence(mx: MatrixClient, userId: string): Presence {
+  const user = mx.getUser(userId);
+  const p = user?.presence as string | undefined;
+  if (p === 'online') return Presence.Online;
+  if (p === 'unavailable') return Presence.Unavailable;
+  return Presence.Offline;
+}
+
+function isOnline(p: Presence): boolean {
+  return p === Presence.Online || p === Presence.Unavailable;
+}
 
 type MemberDrawerHeaderProps = {
   room: Room;
@@ -244,10 +272,74 @@ export function MembersDrawer({ room, members, width = 266, isFullWidth, onToggl
 
   const processMembers = result ? result.items : filteredMembers;
 
-  const PLTagOrRoomMember = useFlattenPowerTagMembers(processMembers, getPowerTag);
+  // Subscribe to presence changes so the list re-groups when presence updates.
+  const [presenceTick, setPresenceTick] = useState(0);
+  useEffect(() => {
+    const handler = () => setPresenceTick((t) => t + 1);
+    processMembers.forEach((m) => {
+      const user = mx.getUser(m.userId);
+      user?.on(UserEvent.Presence, handler);
+      user?.on(UserEvent.CurrentlyActive, handler);
+    });
+    return () => {
+      processMembers.forEach((m) => {
+        const user = mx.getUser(m.userId);
+        user?.removeListener(UserEvent.Presence, handler);
+        user?.removeListener(UserEvent.CurrentlyActive, handler);
+      });
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mx, processMembers]);
+
+  // Build online/offline grouped virtualizer list.
+  // Each group: section header → power-tag-flattened members.
+  const groupedVirtualItems = useMemo(() => {
+    // Force re-compute when presenceTick changes
+    void presenceTick;
+    const online: RoomMember[] = [];
+    const offline: RoomMember[] = [];
+    processMembers.forEach((m) => {
+      const p = getMemberPresence(mx, m.userId);
+      if (isOnline(p)) online.push(m);
+      else offline.push(m);
+    });
+
+    const onlineFlat = (() => {
+      let prevTag: ReturnType<typeof getPowerTag> | undefined;
+      const items: Array<PresenceSectionHeader | ReturnType<typeof getPowerTag> | RoomMember> = [];
+      // Insert online header first
+      items.push({ __presenceHeader: true, label: 'ONLINE', count: online.length } as PresenceSectionHeader);
+      online.forEach((m) => {
+        const tag = getPowerTag(m.userId);
+        if (tag !== prevTag) {
+          prevTag = tag;
+          items.push(tag);
+        }
+        items.push(m);
+      });
+      return items;
+    })();
+
+    const offlineFlat = (() => {
+      let prevTag: ReturnType<typeof getPowerTag> | undefined;
+      const items: Array<PresenceSectionHeader | ReturnType<typeof getPowerTag> | RoomMember> = [];
+      items.push({ __presenceHeader: true, label: 'OFFLINE', count: offline.length } as PresenceSectionHeader);
+      offline.forEach((m) => {
+        const tag = getPowerTag(m.userId);
+        if (tag !== prevTag) {
+          prevTag = tag;
+          items.push(tag);
+        }
+        items.push(m);
+      });
+      return items;
+    })();
+
+    return [...onlineFlat, ...offlineFlat];
+  }, [mx, processMembers, getPowerTag, presenceTick]);
 
   const virtualizer = useVirtualizer({
-    count: PLTagOrRoomMember.length,
+    count: groupedVirtualItems.length,
     getScrollElement: () => scrollRef.current,
     estimateSize: () => 40,
     overscan: 10,
@@ -271,29 +363,29 @@ export function MembersDrawer({ room, members, width = 266, isFullWidth, onToggl
     openUserRoomProfile(room.roomId, space?.roomId, userId, btn.getBoundingClientRect(), 'Left');
   };
 
-  // Keyboard navigation: only member items (skip power-tag label rows).
+  // Keyboard navigation: only member items (skip power-tag label rows and presence headers).
   const memberIndices = useMemo(
     () =>
-      PLTagOrRoomMember.reduce<number[]>((acc, item, i) => {
-        if ('userId' in item) acc.push(i);
+      groupedVirtualItems.reduce<number[]>((acc, item, i) => {
+        if ('userId' in item && !isPresenceHeader(item)) acc.push(i);
         return acc;
       }, []),
-    [PLTagOrRoomMember]
+    [groupedVirtualItems]
   );
   const [focusedVirtIndex, setFocusedVirtIndex] = useState(-1);
 
   // Keep focusedVirtIndex valid when list shrinks (e.g. search filter).
   useEffect(() => {
-    if (focusedVirtIndex >= PLTagOrRoomMember.length) setFocusedVirtIndex(-1);
-  }, [PLTagOrRoomMember.length, focusedVirtIndex]);
+    if (focusedVirtIndex >= groupedVirtualItems.length) setFocusedVirtIndex(-1);
+  }, [groupedVirtualItems.length, focusedVirtIndex]);
 
   const focusMember = useCallback(
     (idx: number) => {
       setFocusedVirtIndex(idx);
       virtualizer.scrollToIndex(idx, { align: 'auto' });
-      const member = PLTagOrRoomMember[idx];
-      if (member && 'userId' in member) {
-        const { userId } = member;
+      const member = groupedVirtualItems[idx];
+      if (member && 'userId' in member && !isPresenceHeader(member)) {
+        const { userId } = member as RoomMember;
         requestAnimationFrame(() =>
           requestAnimationFrame(() => {
             const btn = document.querySelector<HTMLElement>(`[data-user-id="${userId}"]`);
@@ -302,7 +394,7 @@ export function MembersDrawer({ room, members, width = 266, isFullWidth, onToggl
         );
       }
     },
-    [PLTagOrRoomMember, virtualizer]
+    [groupedVirtualItems, virtualizer]
   );
 
   const handleListKeyDown: KeyboardEventHandler<HTMLDivElement> = useCallback(
@@ -320,8 +412,8 @@ export function MembersDrawer({ room, members, width = 266, isFullWidth, onToggl
 
       if (isDown || isUp || isHome || isEnd) {
         evt.preventDefault();
-        const currentIdx = PLTagOrRoomMember.findIndex(
-          (m) => 'userId' in m && m.userId === currentUserId
+        const currentIdx = groupedVirtualItems.findIndex(
+          (m) => 'userId' in m && !isPresenceHeader(m) && (m as RoomMember).userId === currentUserId
         );
         const currentPos = currentIdx >= 0 ? memberIndices.indexOf(currentIdx) : -1;
         let nextPos: number;
@@ -349,7 +441,7 @@ export function MembersDrawer({ room, members, width = 266, isFullWidth, onToggl
         }
       }
     },
-    [memberIndices, PLTagOrRoomMember, focusMember]
+    [memberIndices, groupedVirtualItems, focusMember]
   );
 
   return (
@@ -512,15 +604,38 @@ export function MembersDrawer({ room, members, width = 266, isFullWidth, onToggl
                   // Sync focusedVirtIndex when any member button receives focus.
                   const userId = (evt.target as HTMLElement).getAttribute('data-user-id');
                   if (!userId) return;
-                  const idx = PLTagOrRoomMember.findIndex(
-                    (m) => 'userId' in m && m.userId === userId
+                  const idx = groupedVirtualItems.findIndex(
+                    (m) => 'userId' in m && !isPresenceHeader(m) && (m as RoomMember).userId === userId
                   );
                   if (idx >= 0) setFocusedVirtIndex(idx);
                 }}
                 style={{ position: 'relative', height: virtualizer.getTotalSize() }}
               >
                 {virtualizer.getVirtualItems().map((vItem) => {
-                  const tagOrMember = PLTagOrRoomMember[vItem.index];
+                  const tagOrMember = groupedVirtualItems[vItem.index];
+
+                  // Presence section header (ONLINE / OFFLINE)
+                  if (isPresenceHeader(tagOrMember)) {
+                    const presenceColor =
+                      tagOrMember.label === 'ONLINE' ? '#23a55a' : '#747f8d';
+                    return (
+                      <Text
+                        style={{
+                          transform: `translateY(${vItem.start}px)`,
+                          color: presenceColor,
+                        }}
+                        data-index={vItem.index}
+                        ref={virtualizer.measureElement}
+                        key={`${room.roomId}-presence-${tagOrMember.label}`}
+                        className={classNames(css.MembersGroupLabel, css.DrawerVirtualItem)}
+                        size="L400"
+                      >
+                        {`${tagOrMember.label} — ${tagOrMember.count}`}
+                      </Text>
+                    );
+                  }
+
+                  // Power-tag / role section header
                   if (!('userId' in tagOrMember)) {
                     return (
                       <Text
@@ -538,6 +653,7 @@ export function MembersDrawer({ room, members, width = 266, isFullWidth, onToggl
                     );
                   }
 
+                  const member = tagOrMember as RoomMember;
                   const isFocused = focusedVirtIndex === vItem.index;
                   // Roving tabindex: first member starts as tabIndex=0 (Tab entry point),
                   // then whichever member last had focus keeps tabIndex=0.
@@ -552,21 +668,21 @@ export function MembersDrawer({ room, members, width = 266, isFullWidth, onToggl
                       }}
                       className={css.DrawerVirtualItem}
                       data-index={vItem.index}
-                      key={`${room.roomId}-${tagOrMember.userId}`}
+                      key={`${room.roomId}-${member.userId}`}
                       ref={virtualizer.measureElement}
                     >
                       <MemberItem
                         mx={mx}
                         useAuthentication={useAuthentication}
                         room={room}
-                        member={tagOrMember}
+                        member={member}
                         onClick={handleMemberClick}
-                        pressed={openProfileUserId === tagOrMember.userId}
+                        pressed={openProfileUserId === member.userId}
                         typing={typingMembers.some(
-                          (receipt) => receipt.userId === tagOrMember.userId
+                          (receipt) => receipt.userId === member.userId
                         )}
                         focused={isFocused}
-                        optionId={`member-option-${tagOrMember.userId}`}
+                        optionId={`member-option-${member.userId}`}
                         tabIndex={memberTabIndex}
                       />
                     </div>

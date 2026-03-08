@@ -8,6 +8,7 @@ import { useAtomValue } from 'jotai';
 import { effectiveAVSettingsAtom } from '../../../state/avQuality';
 import { SequenceCard } from '../../../components/sequence-card';
 import { SequenceCardStyle } from '../styles.css';
+import { PTTKeyBind } from './PTTKeyBind';
 
 type ChipRowProps<T extends string | number> = {
   options: T[];
@@ -289,6 +290,9 @@ export function VoiceVideo({ requestClose }: VoiceVideoProps) {
   const [ssFps, setSSFps] = useSetting(settingsAtom, 'ssFps');
   const [ssAudio, setSSAudio] = useSetting(settingsAtom, 'ssAudio');
 
+  const [voiceActivityMode, setVoiceActivityMode] = useSetting(settingsAtom, 'voiceActivityMode');
+  const [receiveVideoQuality, setReceiveVideoQuality] = useSetting(settingsAtom, 'receiveVideoQuality');
+
   const serverLimitsAudio = effective.serverMaxAudioBitrate < 510;
   const serverLimitsVideo =
     effective.serverMaxVideoResolution !== '2160p' || effective.serverMaxVideoFps < 120;
@@ -418,6 +422,60 @@ export function VoiceVideo({ requestClose }: VoiceVideoProps) {
           </SequenceCard>
         </Box>
 
+        {/* Voice Activity */}
+        <Box direction="Column" gap="200" style={{ marginTop: config.space.S500 }}>
+          <Text size="L400" priority="300">
+            VOICE ACTIVITY
+          </Text>
+          <Box gap="200" wrap="Wrap">
+            <button
+              type="button"
+              onClick={() => setVoiceActivityMode('vad')}
+              style={{
+                flex: '1 1 200px',
+                background: voiceActivityMode === 'vad' ? 'var(--bg-surface-low, #1e1f22)' : 'transparent',
+                border: `2px solid ${voiceActivityMode === 'vad' ? 'var(--brand-primary, #5865f2)' : 'var(--background-modifier-accent, #3a3c40)'}`,
+                borderRadius: '8px',
+                padding: '12px 16px',
+                textAlign: 'left',
+                cursor: 'pointer',
+                color: 'inherit',
+              }}
+              aria-pressed={voiceActivityMode === 'vad'}
+            >
+              <Text size="T300" style={{ fontWeight: 600, display: 'block', marginBottom: '4px' }}>
+                Voice Activity Detection
+              </Text>
+              <Text size="T200" priority="300">
+                Automatically detect when you&apos;re speaking
+              </Text>
+            </button>
+            <button
+              type="button"
+              onClick={() => setVoiceActivityMode('ptt')}
+              style={{
+                flex: '1 1 200px',
+                background: voiceActivityMode === 'ptt' ? 'var(--bg-surface-low, #1e1f22)' : 'transparent',
+                border: `2px solid ${voiceActivityMode === 'ptt' ? 'var(--brand-primary, #5865f2)' : 'var(--background-modifier-accent, #3a3c40)'}`,
+                borderRadius: '8px',
+                padding: '12px 16px',
+                textAlign: 'left',
+                cursor: 'pointer',
+                color: 'inherit',
+              }}
+              aria-pressed={voiceActivityMode === 'ptt'}
+            >
+              <Text size="T300" style={{ fontWeight: 600, display: 'block', marginBottom: '4px' }}>
+                Push to Talk
+              </Text>
+              <Text size="T200" priority="300">
+                Hold a key to speak
+              </Text>
+            </button>
+          </Box>
+          {voiceActivityMode === 'ptt' && <PTTKeyBind />}
+        </Box>
+
         <Box direction="Column" gap="200" style={{ marginTop: config.space.S500 }}>
           <Text size="L400" priority="300">
             CAMERA
@@ -448,6 +506,27 @@ export function VoiceVideo({ requestClose }: VoiceVideoProps) {
                   onChange={setVideoFps}
                   labels={{ 15: '15 fps', 24: '24 fps', 30: '30 fps', 60: '60 fps', 120: '120 fps' }}
                   serverMax={serverLimitsVideo ? `${effective.serverMaxVideoFps} fps` : undefined}
+                />
+              }
+            />
+          </SequenceCard>
+        </Box>
+
+        {/* Receive Quality */}
+        <Box direction="Column" gap="200" style={{ marginTop: config.space.S500 }}>
+          <Text size="L400" priority="300">
+            RECEIVE QUALITY
+          </Text>
+          <SequenceCard className={SequenceCardStyle}>
+            <SettingTile
+              title="Incoming Video Quality"
+              description="Quality at which you receive video from other participants."
+              after={
+                <ChipRow<'auto' | 'high' | 'medium' | 'low'>
+                  options={['auto', 'high', 'medium', 'low']}
+                  value={receiveVideoQuality}
+                  onChange={setReceiveVideoQuality}
+                  labels={{ auto: 'Auto', high: 'High', medium: 'Medium', low: 'Low' }}
                 />
               }
             />

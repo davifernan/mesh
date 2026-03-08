@@ -7,9 +7,9 @@ type ClientLayoutProps = {
 };
 export function ClientLayout({ nav, children }: ClientLayoutProps) {
   return (
-    <Box grow="Yes">
+    <Box grow="Yes" className="bc-app-shell">
       <Box shrink="No">{nav}</Box>
-      <Box grow="Yes">{children}</Box>
+      <Box grow="Yes" className="bc-content">{children}</Box>
     </Box>
   );
 }

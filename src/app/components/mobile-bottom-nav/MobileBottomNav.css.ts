@@ -37,10 +37,20 @@ export const Tab = style({
 });
 
 export const TabActive = style({
-  color: 'var(--brand-primary, #4641D9)',
+  // Fluxer spec: active tab = --text-primary (near-white), NOT brand color
+  color: 'var(--text-primary)',
 });
 
 export const TabLabel = style({
   fontSize: toRem(10),
   lineHeight: toRem(12),
+});
+
+/** Reset button defaults so ButtonTab matches NavTab appearance */
+export const ButtonTab = style({
+  background: 'none',
+  border: 'none',
+  padding: 0,
+  cursor: 'pointer',
+  WebkitTapHighlightColor: 'transparent',
 });

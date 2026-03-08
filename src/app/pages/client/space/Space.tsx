@@ -25,6 +25,7 @@ import {
   config,
   toRem,
 } from 'folds';
+import { CaretDown } from '@phosphor-icons/react';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { JoinRule, Room } from 'matrix-js-sdk';
 import { RoomJoinRulesEventContent } from 'matrix-js-sdk/lib/types';
@@ -78,6 +79,7 @@ import {
   useRoomsNotificationPreferencesContext,
 } from '../../../hooks/useRoomsNotificationPreferences';
 import { CallNavStatus } from '../../../features/room-nav/RoomCallNavStatus';
+import { UserArea } from '../../../components/user-area/UserArea';
 import { useRoomListKeyboard } from '../../../hooks/useRoomListKeyboard';
 import { RoomListbox } from '../../../components/room-listbox/RoomListbox';
 import { searchModalAtom, searchModalInitialCharAtom } from '../../../state/searchModal';
@@ -89,6 +91,7 @@ import { ContainerColor } from '../../../styles/ContainerColor.css';
 import { AsyncStatus, useAsyncCallback } from '../../../hooks/useAsyncCallback';
 import { BreakWord } from '../../../styles/Text.css';
 import { InviteUserPrompt } from '../../../components/invite-user-prompt';
+import * as css from './Space.css';
 
 type SpaceMenuProps = {
   room: Room;
@@ -312,17 +315,18 @@ function SpaceHeader() {
     <>
       <PageNavHeader>
         <Box alignItems="Center" grow="Yes" gap="300">
-          <Box grow="Yes" alignItems="Center" gap="100">
-            <Text size="H4" as="h1" truncate>
-              {spaceName}
-            </Text>
+          <button
+            className={css.headerBtn}
+            onClick={handleOpenMenu}
+            aria-expanded={!!menuAnchor}
+          >
+            <div className={css.headerTextStack}>
+              <span className={css.headerTitle}>{spaceName}</span>
+              <span className={css.headerSubtitle}>Space Settings</span>
+            </div>
             {joinRules?.join_rule !== JoinRule.Public && <Icon src={Icons.Lock} size="50" />}
-          </Box>
-          <Box shrink="No">
-            <IconButton aria-pressed={!!menuAnchor} variant="Background" onClick={handleOpenMenu}>
-              <Icon src={Icons.VerticalDots} size="200" />
-            </IconButton>
-          </Box>
+            <CaretDown size={14} weight="bold" style={{ flexShrink: 0 }} />
+          </button>
         </Box>
       </PageNavHeader>
       {menuAnchor && (
@@ -723,6 +727,7 @@ export function Space() {
         </Box>
       </PageNavContent>
       <CallNavStatus space={space} />
+      <UserArea />
     </PageNav>
   );
 }

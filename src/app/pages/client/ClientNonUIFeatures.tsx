@@ -1,7 +1,7 @@
 import { useAtomValue } from 'jotai';
 import React, { ReactNode, useCallback, useEffect, useMemo, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { getAppPathFromHref, getOriginBaseUrl } from '../pathUtils';
+import { PWABadge, ElectronDeepLink, PTTElectronShortcut } from './ClientNonUIFeaturesPTT';
 import { MatrixEvent, Room, RoomEvent, RoomEventHandlerMap } from 'matrix-js-sdk';
 import { roomToUnreadAtom, unreadEqual, unreadInfoToUnread } from '../../state/room/roomToUnread';
 import LogoSVG from '../../../../public/res/svg/cinny.svg';
@@ -570,45 +570,6 @@ function ElectronZoom() {
   return null;
 }
 
-/**
- * Handles deep-link URLs arriving from the Electron main process.
- * Strips the custom protocol prefix and navigates to the in-app path.
- * e.g. bettercord://app/home → /home
- */
-function ElectronDeepLink() {
-  const navigate = useNavigate();
-
-  const handleDeepLinkUrl = useCallback(
-    (url: string) => {
-      try {
-        // bettercord://app/some/path → /some/path
-        const parsed = new URL(url);
-        const path = `/${parsed.host}${parsed.pathname}${parsed.search}${parsed.hash}`.replace(/^\/app/, '');
-        if (path) navigate(path);
-      } catch {
-        // Fallback: try treating it as a normal URL and extract the app path
-        const appPath = getAppPathFromHref(getOriginBaseUrl(), url);
-        if (appPath && appPath !== '/') navigate(appPath);
-      }
-    },
-    [navigate],
-  );
-
-  useEffect(() => {
-    const electron = window.electron;
-    if (!electron) return;
-
-    // Handle the URL that launched the app (if any)
-    electron.getInitialDeepLink().then((url) => {
-      if (url) handleDeepLinkUrl(url);
-    }).catch(() => {});
-
-    // Subscribe to future deep-link events
-    return electron.onDeepLink(handleDeepLinkUrl);
-  }, [handleDeepLinkUrl]);
-
-  return null;
-}
 
 /**
  * Keeps the Electron dock/taskbar badge count in sync with total unread count.
@@ -643,8 +604,10 @@ export function ClientNonUIFeatures({ children }: ClientNonUIFeaturesProps) {
       <PageZoomFeature />
       <FaviconUpdater />
       <ElectronBadgeCount />
+      {!window.electron && <PWABadge />}
       <ElectronZoom />
       <ElectronDeepLink />
+      <PTTElectronShortcut />
       <InviteNotifications />
       <MessageNotifications />
       <InboxUnreadNotifications />

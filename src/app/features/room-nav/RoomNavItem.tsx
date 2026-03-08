@@ -254,7 +254,6 @@ export function RoomNavItem({
 
   const {
     activeCallRoomId,
-    isActiveCallReady,
     setActiveCallRoomId,
     setViewedCallRoomId,
     isChatOpen,

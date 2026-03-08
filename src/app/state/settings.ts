@@ -66,6 +66,13 @@ export interface Settings {
   ssFps: 5 | 15 | 30 | 60 | 120;
   ssAudio: boolean;
 
+  // Voice activity
+  voiceActivityMode: 'vad' | 'ptt';
+  pttKey: string | null;
+
+  // Receive quality
+  receiveVideoQuality: 'auto' | 'high' | 'medium' | 'low';
+
   hour24Clock: boolean;
   dateFormatString: string;
 
@@ -122,6 +129,10 @@ const defaultSettings: Settings = {
   ssResolution: '720p',
   ssFps: 15,
   ssAudio: false,
+
+  voiceActivityMode: 'vad',
+  pttKey: null,
+  receiveVideoQuality: 'auto',
 
   hour24Clock: false,
   dateFormatString: 'D MMM YYYY',
