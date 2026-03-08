@@ -1,6 +1,6 @@
 # BetterCord — Entwicklungsplan
 
-> **Basis:** Cinny (Wally-Fork) — Matrix + E2EE + Element Call bereits integriert
+> **Basis:** Cinny-Fork — Matrix + E2EE vorhanden, Voice-Layer jetzt nativ via MatrixRTC + LiveKit in BetterCord
 > **Ziel:** Fluxer/Discord UI 1:1, mit Admin-seitigen A/V-Quality-Controls + PWA
 > **Repo:** https://github.com/davifernan/BetterCord (privat)
 
@@ -1631,4 +1631,4 @@ Details:
 ---
 
 *BetterCord — Matrix trifft Discord-UI*
-*Basis: Cinny (Wally-Fork) | davifernan/BetterCord*
+*Basis: Cinny-Fork | davifernan/BetterCord*

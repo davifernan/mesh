@@ -512,48 +512,6 @@ export function CallNavStatus() {
           </button>
         </div>
 
-        {/* Voice channel member list with state badges */}
-        {isConnected && memberListData.length > 0 && (
-          <div className={css.MemberList}>
-            {memberListData.map(({
-              userId, displayName, httpUrl, initials,
-              isMicMuted, isCameraOn, isSharing, isUserDeafened, isSpeaking,
-            }) => (
-              <div key={userId} className={css.MemberRow} title={displayName}>
-                {/* Avatar with speaking ring */}
-                <div className={`${css.MemberAvatar}${isSpeaking ? ` ${css.MemberAvatarSpeaking}` : ''}`}>
-                  {httpUrl ? (
-                    <img src={httpUrl} alt={displayName} className={css.MemberAvatarImg} />
-                  ) : (
-                    <div className={css.MemberAvatarInitials}>{initials || '?'}</div>
-                  )}
-                </div>
-
-                {/* Display name */}
-                <span className={`${css.MemberName}${isSpeaking ? ` ${css.MemberNameSpeaking}` : ''}`}>
-                  {displayName}
-                </span>
-
-                {/* State badges: LIVE | camera | deafen | muted */}
-                <div className={css.MemberBadges}>
-                  {isSharing && (
-                    <span className={css.LiveBadge}>LIVE</span>
-                  )}
-                  {isCameraOn && (
-                    <VideoCamera size={12} weight="fill" className={css.BadgeCamera} />
-                  )}
-                  {isUserDeafened && (
-                    <SpeakerSlash size={12} weight="fill" className={css.BadgeDeafened} />
-                  )}
-                  {isMicMuted && (
-                    <MicrophoneSlash size={12} weight="fill" className={css.BadgeMuted} />
-                  )}
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-
         {/* Media section: mute + video + screenshare (3-column grid) */}
         <div className={css.MediaSection} style={{ gridTemplateColumns: 'repeat(3, 1fr)' }}>
           <TooltipProvider

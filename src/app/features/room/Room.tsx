@@ -130,9 +130,9 @@ export function Room() {
 
   useEffect(() => {
     const name = room.name || room.roomId;
-    document.title = `${name} – Wally`;
+    document.title = `${name} – BetterCord`;
     return () => {
-      document.title = 'Wally';
+      document.title = 'BetterCord';
     };
   }, [room.name, room.roomId]);
 

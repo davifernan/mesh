@@ -191,6 +191,35 @@ function ScreenShareTile({
       if (!pc) return;
 
       void pc.getStats().then((report) => {
+        const matchingTrackStats = new Set<string>();
+        const matchingMediaSourceStats = new Set<string>();
+
+        if (localTrackId) {
+          report.forEach((stat) => {
+            const s = stat as RTCStats & {
+              kind?: string;
+              trackIdentifier?: string;
+            };
+            const statType = (s as any).type as string | undefined;
+
+            if (
+              statType === 'track' &&
+              s.kind === 'video' &&
+              s.trackIdentifier === localTrackId
+            ) {
+              matchingTrackStats.add(s.id);
+            }
+
+            if (
+              statType === 'media-source' &&
+              s.kind === 'video' &&
+              s.trackIdentifier === localTrackId
+            ) {
+              matchingMediaSourceStats.add(s.id);
+            }
+          });
+        }
+
         let bestBytes = -1;
         let bestWidth: number | null = null;
         let bestHeight: number | null = null;
@@ -203,11 +232,22 @@ function ScreenShareTile({
             frameHeight?: number;
             framesPerSecond?: number;
             trackIdentifier?: string;
+            trackId?: string;
+            mediaSourceId?: string;
             bytesSent?: number;
           };
 
           if (s.type !== 'outbound-rtp' || s.kind !== 'video') return;
-          if (localTrackId && s.trackIdentifier && s.trackIdentifier !== localTrackId) return;
+          if (localTrackId) {
+            const isDirectMatch = s.trackIdentifier === localTrackId;
+            const isTrackStatMatch = !!s.trackId && matchingTrackStats.has(s.trackId);
+            const isMediaSourceMatch =
+              !!s.mediaSourceId && matchingMediaSourceStats.has(s.mediaSourceId);
+
+            if (!isDirectMatch && !isTrackStatMatch && !isMediaSourceMatch) {
+              return;
+            }
+          }
           if (!s.frameWidth || !s.frameHeight) return;
 
           const candidate = {

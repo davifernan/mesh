@@ -14,9 +14,8 @@ export const userArea = style({
   paddingBottom: toRem(8),
   paddingLeft: toRem(10),
   minHeight: toRem(52),
-  width: `calc(100% + ${USER_AREA_LEFT_OVERLAP} - ${toRem(8)}) !important`,
+  width: `calc(100% - ${toRem(8)}) !important`,
   margin: `${toRem(8)} ${toRem(8)} ${toRem(8)} ${toRem(8)} !important`,
-  left: `calc(-1 * ${USER_AREA_LEFT_OVERLAP})`,
   borderRadius: toRem(12),
   border: '1px solid color-mix(in srgb, var(--background-modifier-accent) 82%, transparent)',
   borderLeftColor: 'color-mix(in srgb, var(--background-modifier-accent) 58%, transparent)',
@@ -24,11 +23,30 @@ export const userArea = style({
   boxShadow: '0 4px 12px rgba(0, 0, 0, 0.2), inset 0 0 0 1px color-mix(in srgb, var(--background-modifier-accent) 30%, transparent)',
   backdropFilter: 'blur(8px)',
   position: 'relative',
-  zIndex: 10,
+  zIndex: 60,
   flexShrink: 0,
   cursor: 'default',
   transition: 'background-color 120ms ease, border-color 120ms ease, transform 120ms ease',
   selectors: {
+    '&::before': {
+      content: '',
+      position: 'absolute',
+      top: '-1px',
+      bottom: '-1px',
+      left: `calc(-1 * ${USER_AREA_LEFT_OVERLAP})`,
+      width: USER_AREA_LEFT_OVERLAP,
+      background:
+        'linear-gradient(135deg, color-mix(in srgb, var(--background-secondary) 92%, transparent), color-mix(in srgb, var(--background-primary) 88%, transparent))',
+      borderTop: '1px solid color-mix(in srgb, var(--background-modifier-accent) 82%, transparent)',
+      borderBottom: '1px solid color-mix(in srgb, var(--background-modifier-accent) 82%, transparent)',
+      borderLeft: '1px solid color-mix(in srgb, var(--background-modifier-accent) 58%, transparent)',
+      borderTopLeftRadius: toRem(12),
+      borderBottomLeftRadius: toRem(12),
+      boxShadow:
+        '0 4px 12px rgba(0, 0, 0, 0.2), inset 0 0 0 1px color-mix(in srgb, var(--background-modifier-accent) 30%, transparent)',
+      pointerEvents: 'none',
+      zIndex: 0,
+    },
     '&:hover': {
       background: 'linear-gradient(135deg, color-mix(in srgb, var(--background-secondary) 96%, transparent), color-mix(in srgb, var(--background-primary) 92%, transparent))',
       borderColor: 'color-mix(in srgb, var(--background-modifier-accent) 96%, transparent)',
@@ -45,12 +63,18 @@ export const userArea = style({
       borderBottom: 'none',
       boxShadow: 'none',
       backdropFilter: 'none',
+      selectors: {
+        '&::before': {
+          display: 'none',
+        },
+      },
     },
   },
 });
 
 export const avatarWrap = style({
   position: 'relative',
+  zIndex: 1,
   flexShrink: 0,
   width: toRem(32),
   height: toRem(32),
@@ -81,6 +105,8 @@ export const textStack = style({
   display: 'flex',
   flexDirection: 'column',
   flexShrink: 1,
+  position: 'relative',
+  zIndex: 1,
 });
 
 /* Username — starts visible, slides up on parent hover */
@@ -131,6 +157,8 @@ export const controlsRow = style({
   gap: toRem(4),
   flexShrink: 0,
   marginLeft: 'auto',
+  position: 'relative',
+  zIndex: 1,
 });
 
 export const controlBtn = style({

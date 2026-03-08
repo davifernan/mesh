@@ -96,6 +96,7 @@ import { useOpenSpaceSettings } from '../../../state/hooks/spaceSettings';
 import { useRoomCreators } from '../../../hooks/useRoomCreators';
 import { useRoomPermissions } from '../../../hooks/useRoomPermissions';
 import { InviteUserPrompt } from '../../../components/invite-user-prompt';
+import { useCallState } from '../../../pages/client/call/CallProvider';
 
 type SpaceMenuProps = {
   room: Room;
@@ -425,6 +426,30 @@ function SpaceTab({
   const dropType = dropState?.type;
 
   const hasVoiceActivity = useAtomValue(selectSpaceHasVoiceActivity(space.roomId));
+  const roomToParents = useAtomValue(roomToParentsAtom);
+  const { activeCallRoomId, isScreenShareEnabled, remoteParticipantStates } = useCallState();
+
+  const hasLiveStreamActivity = useMemo(() => {
+    if (!activeCallRoomId) return false;
+
+    const parents = roomToParents.get(activeCallRoomId);
+    const belongsToThisSpace =
+      activeCallRoomId === space.roomId ||
+      (parents ? parents.has(space.roomId) : false);
+    if (!belongsToThisSpace) return false;
+
+    if (isScreenShareEnabled) return true;
+    for (const state of remoteParticipantStates.values()) {
+      if (state.isScreenSharing) return true;
+    }
+    return false;
+  }, [
+    activeCallRoomId,
+    isScreenShareEnabled,
+    remoteParticipantStates,
+    roomToParents,
+    space.roomId,
+  ]);
 
   const [menuAnchor, setMenuAnchor] = useState<RectCords>();
 
@@ -480,6 +505,33 @@ function SpaceTab({
           {!unread && hasVoiceActivity && (
             <SidebarItemBadge hasCount={false} title="Voice activity">
               <SpeakerHigh size={10} color="#23A55A" weight="fill" />
+            </SidebarItemBadge>
+          )}
+          {hasLiveStreamActivity && (
+            <SidebarItemBadge
+              hasCount={false}
+              title="Live stream"
+              style={{ top: 'auto', bottom: toRem(-2), left: toRem(-2) }}
+            >
+              <span
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  minWidth: toRem(22),
+                  height: toRem(12),
+                  borderRadius: toRem(6),
+                  paddingInline: toRem(4),
+                  background: 'var(--voice-status-danger, #f23f43)',
+                  color: '#fff',
+                  fontSize: '8px',
+                  fontWeight: 700,
+                  letterSpacing: '0.04em',
+                  lineHeight: 1,
+                }}
+              >
+                LIVE
+              </span>
             </SidebarItemBadge>
           )}
           {menuAnchor && (

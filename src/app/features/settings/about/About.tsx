@@ -39,13 +39,13 @@ export function About({ requestClose }: AboutProps) {
                   <img
                     style={{ width: toRem(60), height: toRem(60) }}
                     src={CinnySVG}
-                    alt="Wally logo"
+                    alt="BetterCord logo"
                   />
                 </Box>
                 <Box direction="Column" gap="300">
                   <Box direction="Column" gap="100">
                     <Box gap="100" alignItems="End">
-                      <Text size="H3" as="h2">Wally</Text>
+                      <Text size="H3" as="h2">BetterCord</Text>
                       <Text size="T200">v4.10.5</Text>
                     </Box>
                     <Text>A Cinny fork.</Text>

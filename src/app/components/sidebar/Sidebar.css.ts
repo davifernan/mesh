@@ -10,17 +10,28 @@ export const Sidebar = style([
     height: '100%',
     minHeight: 0,
     backgroundColor: 'var(--background-tertiary)',
-    boxSizing: 'border-box',
-    borderRight: '1px solid color-mix(in srgb, var(--background-modifier-accent) 70%, transparent)',
 
     display: 'flex',
     flexDirection: 'column',
     color: 'var(--text-secondary)',
+    position: 'relative',
     overflowY: 'auto',
     overflowX: 'hidden',
     scrollbarWidth: 'none',
     // @ts-ignore
     '::-webkit-scrollbar': { display: 'none' },
+    selectors: {
+      '&::after': {
+        content: '',
+        position: 'absolute',
+        top: 0,
+        bottom: 0,
+        right: 0,
+        width: '1px',
+        background: 'color-mix(in srgb, var(--background-modifier-accent) 70%, transparent)',
+        pointerEvents: 'none',
+      },
+    },
   },
 ]);
 

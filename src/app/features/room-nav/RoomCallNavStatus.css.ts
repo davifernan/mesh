@@ -1,6 +1,8 @@
 import { style } from '@vanilla-extract/css';
 import { config, toRem } from 'folds';
 
+const LEFT_OVERLAP = toRem(56);
+
 export const Actions = style({
   padding: config.space.S200,
 });
@@ -23,10 +25,23 @@ export const RoomName = style({
 /* --- Fluxer-style active call voice panel --- */
 
 export const VoiceContainer = style({
+  position: 'relative',
+  left: `calc(-1 * ${LEFT_OVERLAP})`,
+  width: `calc(100% + ${LEFT_OVERLAP} - ${toRem(8)})`,
+  margin: `${toRem(2)} ${toRem(8)} ${toRem(6)} ${toRem(8)}`,
   display: 'flex',
   flexDirection: 'column',
   gap: toRem(6),
-  padding: `${toRem(6)} ${toRem(8)}`,
+  padding: `${toRem(8)} ${toRem(10)}`,
+  borderRadius: toRem(12),
+  border: '1px solid color-mix(in srgb, var(--background-modifier-accent) 82%, transparent)',
+  borderLeftColor: 'color-mix(in srgb, var(--background-modifier-accent) 58%, transparent)',
+  background:
+    'linear-gradient(135deg, color-mix(in srgb, var(--background-secondary) 92%, transparent), color-mix(in srgb, var(--background-primary) 88%, transparent))',
+  boxShadow:
+    '0 4px 12px rgba(0, 0, 0, 0.2), inset 0 0 0 1px color-mix(in srgb, var(--background-modifier-accent) 30%, transparent)',
+  backdropFilter: 'blur(8px)',
+  zIndex: 55,
   flexShrink: 0,
 });
 
