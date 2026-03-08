@@ -75,7 +75,7 @@ export function SignalStrengthIcon({ latencyMs, size = 16 }: SignalStrengthIconP
         stroke={activeArcs >= 4 ? color : 'var(--text-muted)'}
         strokeWidth="1.5"
         strokeLinecap="round"
-        className={latencyMs === null ? styles.arcLoading3 : undefined}
+        className={latencyMs === null ? styles.arcLoading4 : undefined}
       />
     </svg>
   );

@@ -7,3 +7,4 @@
 .arcLoading1 { animation: arcBlink 1.12s ease-in-out infinite; animation-delay: 280ms; }
 .arcLoading2 { animation: arcBlink 1.12s ease-in-out infinite; animation-delay: 560ms; }
 .arcLoading3 { animation: arcBlink 1.12s ease-in-out infinite; animation-delay: 840ms; }
+.arcLoading4 { animation: arcBlink 1.12s ease-in-out infinite; animation-delay: 1120ms; }

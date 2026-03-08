@@ -188,7 +188,7 @@ export const MediaButton = style({
   justifyContent: 'center',
   height: toRem(32),
   width: '100%',
-  background: 'var(--background-modifier-hover)',
+  background: 'var(--voice-surface-1)',
   color: 'var(--interactive-normal)',
   border: 'none',
   borderRadius: toRem(9999),
@@ -196,15 +196,15 @@ export const MediaButton = style({
   padding: 0,
   selectors: {
     '&:hover': {
-      background: 'var(--background-modifier-selected)',
+      background: 'var(--voice-surface-2)',
       color: 'var(--interactive-hover)',
     },
     '&[data-active=true]': {
-      background: 'rgba(35, 165, 90, 0.15)',
-      color: 'var(--status-online, #23a55a)',
+      background: 'var(--voice-status-success-bg)',
+      color: 'var(--voice-status-success)',
     },
     '&[data-muted=true]': {
-      color: 'var(--status-danger, #f23f42)',
+      color: 'var(--voice-status-danger)',
     },
   },
 });
