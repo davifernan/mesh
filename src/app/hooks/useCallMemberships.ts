@@ -28,7 +28,7 @@ function getActiveSenders(room: Room): Set<string> {
 // Grace period before a user is removed from the list after their state goes
 // empty.  EC uses delayed events for memberships — if the delay-event fires
 // momentarily (network blip / renewal race), we should not flash the user away.
-const REMOVAL_GRACE_MS = 12_000;
+const REMOVAL_GRACE_MS = 2_000;
 
 export const useCallMembers = (mx: MatrixClient, roomId: string): string[] => {
   const [senders, setSenders] = useState<string[]>(() => {

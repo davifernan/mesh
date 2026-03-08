@@ -175,7 +175,8 @@ export function NativeCallParticipantTile({
       {/* ── Screen share badge ───────────────────────────────────────── */}
       {hasScreenShare && (
         <div className={styles.screenBadge}>
-          <MonitorPlay size={16} weight="fill" />
+          <MonitorPlay size={11} weight="fill" />
+          LIVE
         </div>
       )}
 

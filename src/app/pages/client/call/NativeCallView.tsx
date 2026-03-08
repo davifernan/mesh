@@ -1,10 +1,13 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { X } from '@phosphor-icons/react';
 import { RoomContext } from '@livekit/components-react';
+import { useAtomValue, useSetAtom } from 'jotai';
 import { useCallState } from './CallProvider';
 import { useMatrixClient } from '../../../hooks/useMatrixClient';
 import { NativeCallParticipantGrid } from './NativeCallParticipantGrid';
 import { NativeCallControlBar } from './NativeCallControlBar';
+import { BCStatsPanel } from './BCStatsPanel';
+import { showStatsAtom } from './VoiceCallLayoutStore';
 import styles from './NativeCallView.module.css';
 
 function useVoiceHUDIdle(timeoutMs = 3000) {
@@ -29,6 +32,8 @@ export function NativeCallView() {
   const { livekitRoom, callStatus, callError, activeCallRoomId, toggleCallView } = useCallState();
   const mx = useMatrixClient();
   const { isActive, handlePointerMove } = useVoiceHUDIdle(3000);
+  const showStats = useAtomValue(showStatsAtom);
+  const setShowStats = useSetAtom(showStatsAtom);
 
   const roomName = activeCallRoomId ? (mx.getRoom(activeCallRoomId)?.name ?? '') : '';
 
@@ -85,12 +90,19 @@ export function NativeCallView() {
         </div>
       </div>
 
-      {/* RoomContext wraps both grid and control bar — all LiveKit hooks need this */}
+      {/* RoomContext wraps grid, stats panel, and control bar */}
       <RoomContext.Provider value={livekitRoom}>
-        {/* Main content */}
+        {/* Main content — fills all remaining space */}
         <NativeCallParticipantGrid />
 
-        {/* Control bar (auto-hiding) */}
+        {/* Stats panel — floating top-right, NOT inside HUD opacity layer */}
+        {showStats && (
+          <div className={styles.statsWrap}>
+            <BCStatsPanel onClose={() => setShowStats(false)} />
+          </div>
+        )}
+
+        {/* Control bar — floating pill at bottom-center (auto-hiding) */}
         <div className={styles.controlBarWrap}>
           <NativeCallControlBar />
         </div>

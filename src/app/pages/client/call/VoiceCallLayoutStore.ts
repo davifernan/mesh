@@ -15,6 +15,9 @@ export const voiceCallLayoutAtom = atom<VoiceCallLayoutState>({
   isCarouselExpanded: false,
 });
 
+/** Whether the call stats panel is open. Shared between NativeCallView and NativeCallControlBar. */
+export const showStatsAtom = atom(false);
+
 // Helper: set pinned participant and switch to focus mode
 export const pinParticipantAtom = atom(
   null,

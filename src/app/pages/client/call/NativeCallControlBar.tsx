@@ -20,9 +20,9 @@ import { LocalAudioTrack, Track } from 'livekit-client';
 import { useAtom } from 'jotai';
 import { useCallState } from './CallProvider';
 import { settingsAtom } from '../../../state/settings';
-import { buildSSCaptureOptions } from '../../../features/call/avPresets';
+import { buildSSCaptureOptions, buildSSPublishOptions } from '../../../features/call/avPresets';
 import { ScreenShareModal } from '../../../components/voice/ScreenShareModal/ScreenShareModal';
-import { BCStatsPanel } from './BCStatsPanel';
+import { showStatsAtom } from './VoiceCallLayoutStore';
 import styles from './NativeCallControlBar.module.css';
 
 function formatDuration(s: number): string {
@@ -73,7 +73,7 @@ export function NativeCallControlBar() {
   const [userSettings, setUserSettings] = useAtom(settingsAtom);
 
   const [showQualityModal, setShowQualityModal] = useState(false);
-  const [showStats, setShowStats] = useState(false);
+  const [showStats, setShowStats] = useAtom(showStatsAtom);
   const [noiseSupEnabled, setNoiseSupEnabled] = useState(() => userSettings.noiseSuppression ?? true);
 
   // ── Call duration timer ────────────────────────────────────────────────────
@@ -176,7 +176,8 @@ export function NativeCallControlBar() {
   const handleConfirmScreenShare = useCallback(
     (ssRes: string, ssFps: number, ssAudio: boolean) => {
       const captureOpts = buildSSCaptureOptions(ssRes, ssFps, ssAudio);
-      void localParticipant.setScreenShareEnabled(true, captureOpts as any, { simulcast: false });
+      const publishOpts = buildSSPublishOptions(ssRes, ssFps);
+      void localParticipant.setScreenShareEnabled(true, captureOpts as any, publishOpts);
       setShowQualityModal(false);
     },
     [localParticipant],
@@ -206,11 +207,6 @@ export function NativeCallControlBar() {
 
   return (
     <>
-      {showStats && (
-        <div className={styles.statsWrapper}>
-          <BCStatsPanel onClose={() => setShowStats(false)} />
-        </div>
-      )}
       {showQualityModal && (
         <ScreenShareModal
           onConfirm={handleConfirmScreenShare as any}

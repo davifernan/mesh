@@ -542,10 +542,13 @@ select {
   box-shadow: inset 0 0 0 1.5px var(--background-modifier-accent-focus) !important;
 }
 
-/* 2. Strip ALL visual styling from the raw <input> inside folds wrapper */
-._1rrvnjm8 input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="file"]),
-div > input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="file"]),
-label > input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="file"]) {
+/* 2. Strip ALL visual styling from the raw <input> inside folds wrapper.
+   Target by both the hashed inner-input class AND by structural selectors.
+   Both rules carry !important so we beat the global input styling above. */
+._1rrvnjm8 input,
+._1rrvnjmr,
+div > input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="file"]):not([type="color"]):not([type="date"]):not([type="number"]),
+label > input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="file"]):not([type="color"]):not([type="date"]):not([type="number"]) {
   background-color: transparent !important;
   border: none !important;
   border-radius: 0 !important;

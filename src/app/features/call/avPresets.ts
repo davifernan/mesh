@@ -17,6 +17,7 @@ import {
   DefaultReconnectPolicy,
   type E2EEManagerOptions,
   type RoomOptions,
+  type TrackPublishOptions,
   ScreenSharePresets,
   type TrackPublishDefaults,
   VideoPreset,
@@ -240,6 +241,22 @@ export function buildLiveKitRoomOptions(
 
     // E2EE — only set if key provider is supplied
     ...(e2eeOptions && { e2ee: e2eeOptions }),
+  };
+}
+
+/**
+ * Builds LiveKit TrackPublishOptions for a screenshare track.
+ * Sets videoEncoding to match the chosen resolution/fps so the SFU
+ * applies correct bitrate caps — without this, quality settings are ignored.
+ */
+export function buildSSPublishOptions(
+  ssResolution: string,
+  ssFps: number,
+): TrackPublishOptions {
+  const preset = resolutionToSSPreset(ssResolution, ssFps);
+  return {
+    simulcast: false, // screenshare must NOT simulcast
+    ...(preset && { videoEncoding: preset.encoding }),
   };
 }
 

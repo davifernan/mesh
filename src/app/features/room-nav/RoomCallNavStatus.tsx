@@ -103,9 +103,11 @@ export function CallNavStatus() {
     callStatus,
     isAudioEnabled,
     isVideoEnabled,
+    isScreenShareEnabled,
     toggleAudio,
     toggleVideo,
     startScreenShare,
+    stopScreenShare,
     hangUp,
     setActiveCallRoomId,
     speakingUsers,
@@ -601,15 +603,22 @@ export function CallNavStatus() {
           <TooltipProvider
             position="Top"
             offset={4}
-            tooltip={<Tooltip><Text>Share Screen</Text></Tooltip>}
+            tooltip={<Tooltip><Text>{isScreenShareEnabled ? 'Stop Sharing' : 'Share Screen'}</Text></Tooltip>}
           >
             {(triggerRef) => (
               <button
                 type="button"
                 className={css.MediaButton}
+                data-active={isScreenShareEnabled}
                 ref={triggerRef}
-                aria-label="Share screen"
-                onClick={() => setShowSSModal(true)}
+                aria-label={isScreenShareEnabled ? 'Stop sharing screen' : 'Share screen'}
+                onClick={() => {
+                  if (isScreenShareEnabled) {
+                    stopScreenShare().catch(() => {});
+                  } else {
+                    setShowSSModal(true);
+                  }
+                }}
               >
                 <Monitor size={20} weight="fill" />
               </button>

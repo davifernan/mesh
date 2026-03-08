@@ -121,13 +121,28 @@
   50% { opacity: 0.5; }
 }
 
-/* ── Control bar (auto-hiding) ─────────────────────────────────────────────── */
+/* ── Stats panel — floats top-right, independent of HUD opacity ───────────── */
+.statsWrap {
+  position: absolute;
+  top: 60px;
+  right: 16px;
+  z-index: 50;
+  pointer-events: auto;
+}
+
+/* ── Control bar — floating pill at bottom-center (auto-hiding) ───────────── */
 .controlBarWrap {
-  background: var(--voice-footer-gradient);
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  display: flex;
+  justify-content: center;
+  padding-bottom: 24px;
   opacity: var(--voice-hud-opacity);
   pointer-events: var(--voice-hud-pointer-events);
   transition: opacity 0.2s ease;
-  flex-shrink: 0;
+  /* no background — the bar itself has a pill shape */
 }
 
 /* ── Status / error views (shown before connected) ─────────────────────────── */

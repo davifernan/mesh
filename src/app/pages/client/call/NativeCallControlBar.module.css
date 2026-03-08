@@ -1,36 +1,36 @@
-.statsWrapper {
-  position: absolute;
-  bottom: 76px;
-  right: 16px;
-}
 .bar {
-  display: flex;
+  /* Floating pill — centered, no full-width background */
+  display: inline-flex;
   align-items: center;
-  justify-content: space-between;
-  background: var(--voice-surface-1);
-  border-top: 1px solid var(--voice-surface-2);
-  height: 68px;
-  padding: 0 16px;
-  flex-shrink: 0;
+  gap: 4px;
+  background: rgba(20, 21, 24, 0.88);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border-radius: 9999px;
+  padding: 8px 12px;
+  box-shadow:
+    0 4px 24px rgba(0, 0, 0, 0.55),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.07);
 }
 .leftSection {
-  flex: 1;
-  min-width: 0;
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
+  padding-right: 8px;
+  border-right: 1px solid rgba(255, 255, 255, 0.08);
+  margin-right: 4px;
 }
 .roomName {
-  font-size: 13px;
+  font-size: 12px;
   color: var(--text-muted);
   font-weight: 500;
-  max-width: 150px;
+  max-width: 120px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 .durationText {
-  font-size: 13px;
+  font-size: 12px;
   color: var(--text-secondary);
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
@@ -38,24 +38,24 @@
 .controls {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 4px;
 }
-.rightSection { flex: 1; }
+.rightSection { display: none; }
 .btn {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 44px;
-  height: 44px;
+  width: 40px;
+  height: 40px;
   border-radius: 9999px;
-  background: var(--voice-surface-1);
+  background: rgba(255, 255, 255, 0.06);
   border: none;
   cursor: pointer;
   color: var(--text-primary);
   transition: background 80ms, color 80ms;
   flex-shrink: 0;
 }
-.btn:hover { background: var(--voice-surface-1); }
+.btn:hover { background: rgba(255, 255, 255, 0.12); }
 .btn:active { background: var(--voice-surface-2); }
 .btnMuted {
   background: rgba(128, 132, 142, 0.2);
@@ -70,8 +70,9 @@
 .btnHangup {
   background: var(--voice-status-danger);
   color: white;
-  width: 44px;
-  height: 44px;
+  width: 40px;
+  height: 40px;
+  margin-left: 8px;
 }
 .btnHangup:hover { background: color-mix(in srgb, var(--voice-status-danger) 85%, black); }
 .btnWrap {
