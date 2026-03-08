@@ -131,6 +131,64 @@ export function CallProvider({ children }: CallProviderProps) {
 
   const setActiveCallRoomId = useCallback(
     (roomId: string | null, isVoiceRoom = false) => {
+      // Discord-style: one active session per user. Before joining, clear any
+      // MSC4143 call memberships this user has from OTHER devices.
+      //
+      // We ONLY touch keys with the MSC4143 format that encodes the deviceId:
+      //   `_${userId}_${otherDeviceId}`  (leading-underscore variant)
+      //   `${userId}_${otherDeviceId}`   (no-underscore variant)
+      //
+      // The legacy key (stateKey === userId, no deviceId suffix) is NEVER touched —
+      // it cannot be attributed to a specific device and belongs to the session EC
+      // is about to create.
+      if (roomId !== null) {
+        const userId = mx.getUserId();
+        const deviceId = mx.getDeviceId();
+        const room = mx.getRoom(roomId);
+
+        if (userId && deviceId && room) {
+          const msc4143PrefixA = `_${userId}_`; // leading-underscore format
+          const msc4143PrefixB = `${userId}_`;  // no-underscore format
+          const ownKeyA = `${msc4143PrefixA}${deviceId}`;
+          const ownKeyB = `${msc4143PrefixB}${deviceId}`;
+
+          const callMemberEvents = room.currentState.getStateEvents(
+            'org.matrix.msc3401.call.member'
+          );
+
+          for (const ev of callMemberEvents) {
+            if (ev.getSender() !== userId) continue;
+            const sk = ev.getStateKey();
+            if (!sk) continue;
+
+            // Extract the deviceId from the MSC4143 stateKey.
+            // If neither prefix matches this is the legacy key — skip it.
+            let otherDeviceId: string | null = null;
+            if (sk.startsWith(msc4143PrefixA)) {
+              otherDeviceId = sk.slice(msc4143PrefixA.length);
+            } else if (sk.startsWith(msc4143PrefixB)) {
+              otherDeviceId = sk.slice(msc4143PrefixB.length);
+            } else {
+              continue; // legacy key — never touch
+            }
+
+            // Skip our own current-device key.
+            if (sk === ownKeyA || sk === ownKeyB) continue;
+            // Skip if the extracted suffix is empty or matches our deviceId.
+            if (!otherDeviceId || otherDeviceId === deviceId) continue;
+
+            // Skip already-cleared (empty) events.
+            const content = ev.getContent();
+            if (!content || Object.keys(content).length === 0) continue;
+
+            // Clear the stale other-device membership (best-effort).
+            mx.sendStateEvent(roomId, 'org.matrix.msc3401.call.member' as any, {}, sk).catch(
+              () => { /* ignore — key may already be gone or we lack permission */ }
+            );
+          }
+        }
+      }
+
       setActiveCallRoomIdState(roomId);
       if (roomId !== null) {
         // Voice rooms: show call by default. Regular/DM rooms: show chat by default.
@@ -138,7 +196,7 @@ export function CallProvider({ children }: CallProviderProps) {
         setIsChatOpenState(!isVoiceRoom);
       }
     },
-    []
+    [mx]
   );
 
   // Track RTC memberships and play join/leave sounds for every participant's client.
