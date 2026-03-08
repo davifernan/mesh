@@ -47,6 +47,8 @@ jobs:
 
       - name: Compile Electron main/preload
         working-directory: desktop
+        env:
+          BETTERCORD_APP_URL: https://chat.nilo.live
         run: node scripts/build.mjs
 
       - name: Build & publish Electron app
