@@ -125,7 +125,7 @@ function DeviceSelect({ kind, value, onChange, placeholder }: DeviceSelectProps)
         borderRadius: '4px',
         padding: '6px 10px',
         fontSize: '14px',
-        minWidth: '220px',
+        width: '240px',
         maxWidth: '100%',
         cursor: 'pointer',
         outline: 'none',
