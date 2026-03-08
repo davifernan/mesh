@@ -14,6 +14,7 @@ import { markAsRead } from '../../utils/notifications';
 import { useMatrixClient } from '../../hooks/useMatrixClient';
 import { useRoomMembers } from '../../hooks/useRoomMembers';
 import { CallView } from '../call/CallView';
+import { NativeCallView } from '../../pages/client/call/NativeCallView';
 import { RoomViewHeader } from './RoomViewHeader';
 import { useCallState } from '../../pages/client/call/CallProvider';
 import { IssueBoard } from '../issues/IssueBoard';
@@ -41,7 +42,7 @@ export function Room() {
   const powerLevels = usePowerLevels(room);
   const members = useRoomMembers(mx, room?.roomId);
 
-  const { activeCallRoomId, isCallViewOpen, isChatOpen } = useCallState();
+  const { activeCallRoomId, isCallViewOpen, isChatOpen, callStatus } = useCallState();
   const isActiveCall = activeCallRoomId === room?.roomId;
 
   const [isIssueBoard, setIsIssueBoard] = useState(false);
@@ -210,7 +211,11 @@ export function Room() {
                         : { display: showCallPanel ? 'flex' : 'none' }
                     }
                   >
-                    <CallView room={room} />
+                    {isActiveCall && callStatus !== 'idle' ? (
+                      <NativeCallView />
+                    ) : (
+                      <CallView room={room} />
+                    )}
                   </Box>
                 )}
                 {showBoth && (

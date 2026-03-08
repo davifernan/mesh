@@ -39,6 +39,7 @@ interface CallContextState {
   livekitRoom: Room | null;
   callStatus: CallStatus;
   callError: Error | null;
+  callJoinTime: Date | null;
 }
 
 const CallContext = createContext<CallContextState | undefined>(undefined);
@@ -255,6 +256,7 @@ export function CallProvider({ children }: CallProviderProps) {
     livekitRoom: engine.livekitRoom,
     callStatus: engine.status,
     callError: engine.error,
+    callJoinTime: engine.callJoinTime,
   }), [
     activeCallRoomId,
     setActiveCallRoomId,

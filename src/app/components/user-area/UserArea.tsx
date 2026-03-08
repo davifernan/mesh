@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { Avatar, Icon, Icons } from 'folds';
 import { useSetAtom } from 'jotai';
 import { Microphone, MicrophoneSlash, SpeakerHigh, SpeakerSlash, GearSix } from '@phosphor-icons/react';
@@ -20,7 +20,6 @@ export function UserArea() {
   const presence = useUserPresence(userId);
   const presenceLabel = usePresenceLabel();
   const callState = useCallStateOptional();
-  const [isDeafened, setIsDeafened] = useState(false);
   const setOpenUserSettings = useSetAtom(openUserSettingsAtom);
 
   const avatarUrl = profile.avatarUrl
@@ -31,7 +30,9 @@ export function UserArea() {
   const presenceState = presence?.presence ?? Presence.Offline;
   const statusMsg = presence?.status || presenceLabel[presenceState];
 
+  const isInCall = callState?.activeCallRoomId !== null && callState?.activeCallRoomId !== undefined;
   const isAudioEnabled = callState?.isAudioEnabled ?? true;
+  const isDeafened = callState?.isDeafened ?? false;
 
   return (
     <div className={css.userArea}>
@@ -64,15 +65,17 @@ export function UserArea() {
             ? <Microphone size={16} />
             : <MicrophoneSlash size={16} />}
         </button>
-        <button
-          className={css.controlBtnDanger}
-          data-active={isDeafened}
-          onClick={() => setIsDeafened((d) => !d)}
-          title={isDeafened ? 'Undeafen' : 'Deafen'}
-          aria-label={isDeafened ? 'Undeafen' : 'Deafen'}
-        >
-          {isDeafened ? <SpeakerSlash size={16} /> : <SpeakerHigh size={16} />}
-        </button>
+        {isInCall && (
+          <button
+            className={css.controlBtnDanger}
+            data-active={isDeafened}
+            onClick={() => callState?.toggleDeafen()}
+            title={isDeafened ? 'Undeafen' : 'Deafen'}
+            aria-label={isDeafened ? 'Undeafen' : 'Deafen'}
+          >
+            {isDeafened ? <SpeakerSlash size={16} /> : <SpeakerHigh size={16} />}
+          </button>
+        )}
         <button
           className={css.controlBtn}
           onClick={() => setOpenUserSettings(true)}

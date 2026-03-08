@@ -1,13 +1,136 @@
-.view {
-  display: flex;
-  flex-direction: column;
-  width: 100%;
-  height: 100%;
-  background: #313338;
-  position: relative;
-  overflow: hidden;
+:root {
+  --voice-surface-0: var(--background-primary);
+  --voice-surface-1: var(--background-secondary);
+  --voice-surface-2: var(--background-tertiary);
+  --voice-overlay-strong: rgba(0, 0, 0, 0.72);
+  --voice-overlay:        rgba(0, 0, 0, 0.62);
+  --voice-overlay-soft:   rgba(0, 0, 0, 0.46);
+  --voice-overlay-subtle: rgba(0, 0, 0, 0.32);
+  --voice-status-success:       #23A55A;
+  --voice-status-success-bg:    rgba(35, 165, 90, 0.15);
+  --voice-status-danger:        #F23F43;
+  --voice-status-danger-bg:     rgba(242, 63, 67, 0.15);
+  --voice-status-warning:       #FCC23B;
+  --voice-status-warning-bg:    rgba(252, 194, 59, 0.15);
+  --voice-hud-opacity:          0;
+  --voice-hud-pointer-events:   none;
+  --speaking-indicator-width:   3.5px;
+  --voice-header-gradient:      linear-gradient(to bottom, var(--voice-overlay-strong) 0%, transparent 100%);
+  --voice-footer-gradient:      linear-gradient(to top, var(--voice-overlay-strong) 0%, transparent 100%);
 }
 
+/* ── Voice root container ──────────────────────────────────────────────────── */
+.voiceRoot {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: var(--voice-surface-0);
+  /* HUD system */
+  --voice-hud-opacity: 0;
+  --voice-hud-pointer-events: none;
+}
+
+.voiceRoot.pointerActive {
+  --voice-hud-opacity: 1;
+  --voice-hud-pointer-events: auto;
+}
+
+/* ── Header chrome ─────────────────────────────────────────────────────────── */
+.voiceHeader {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.75rem 1rem;
+  background: var(--voice-header-gradient);
+  opacity: var(--voice-hud-opacity);
+  pointer-events: var(--voice-hud-pointer-events);
+  transition: opacity 0.2s ease;
+}
+
+.channelName {
+  font-size: 0.9375rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.backBtn {
+  background: none;
+  border: none;
+  color: var(--text-secondary);
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: color 120ms, background-color 120ms;
+  flex-shrink: 0;
+}
+.backBtn:hover {
+  color: var(--text-primary);
+  background: var(--voice-overlay-subtle);
+}
+
+.connectionStatus {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.25rem 0.75rem;
+  border-radius: 6px;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.connectionStatus[data-status='connected'] {
+  background: var(--voice-status-success-bg);
+  color: var(--voice-status-success);
+}
+
+.connectionStatus[data-status='connecting'] {
+  background: var(--voice-status-warning-bg);
+  color: var(--voice-status-warning);
+}
+
+.connectionStatus[data-status='error'] {
+  background: var(--voice-status-danger-bg);
+  color: var(--voice-status-danger);
+}
+
+.statusDot {
+  width: 8px;
+  height: 8px;
+  border-radius: 9999px;
+  background: currentColor;
+  animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+.connectionStatusText {
+  /* Inherits color from .connectionStatus data-status selectors */
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
+/* ── Control bar (auto-hiding) ─────────────────────────────────────────────── */
+.controlBarWrap {
+  background: var(--voice-footer-gradient);
+  opacity: var(--voice-hud-opacity);
+  pointer-events: var(--voice-hud-pointer-events);
+  transition: opacity 0.2s ease;
+  flex-shrink: 0;
+}
+
+/* ── Status / error views (shown before connected) ─────────────────────────── */
 .statusView {
   display: flex;
   flex-direction: column;
@@ -15,18 +138,17 @@
   justify-content: center;
   width: 100%;
   height: 100%;
-  background: #313338;
+  background: var(--background-primary);
   gap: 12px;
-  font-family: 'IBM Plex Sans', sans-serif;
 }
 
 .statusText {
-  color: #949ba4;
+  color: var(--text-muted);
   font-size: 14px;
 }
 
 .errorText {
-  color: #f23f43;
+  color: var(--voice-status-danger);
   font-size: 14px;
   text-align: center;
   max-width: 320px;
@@ -35,8 +157,8 @@
 .spinner {
   width: 32px;
   height: 32px;
-  border: 3px solid #35373c;
-  border-top-color: #5865f2;
+  border: 3px solid var(--voice-surface-2);
+  border-top-color: var(--brand-primary);
   border-radius: 50%;
   animation: spin 0.8s linear infinite;
 }

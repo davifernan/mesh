@@ -191,7 +191,7 @@ export const MediaButton = style({
   background: 'var(--background-modifier-hover)',
   color: 'var(--interactive-normal)',
   border: 'none',
-  borderRadius: toRem(4),
+  borderRadius: toRem(9999),
   cursor: 'pointer',
   padding: 0,
   selectors: {
@@ -207,4 +207,264 @@ export const MediaButton = style({
       color: 'var(--status-danger, #f23f42)',
     },
   },
+});
+
+/* --- Avatar stack (speaking users) --- */
+
+export const AvatarStack = style({
+  display: 'flex',
+  alignItems: 'center',
+  marginTop: toRem(2),
+  paddingLeft: toRem(2),
+});
+
+export const AvatarItem = style({
+  width: toRem(24),
+  height: toRem(24),
+  borderRadius: '50%',
+  overflow: 'hidden',
+  background: 'var(--background-tertiary)',
+  border: `2px solid var(--background-secondary)`,
+  flexShrink: 0,
+  selectors: {
+    '&:not(:first-child)': {
+      marginLeft: toRem(-6),
+    },
+  },
+});
+
+export const AvatarItemSpeaking = style({
+  boxShadow: '0 0 0 2px #23a55a',
+});
+
+export const AvatarImg = style({
+  width: '100%',
+  height: '100%',
+  objectFit: 'cover',
+});
+
+export const AvatarInitials = style({
+  width: '100%',
+  height: '100%',
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  fontSize: toRem(9),
+  fontWeight: 700,
+  color: 'var(--text-muted)',
+  background: 'var(--background-tertiary)',
+  userSelect: 'none',
+});
+
+/* --- Voice Details Popout --- */
+
+export const VoicePopout = style({
+  position: 'absolute',
+  bottom: `calc(100% + ${toRem(8)})`,
+  left: 0,
+  right: 0,
+  zIndex: 100,
+  background: 'var(--background-secondary)',
+  borderRadius: toRem(8),
+  padding: toRem(12),
+  boxShadow: '0 4px 20px rgba(0,0,0,0.4)',
+  border: '1px solid var(--background-modifier-accent, rgba(255,255,255,0.08))',
+});
+
+export const VoicePopoutTitle = style({
+  fontSize: toRem(11),
+  fontWeight: 700,
+  textTransform: 'uppercase',
+  letterSpacing: '0.08em',
+  color: 'var(--text-muted)',
+  marginBottom: toRem(8),
+});
+
+export const VoicePopoutRow = style({
+  display: 'flex',
+  justifyContent: 'space-between',
+  alignItems: 'center',
+  fontSize: toRem(12),
+  lineHeight: toRem(18),
+  color: 'var(--text-secondary)',
+  gap: toRem(8),
+});
+
+export const VoicePopoutValue = style({
+  fontWeight: 600,
+  color: 'var(--text-primary)',
+  fontVariantNumeric: 'tabular-nums',
+});
+
+/* --- Incoming call glassmorphism card --- */
+
+export const incomingCallCard = style({
+  backdropFilter: 'blur(20px)',
+  WebkitBackdropFilter: 'blur(20px)',
+  border: '1px solid rgba(255, 255, 255, 0.12)',
+  background: 'color-mix(in srgb, var(--background-secondary) 85%, transparent)',
+  borderRadius: toRem(12),
+  padding: toRem(16),
+  width: toRem(260),
+  display: 'flex',
+  flexDirection: 'column',
+  alignItems: 'center',
+  gap: toRem(12),
+  boxShadow: '0 8px 32px rgba(0,0,0,0.4)',
+  cursor: 'grab',
+  selectors: {
+    '&:active': { cursor: 'grabbing' },
+  },
+});
+
+export const dragHandle = style({
+  width: toRem(48),
+  height: toRem(4),
+  borderRadius: toRem(9999),
+  background: 'rgba(255,255,255,0.2)',
+  alignSelf: 'center',
+  cursor: 'grab',
+});
+
+export const incomingLabel = style({
+  display: 'flex',
+  alignItems: 'center',
+  gap: toRem(6),
+  fontSize: toRem(11),
+  fontWeight: 700,
+  letterSpacing: '0.08em',
+  textTransform: 'uppercase',
+  color: 'var(--status-online, #23a55a)',
+});
+
+export const callerAvatar = style({
+  width: toRem(80),
+  height: toRem(80),
+  borderRadius: toRem(9999),
+  overflow: 'hidden',
+  background: 'var(--background-tertiary)',
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+});
+
+export const callerAvatarImg = style({
+  width: '100%',
+  height: '100%',
+  objectFit: 'cover',
+});
+
+export const callerAvatarInitials = style({
+  fontSize: toRem(28),
+  fontWeight: 700,
+  color: 'var(--text-muted)',
+  userSelect: 'none',
+});
+
+export const callerName = style({
+  fontSize: toRem(16),
+  fontWeight: 600,
+  color: 'var(--text-primary)',
+  textAlign: 'center',
+  maxWidth: '100%',
+  overflow: 'hidden',
+  textOverflow: 'ellipsis',
+  whiteSpace: 'nowrap',
+});
+
+export const incomingActions = style({
+  display: 'flex',
+  flexDirection: 'column',
+  gap: toRem(8),
+  width: '100%',
+});
+
+export const acceptBtn = style({
+  height: toRem(44),
+  borderRadius: toRem(9999),
+  background: 'var(--status-online, #23a55a)',
+  color: 'white',
+  border: 'none',
+  cursor: 'pointer',
+  fontWeight: 600,
+  fontSize: toRem(14),
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  gap: toRem(8),
+  selectors: {
+    '&:hover': {
+      filter: 'brightness(1.1)',
+    },
+  },
+});
+
+export const rejectBtn = style({
+  height: toRem(44),
+  borderRadius: toRem(9999),
+  background: 'var(--status-danger, #f23f43)',
+  color: 'white',
+  border: 'none',
+  cursor: 'pointer',
+  fontWeight: 600,
+  fontSize: toRem(14),
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  gap: toRem(8),
+  selectors: {
+    '&:hover': {
+      filter: 'brightness(1.1)',
+    },
+  },
+});
+
+export const ignoreBtn = style({
+  height: toRem(44),
+  borderRadius: toRem(9999),
+  background: 'var(--background-secondary)',
+  color: 'var(--text-secondary)',
+  border: '1px solid var(--background-tertiary)',
+  cursor: 'pointer',
+  fontWeight: 500,
+  fontSize: toRem(14),
+  selectors: {
+    '&:hover': {
+      background: 'var(--background-modifier-hover)',
+    },
+  },
+});
+
+export const overflowBadge = style({
+  background: 'var(--background-modifier-hover)',
+  border: 'none',
+  borderRadius: toRem(9999),
+  width: toRem(22),
+  height: toRem(22),
+  fontSize: toRem(10),
+  fontWeight: 600,
+  color: 'var(--text-secondary)',
+  cursor: 'pointer',
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  flexShrink: 0,
+});
+
+export const membersPopout = style({
+  position: 'absolute',
+  bottom: '100%',
+  left: '0',
+  background: 'var(--background-floating)',
+  borderRadius: toRem(8),
+  padding: toRem(8),
+  boxShadow: '0 4px 16px rgba(0,0,0,0.4)',
+  minWidth: toRem(160),
+  zIndex: 100,
+});
+
+export const membersPopoutItem = style({
+  padding: `${toRem(4)} ${toRem(8)}`,
+  fontSize: toRem(13),
+  color: 'var(--text-primary)',
 });

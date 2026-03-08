@@ -49,11 +49,11 @@ export function ScreenShareModal({ onConfirm, onCancel }: ScreenShareModalProps)
     <div className={css.Overlay} onClick={handleOverlayClick}>
       <div className={css.Modal} role="dialog" aria-modal="true" aria-labelledby="ss-modal-title">
         <h2 id="ss-modal-title" className={css.Title}>
-          Bildschirm teilen
+          Share Screen
         </h2>
 
         <div className={css.Section}>
-          <div className={css.Label}>Auflösung</div>
+          <div className={css.Label}>Resolution</div>
           <div className={css.ChipRow}>
             {SS_RESOLUTIONS.map((res) => {
               const allowed = isResolutionAllowed(res, serverMaxRes);
@@ -68,7 +68,7 @@ export function ScreenShareModal({ onConfirm, onCancel }: ScreenShareModalProps)
                   aria-pressed={ssResolution === res}
                   disabled={!allowed}
                 >
-                  {res === 'source' ? 'Quelle' : res}
+                  {res === 'source' ? 'Source' : res}
                 </button>
               );
             })}
@@ -101,7 +101,7 @@ export function ScreenShareModal({ onConfirm, onCancel }: ScreenShareModalProps)
         <div className={css.Section}>
           <div className={css.AudioRow}>
             <span className={css.Label} style={{ textTransform: 'none', letterSpacing: 'normal', fontSize: '14px', fontWeight: 500, color: 'var(--text-normal)' }}>
-              System-Audio aufnehmen
+              Capture System Audio
             </span>
             <label className={css.Toggle}>
               <input
@@ -117,16 +117,16 @@ export function ScreenShareModal({ onConfirm, onCancel }: ScreenShareModalProps)
 
         {(serverMaxRes !== 'source' || serverMaxFps < 120) && (
           <div className={css.InfoRow}>
-            ℹ Max: {serverMaxRes === 'source' ? 'Quelle' : serverMaxRes} / {serverMaxFps} fps (Space-Admin)
+            ℹ Max: {serverMaxRes === 'source' ? 'Source' : serverMaxRes} / {serverMaxFps} fps (Space Admin)
           </div>
         )}
 
         <div className={css.ButtonRow}>
           <button type="button" className={css.BtnCancel} onClick={onCancel}>
-            Abbrechen
+            Cancel
           </button>
           <button type="button" className={css.BtnConfirm} onClick={handleConfirm}>
-            Speichern &amp; zum Anruf →
+            Save &amp; Join Call →
           </button>
         </div>
       </div>

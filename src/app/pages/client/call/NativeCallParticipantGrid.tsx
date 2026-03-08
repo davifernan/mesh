@@ -1,8 +1,11 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useEffect, useState } from 'react';
 import { useParticipants, useTracks, VideoTrack, type TrackReference } from '@livekit/components-react';
 import { Track } from 'livekit-client';
-import { Monitor } from '@phosphor-icons/react';
+import { Monitor, CaretUp, CaretDown } from '@phosphor-icons/react';
+import { useAtom, useSetAtom } from 'jotai';
+import { voiceCallLayoutAtom, pinParticipantAtom } from './VoiceCallLayoutStore';
 import { NativeCallParticipantTile } from './NativeCallParticipantTile';
+import { useCallState } from './CallProvider';
 import styles from './NativeCallParticipantGrid.module.css';
 
 /** A dedicated tile that renders a participant's screenshare video. */
@@ -19,8 +22,16 @@ function ScreenShareTile({ trackRef }: { trackRef: TrackReference }) {
   );
 }
 
-export function NativeCallParticipantGrid() {
+interface NativeCallParticipantGridProps {
+  onPin?: (participantId: string | null) => void;
+}
+
+export function NativeCallParticipantGrid({ onPin }: NativeCallParticipantGridProps) {
   const participants = useParticipants();
+  const { remoteParticipantStates } = useCallState();
+  const [layoutState, setLayoutState] = useAtom(voiceCallLayoutAtom);
+  const pinParticipant = useSetAtom(pinParticipantAtom);
+  const { layoutMode, pinnedParticipantId, isCarouselExpanded } = layoutState;
 
   // Collect all active screenshare tracks across all participants.
   const allSSTracks = useTracks([{ source: Track.Source.ScreenShare, withPlaceholder: false }]);
@@ -29,40 +40,116 @@ export function NativeCallParticipantGrid() {
     [allSSTracks],
   );
 
-  const hasScreenShare = screenShareTracks.length > 0;
-
-  // Column count is based on participant (camera) tiles only.
-  // Screenshare tiles span 2 cols, so they don't count as regular cells.
-  const columns = useMemo(() => {
-    const count = participants.length;
-    if (hasScreenShare) {
-      // Ensure at least 2 cols so screenshare spans 2 and camera tiles fill the rest.
-      return count <= 2 ? 2 : count <= 6 ? 3 : 4;
+  // Auto-pin on screenshare: when a participant starts screensharing, auto-pin them.
+  useEffect(() => {
+    // Check remoteParticipantStates for any screen-sharing participant.
+    let firstScreenSharerId: string | null = null;
+    for (const [identity, state] of remoteParticipantStates) {
+      if (state.isScreenSharing) {
+        firstScreenSharerId = identity;
+        break;
+      }
     }
-    if (count <= 1) return 1;
-    if (count <= 4) return 2;
-    if (count <= 9) return 3;
-    return 4;
-  }, [participants.length, hasScreenShare]);
 
-  return (
-    <div
-      className={styles.grid}
-      style={{ gridTemplateColumns: `repeat(${columns}, 1fr)` }}
-    >
-      {/* Screenshare tiles first — each spans 2 columns for prominence */}
-      {screenShareTracks.map((t) => (
+    if (firstScreenSharerId && layoutMode === 'grid') {
+      // Auto-switch to focus mode when someone starts screensharing.
+      pinParticipant(firstScreenSharerId);
+    } else if (!firstScreenSharerId && pinnedParticipantId !== null) {
+      // If the pinned participant stopped screensharing and we're in focus mode due to screenshare,
+      // only auto-unpin if there's no other screenshare.
+      const anyScreenShare = screenShareTracks.length > 0;
+      if (!anyScreenShare) {
+        pinParticipant(null);
+      }
+    }
+  }, [remoteParticipantStates, layoutMode, pinnedParticipantId, pinParticipant, screenShareTracks.length]);
+
+  const handlePin = (participantId: string | null) => {
+    pinParticipant(participantId);
+    onPin?.(participantId);
+  };
+
+  const toggleCarousel = () => {
+    setLayoutState((prev) => ({ ...prev, isCarouselExpanded: !prev.isCarouselExpanded }));
+  };
+
+  // ── FOCUS MODE ──────────────────────────────────────────────────────────────
+  if (layoutMode === 'focus' && pinnedParticipantId !== null) {
+    const pinnedParticipant = participants.find((p) => p.identity === pinnedParticipantId);
+    const otherParticipants = participants.filter((p) => p.identity !== pinnedParticipantId);
+
+    // Pinned screenshare track (if applicable)
+    const pinnedSSTrack = screenShareTracks.find(
+      (t) => t.participant.identity === pinnedParticipantId,
+    );
+
+    return (
+      <div className={styles.focusLayout}>
+        {/* Main large tile */}
+        <div className={styles.focusMain}>
+          {pinnedSSTrack ? (
+            <ScreenShareTile trackRef={pinnedSSTrack} />
+          ) : pinnedParticipant ? (
+            <NativeCallParticipantTile
+              participant={pinnedParticipant}
+              onPin={handlePin}
+              isPinned
+            />
+          ) : null}
+        </div>
+
+        {/* Carousel strip */}
         <div
-          key={`ss-${t.participant?.identity}`}
-          style={{ gridColumn: `span ${Math.min(2, columns)}` }}
+          className={styles.focusCarousel}
+          style={isCarouselExpanded ? { height: 'auto', flexWrap: 'wrap' } : undefined}
         >
+          {otherParticipants.map((participant) => (
+            <NativeCallParticipantTile
+              key={participant.identity}
+              participant={participant}
+              onPin={handlePin}
+            />
+          ))}
+        </div>
+
+        {/* Toggle button for carousel expand/collapse */}
+        {otherParticipants.length > 0 && (
+          <button
+            type="button"
+            className={styles.carouselToggle}
+            onClick={toggleCarousel}
+            aria-label={isCarouselExpanded ? 'Collapse participants' : 'Expand participants'}
+          >
+            {isCarouselExpanded ? (
+              <CaretDown size={12} weight="bold" />
+            ) : (
+              <CaretUp size={12} weight="bold" />
+            )}
+            {isCarouselExpanded ? 'Collapse' : 'Expand'}
+          </button>
+        )}
+      </div>
+    );
+  }
+
+  // ── GRID MODE ────────────────────────────────────────────────────────────────
+  return (
+    <div className={styles.grid}>
+      {/* Screenshare tiles first */}
+      {screenShareTracks.map((t) => (
+        <div key={`ss-${t.participant?.identity}`} className={styles.screenTileWrap}>
           <ScreenShareTile trackRef={t} />
         </div>
       ))}
 
       {/* Regular participant camera tiles */}
       {participants.map((participant) => (
-        <NativeCallParticipantTile key={participant.identity} participant={participant} />
+        <NativeCallParticipantTile
+          key={participant.identity}
+          participant={participant}
+          onPin={handlePin}
+          className={styles.tile}
+        />
       ))}
     </div>
   );

@@ -72,24 +72,72 @@ Nur Features die **im Frontend umsetzbar** sind — entweder rein clientseitig o
 
 ---
 
-### 5. Typing Indicator Text-Tiers `[FE]`
+### 5. Typing Indicator — Über der Textarea, mit Namen + Overflow `[FE]`
 
-**Was:** Der Typing-Indicator zeigt unterschiedliche Texte je nach Anzahl der Tippenden:
-- 1 Person: `"Alice tippt..."`
-- 2 Personen: `"Alice und Bob tippen..."`
-- 3 Personen: `"Alice, Bob und Charlie tippen..."`
-- 4+ Personen: `"Mehrere Personen tippen..."`
-- (Optional Fluxer-Humor: 10+: "Eine Symphonie von Tastaturen...", 20+: "Tipp-Apokalypse")
+**Was:** Der Typing-Indicator wird komplett neu positioniert und verbessert:
 
-**Wie:** Im Typing-Indicator-Komponenten die Anzahl der tippenden User auslesen und die Text-Logik entsprechend anpassen.
+**Position:** Direkt **über der Textarea-Eingabe** (floating pill, `position: absolute; bottom: 100%`) — nicht mehr irgendwo in der User-Liste oben rechts wo man ihn kaum sieht. So sieht man sofort wer gerade tippt, ohne den Blick vom Eingabefeld wegzubewegen.
 
-**Fluxer-Referenz:** `src/components/channel/TypingUsers.tsx` Zeile 1–176
+**Namensanzeige mit intelligentem Overflow:**
+- 1 Person: `"Alice tippt…"`
+- 2 Personen: `"Alice und Bob tippen…"`
+- 3 Personen: `"Alice, Bob und Charlie tippen…"`
+- 4 Personen: `"Alice, Bob, Charlie und 1 weitere Person tippen…"`
+- 5+ Personen: `"Alice, Bob, Charlie und 3 weitere Personen tippen…"`
+- 10+ Personen: `"Mehrere Personen tippen…"` (Namen werden weggelassen)
 
-**Aufwand:** ~1h
+**Animierte Dots:** 3 blinkende Punkte mit gestaffeltem Delay (0ms / 250ms / 500ms) — `opacity: 1 → 0 → 1`, `1s infinite`.
+
+**Pill-Design:** Das bestehende Pill-CSS bleibt (`border-radius: var(--radius-2xl)`, `--background-tertiary` bg), aber jetzt **direkt am Input** verankert, nicht irgendwo oben.
+
+**Ein/Ausblend-Animation:** Der Pill fährt von `translateY(8px), opacity: 0` auf `translateY(0), opacity: 1` wenn jemand anfängt zu tippen. Verschwindet sanft wenn alle aufgehört haben.
+
+**Wie:**
+- Typing-State aus dem Matrix-Client lesen: `mx.getRoom(roomId)?.currentState` oder der bereits vorhandene Typing-Hook in BetterCord
+- Neue Komponente `TypingIndicatorPill.tsx` direkt im `RoomInputArea`-Container platzieren
+- Container der Textarea braucht `position: relative`, der Pill bekommt `position: absolute; bottom: calc(100% + 4px); left: 0`
+- Display-Namen der tippenden User via `room.getMember(userId)?.name` auflösen
+- Overflow-Logik: erste 3 Namen anzeigen, Rest als `+ N weitere`
+- CSS-Transition für mount/unmount: kurzer `translateY`-Slide
+
+**Fluxer-Referenz:** `src/components/channel/TypingUsers.tsx` (Zeile 1–176) — dort ist die Text-Tier-Logik und Avatar-Stack zu sehen
+
+**Aufwand:** ~3–4h
 
 ---
 
-### 6. Character Counter `[FE]`
+### 6. Member List: Online/Offline Farbunterschied `[FE]`
+
+**Was:** In der rechten Member-Sidebar sollen Online- und Offline-User visuell klar unterscheidbar sein — nicht nur über den kleinen Status-Dot, sondern direkt über die Textfarbe des Namens:
+
+- **Online / Idle / DND** → Name in `--text-primary` (helles Weiß-Ton, voll lesbar)
+- **Offline / Unsichtbar** → Name in `--text-muted` (gedämpftes Grau, wie die aktuelle Standard-Textfarbe — der User "verschwindet" leicht)
+
+So sieht man auf einen Blick wer aktiv ist, ohne jeden Status-Dot genau anschauen zu müssen. Das Offline-Grau wirkt dabei nicht "kaputt" — es ist genau die Farbe die aktuell überall für sekundären Text genutzt wird, also vertraut.
+
+**Zusatz-Detail — Gruppen-Header:**
+Die Sektion-Überschriften `ONLINE — 12` / `OFFLINE — 34` bekommen ihre Zahl in der passenden Farbe:
+- ONLINE-Zahl: `--status-online` (grün)
+- OFFLINE-Zahl: `--text-muted` (grau)
+
+**Wie:**
+- Im Member-List-Item-Komponenten den `presence`-Status des Users lesen (`user.presence === 'online' || 'unavailable'` → online-Farbe, sonst muted)
+- CSS-Klasse oder inline-style je nach Presence: `color: var(--text-primary)` vs `color: var(--text-muted)`
+- Transition `color 200ms ease` damit der Wechsel sanft passiert wenn jemand online/offline geht
+- Für die Gruppen-Header: Zahl-Span bekommt entsprechende Farb-Variable
+
+**CSS-Snippet:**
+```css
+.memberName[data-online="true"]  { color: var(--text-primary); }
+.memberName[data-online="false"] { color: var(--text-muted);   }
+.memberName { transition: color 200ms ease; }
+```
+
+**Aufwand:** ~1–2h (Member-Sidebar existiert bereits in BetterCord — direkt umsetzbar)
+
+---
+
+### 7. Character Counter `[FE]`
 
 **Was:** Unter der Textarea erscheint ein Zähler `aktuell / max` — aber **nur wenn man über 80% der maximalen Länge ist**. Darunter ist er unsichtbar.
 

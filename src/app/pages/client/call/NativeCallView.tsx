@@ -1,12 +1,36 @@
-import React from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
+import { X } from '@phosphor-icons/react';
 import { RoomContext } from '@livekit/components-react';
 import { useCallState } from './CallProvider';
+import { useMatrixClient } from '../../../hooks/useMatrixClient';
 import { NativeCallParticipantGrid } from './NativeCallParticipantGrid';
 import { NativeCallControlBar } from './NativeCallControlBar';
 import styles from './NativeCallView.module.css';
 
+function useVoiceHUDIdle(timeoutMs = 3000) {
+  const [isActive, setIsActive] = useState(true);
+  const timerRef = useRef<ReturnType<typeof setTimeout>>();
+
+  const handlePointerMove = useCallback(() => {
+    setIsActive(true);
+    clearTimeout(timerRef.current);
+    timerRef.current = setTimeout(() => setIsActive(false), timeoutMs);
+  }, [timeoutMs]);
+
+  useEffect(() => {
+    timerRef.current = setTimeout(() => setIsActive(false), timeoutMs);
+    return () => clearTimeout(timerRef.current);
+  }, [timeoutMs]);
+
+  return { isActive, handlePointerMove };
+}
+
 export function NativeCallView() {
-  const { livekitRoom, callStatus, callError } = useCallState();
+  const { livekitRoom, callStatus, callError, activeCallRoomId, toggleCallView } = useCallState();
+  const mx = useMatrixClient();
+  const { isActive, handlePointerMove } = useVoiceHUDIdle(3000);
+
+  const roomName = activeCallRoomId ? (mx.getRoom(activeCallRoomId)?.name ?? '') : '';
 
   if (callStatus === 'connecting') {
     return (
@@ -32,11 +56,44 @@ export function NativeCallView() {
   }
 
   return (
-    <RoomContext.Provider value={livekitRoom}>
-      <div className={styles.view}>
+    <div
+      className={`${styles.voiceRoot}${isActive ? ` ${styles.pointerActive}` : ''}`}
+      onPointerMove={handlePointerMove}
+    >
+      {/* Header chrome (auto-hiding) */}
+      <div className={styles.voiceHeader}>
+        <button
+          type="button"
+          className={styles.backBtn}
+          onClick={toggleCallView}
+          aria-label="Minimize call"
+        >
+          <X size={18} weight="bold" />
+        </button>
+        <span className={styles.channelName}>{roomName}</span>
+        <div className={styles.connectionStatus} data-status={callStatus}>
+          <span className={styles.statusDot} />
+          <span className={styles.connectionStatusText}>
+            {callStatus === 'connected'
+              ? 'Voice Connected'
+              : callStatus === 'connecting'
+              ? 'Connecting…'
+              : callStatus === 'error'
+              ? 'Connection Error'
+              : ''}
+          </span>
+        </div>
+      </div>
+
+      {/* Main content */}
+      <RoomContext.Provider value={livekitRoom}>
         <NativeCallParticipantGrid />
+      </RoomContext.Provider>
+
+      {/* Control bar (auto-hiding) */}
+      <div className={styles.controlBarWrap}>
         <NativeCallControlBar />
       </div>
-    </RoomContext.Provider>
+    </div>
   );
 }

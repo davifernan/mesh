@@ -525,8 +525,26 @@ select {
   appearance: none !important;
 }
 
-/* folds Input renders as <label><input /></label> — the label is the styled container.
-   Strip all native styling from the inner input to prevent double borders. */
+/* folds Input renders as <div class="_1rrvnjm8 ..."><input /></div>
+   — NOT a <label>. Override the outer wrapper's bg/border, then strip inner <input>
+   to prevent the double-border (folds box-shadow + our border = two visible frames). */
+
+/* 1. Take over the folds Input container */
+._1rrvnjm8 {
+  background-color: var(--background-textarea) !important;
+  border-radius: 0.5rem !important;
+  /* Replace folds' CSS-var inset shadow with our explicit border */
+  box-shadow: inset 0 0 0 1px var(--background-modifier-accent) !important;
+  transition: box-shadow 150ms cubic-bezier(0.4, 0, 0.2, 1) !important;
+}
+._1rrvnjm8:has(input:focus),
+._1rrvnjm8:focus-within {
+  box-shadow: inset 0 0 0 1.5px var(--background-modifier-accent-focus) !important;
+}
+
+/* 2. Strip ALL visual styling from the raw <input> inside folds wrapper */
+._1rrvnjm8 input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="file"]),
+div > input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="file"]),
 label > input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="file"]) {
   background-color: transparent !important;
   border: none !important;
@@ -536,6 +554,11 @@ label > input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not
   outline: none !important;
   transition: none !important;
   min-width: 0 !important;
+  flex: 1 !important;
+  color: inherit !important;
+  font-size: inherit !important;
+  font-family: inherit !important;
+  line-height: inherit !important;
 }
 
 /* ================================================================
@@ -814,12 +837,22 @@ label > input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not
 
 /* ================================================================
    USER AREA — bottom of channel sidebar (72px)
+   Ensure it is full-width and flush — no extra margin from PageNav internals
    ================================================================ */
 [class*="CallNavStatus"],
 [data-ui-kind="PageNav"] > * > * > * > div:last-child {
   background-color: var(--panel-control-bg) !important;
   border-top: 1px solid var(--user-area-divider-color) !important;
   min-height: var(--layout-user-area-height) !important;
+}
+
+/* UserArea component — force full-width stretch, no left margin offset */
+[class*="userArea_"] {
+  width: 100% !important;
+  box-sizing: border-box !important;
+  margin: 0 !important;
+  align-self: stretch !important;
+  flex-shrink: 0 !important;
 }
 
 /* Control buttons (mic, deafen, settings) */

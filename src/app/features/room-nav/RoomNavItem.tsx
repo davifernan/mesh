@@ -1,4 +1,4 @@
-import React, { MouseEventHandler, forwardRef, useState, MouseEvent } from 'react';
+import React, { MouseEventHandler, forwardRef, useState, MouseEvent, useEffect } from 'react';
 import { EventType, JoinRule, Room } from 'matrix-js-sdk';
 import {
   Avatar,
@@ -259,10 +259,32 @@ export function RoomNavItem({
     isChatOpen,
     toggleChat,
     hangUp,
+    callStatus,
   } = useCallState();
 
   // isActiveCall: true as soon as this room is set as active call (including while connecting)
   const isActiveCall = activeCallRoomId === room.roomId;
+
+  // Call duration badge — local timer, MM:SS only
+  const [callDuration, setCallDuration] = useState(0);
+  const [callStartedAt] = useState(() => Date.now());
+
+  useEffect(() => {
+    if (!isActiveCall || callStatus !== 'connected') {
+      setCallDuration(0);
+      return;
+    }
+    const id = setInterval(() => {
+      setCallDuration(Math.floor((Date.now() - callStartedAt) / 1000));
+    }, 1000);
+    return () => clearInterval(id);
+  }, [isActiveCall, callStatus, callStartedAt]);
+
+  function formatCallDuration(s: number): string {
+    const m = Math.floor(s / 60);
+    const sec = s % 60;
+    return `${m}:${String(sec).padStart(2, '0')}`;
+  }
   const callMemberships = useCallMembers(mx, room.roomId);
 
   const powerLevels = usePowerLevels(room);
@@ -392,6 +414,19 @@ export function RoomNavItem({
                 >
                   {roomName}
                 </Text>
+                {isActiveCall && callStatus === 'connected' && (
+                  <span
+                    style={{
+                      fontSize: '11px',
+                      color: 'var(--text-secondary)',
+                      marginLeft: '4px',
+                      fontVariantNumeric: 'tabular-nums',
+                      flexShrink: 0,
+                    }}
+                  >
+                    {formatCallDuration(callDuration)}
+                  </span>
+                )}
               </Box>
               {/* Speaker icon when others are in this voice channel */}
               {room.isCallRoom() && callMemberships.length > 0 && !optionsVisible && !unread && (

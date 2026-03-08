@@ -43,6 +43,7 @@ export interface NativeCallEngine {
   speakingUsers: Set<string>;
   remoteParticipantStates: Map<string, { audioEnabled: boolean; videoEnabled: boolean; isScreenSharing: boolean }>;
   error: Error | null;
+  callJoinTime: Date | null;
   hangUp: () => void;
   toggleAudio: () => Promise<void>;
   toggleVideo: () => Promise<void>;
@@ -126,6 +127,7 @@ export function useNativeCall(roomId: string | null): NativeCallEngine {
   const [speakingUsers, setSpeakingUsers] = useState<Set<string>>(new Set());
   const [remoteParticipantStates, setRemoteParticipantStates] = useState<Map<string, { audioEnabled: boolean; videoEnabled: boolean; isScreenSharing: boolean }>>(new Map());
   const [error, setError] = useState<Error | null>(null);
+  const [callJoinTime, setCallJoinTime] = useState<Date | null>(null);
 
   // ── Refs for imperative cleanup (survive re-renders) ──────────────────────
   const roomRef = useRef<Room | null>(null);
@@ -349,6 +351,7 @@ export function useNativeCall(roomId: string | null): NativeCallEngine {
           setLivekitRoom(room);
           setStatus('connected');
           setIsAudioEnabled(true);
+          setCallJoinTime(new Date());
           setIsVideoEnabled(false);
           setIsScreenShareEnabled(false);
         }
@@ -371,6 +374,7 @@ export function useNativeCall(roomId: string | null): NativeCallEngine {
       e2eeWorkerRef.current?.terminate();
       e2eeWorkerRef.current = null;
       setStatus('idle');
+      setCallJoinTime(null);
       setLivekitRoom(null);
       setSpeakingUsers(new Set());
       setRemoteParticipantStates(new Map());
@@ -387,6 +391,7 @@ export function useNativeCall(roomId: string | null): NativeCallEngine {
     e2eeWorkerRef.current?.terminate();
     e2eeWorkerRef.current = null;
     setStatus('idle');
+    setCallJoinTime(null);
     setLivekitRoom(null);
     setSpeakingUsers(new Set());
     setRemoteParticipantStates(new Map());
@@ -448,6 +453,7 @@ export function useNativeCall(roomId: string | null): NativeCallEngine {
     speakingUsers,
     remoteParticipantStates,
     error,
+    callJoinTime,
     hangUp,
     toggleAudio,
     toggleVideo,

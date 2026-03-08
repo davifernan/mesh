@@ -1,18 +1,12 @@
 import {
   Box,
-  Chip,
-  Icon,
-  IconButton,
-  Icons,
   Line,
   Spinner,
   Text,
   Tooltip,
   TooltipProvider,
-  color,
 } from 'folds';
 import {
-  WifiHigh,
   PhoneDisconnect,
   Microphone,
   MicrophoneSlash,
@@ -21,6 +15,10 @@ import {
   Monitor,
 } from '@phosphor-icons/react';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { AnimatePresence } from 'framer-motion';
+import { SignalStrengthIcon } from './SignalStrengthIcon';
+import { IncomingCallCard } from './RoomCallNavStatusIncoming';
+import { useCallMembers } from '../../hooks/useCallMemberships';
 import { useAtomValue } from 'jotai';
 import { ScreenShareModal } from '../../components/voice/ScreenShareModal/ScreenShareModal';
 import { EventType } from 'matrix-js-sdk';
@@ -76,6 +74,28 @@ interface IncomingCall {
   roomId: string;
 }
 
+function RttChart({ history }: { history: number[] }) {
+  if (history.length < 2) return null;
+  const W = 200;
+  const H = 40;
+  const max = Math.max(...history, 1);
+  const pts = history
+    .map((v, i) => `${(i / (history.length - 1)) * W},${H - (v / max) * H}`)
+    .join(' ');
+  return (
+    <svg width={W} height={H} style={{ display: 'block', margin: '4px 0' }}>
+      <polyline
+        points={pts}
+        fill="none"
+        stroke="var(--voice-status-success)"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
 export function CallNavStatus() {
   const mx = useMatrixClient();
   const {
@@ -89,13 +109,38 @@ export function CallNavStatus() {
     hangUp,
     setActiveCallRoomId,
     speakingUsers,
+    livekitRoom,
   } = useCallState();
 
   const myUserId = mx.getUserId() ?? '';
   const iMSpeaking = speakingUsers.has(myUserId);
 
   const [showSSModal, setShowSSModal] = useState(false);
+  const [showVoicePopout, setShowVoicePopout] = useState(false);
+  const [showMembersPopout, setShowMembersPopout] = useState(false);
+  const [latencyMs, setLatencyMs] = useState<number | null>(null);
+  const rttHistoryRef = useRef<number[]>([]);
   const { navigateRoom } = useRoomNavigate();
+
+  // Poll LiveKit engine latency (~1s) when connected
+  useEffect(() => {
+    if (!livekitRoom || callStatus !== 'connected') {
+      setLatencyMs(null);
+      return;
+    }
+    const update = () => {
+      const lat = (livekitRoom as unknown as Record<string, unknown>)?.engine as Record<string, unknown> | undefined;
+      const rawLat = lat?.latency;
+      const ms = typeof rawLat === 'number' ? Math.round(rawLat) : null;
+      setLatencyMs(ms);
+      if (typeof ms === 'number') {
+        rttHistoryRef.current = [...rttHistoryRef.current.slice(-29), ms];
+      }
+    };
+    update();
+    const id = setInterval(update, 1000);
+    return () => clearInterval(id);
+  }, [livekitRoom, callStatus]);
 
   const [incomingCalls, setIncomingCalls] = useState<IncomingCall[]>([]);
   const [callPage, setCallPage] = useState(0);
@@ -180,6 +225,9 @@ export function CallNavStatus() {
 
   const hasActiveCall = Boolean(activeCallRoomId);
   const isConnected = hasActiveCall && callStatus === 'connected';
+
+  // Members currently in the active call channel (for avatar stack)
+  const callMembers = useCallMembers(mx, activeCallRoomId ?? '');
 
   const clearCallTimeout = useCallback((roomId: string) => {
     const t = callTimeoutsRef.current.get(roomId);
@@ -317,108 +365,52 @@ export function CallNavStatus() {
 
   if (!hasActiveCall && incomingCalls.length === 0) return null;
 
-  // Incoming call(s) with pagination
+  // Incoming call(s) — glassmorphism card (rendered as fixed overlay, not in flow)
   if (!hasActiveCall) {
-    const current = incomingCalls[safeIndex];
-    const room = mx.getRoom(current.roomId);
-    const total = incomingCalls.length;
-
     return (
-      <Box direction="Column" shrink="No">
-        <Line variant="Surface" size="300" />
-        <Box
-          className={css.Actions}
-          direction="Row"
-          alignItems="Center"
-          gap="100"
-          style={{ borderLeft: `3px solid ${color.Warning.Main}` }}
-        >
-          {/* Prev/next pagination — only when multiple calls */}
-          {total > 1 && (
-            <IconButton
-              fill="None"
-              size="300"
-              onClick={() => setCallPage((p) => Math.max(0, p - 1))}
-              disabled={safeIndex === 0}
-              aria-label="Previous incoming call"
-            >
-              <Icon src={Icons.ChevronLeft} size="50" />
-            </IconButton>
-          )}
-
-          <Box className={css.RoomButtonWrap} grow="Yes">
-            <TooltipProvider
-              position="Top"
-              offset={4}
-              tooltip={
-                <Tooltip>
-                  <Text>Join call</Text>
-                </Tooltip>
-              }
-            >
-              {(triggerRef) => (
-                <Chip
-                  id="incoming-call-join"
-                  size="500"
-                  fill="Soft"
-                  as="button"
-                  aria-label={`Join call${room ? ` in ${room.name}` : ''}`}
-                  onClick={() => handleJoin(current.roomId)}
-                  ref={triggerRef}
-                  className={css.RoomButton}
-                >
-                  <Icon size="300" src={Icons.Phone} style={{ color: color.Warning.Main }} />
-                  <Text as="span" size="L400" style={{ color: color.Warning.Main }} truncate>
-                    {room?.name ?? current.roomId}
-                    {total > 1 && ` (${safeIndex + 1}/${total})`}
-                  </Text>
-                </Chip>
-              )}
-            </TooltipProvider>
-          </Box>
-
-          {total > 1 && (
-            <IconButton
-              fill="None"
-              size="300"
-              onClick={() => setCallPage((p) => Math.min(total - 1, p + 1))}
-              disabled={safeIndex === total - 1}
-              aria-label="Next incoming call"
-            >
-              <Icon src={Icons.ChevronRight} size="50" />
-            </IconButton>
-          )}
-
-          <TooltipProvider
-            position="Top"
-            offset={4}
-            tooltip={
-              <Tooltip>
-                <Text>Dismiss</Text>
-              </Tooltip>
-            }
-          >
-            {(triggerRef) => (
-              <IconButton
-                fill="None"
-                size="300"
-                ref={triggerRef}
-                aria-label="Dismiss incoming call"
-                onClick={() => {
-                  handleDismiss(current.roomId);
-                  setCallPage((p) => Math.max(0, p - 1));
-                }}
-              >
-                <Icon src={Icons.Cross} />
-              </IconButton>
-            )}
-          </TooltipProvider>
-        </Box>
-      </Box>
+      <AnimatePresence>
+        {incomingCalls.map((call, idx) => (
+          <IncomingCallCard
+            key={call.roomId}
+            roomId={call.roomId}
+            onAccept={(roomId) => {
+              handleJoin(roomId);
+            }}
+            onReject={(roomId) => {
+              handleDismiss(roomId);
+              setCallPage((p) => Math.max(0, p - 1));
+            }}
+            onIgnore={(roomId) => {
+              handleDismiss(roomId);
+              setCallPage((p) => Math.max(0, p - 1));
+            }}
+          />
+        ))}
+      </AnimatePresence>
     );
   }
 
   // Active call — Fluxer-style voice connection panel
+  const channelName = activeCallRoomId
+    ? mx.getRoom(activeCallRoomId)?.name ?? activeCallRoomId
+    : '';
+
+  // Build avatar data for connected members (max 4)
+  const avatarMembers = callMembers.slice(0, 4).map((userId) => {
+    const user = mx.getUser(userId);
+    const mxcUrl = user?.avatarUrl;
+    const httpUrl = mxcUrl
+      ? mxcUrlToHttp(mx, mxcUrl, useAuthentication, 24, 24, 'crop')
+      : null;
+    const displayName = user?.displayName ?? userId;
+    const initials = displayName
+      .split(/\s+/)
+      .slice(0, 2)
+      .map((w: string) => w[0]?.toUpperCase() ?? '')
+      .join('');
+    return { userId, httpUrl, initials, displayName };
+  });
+
   return (
     <Box direction="Column" shrink="No">
       {showSSModal && (
@@ -431,12 +423,30 @@ export function CallNavStatus() {
         />
       )}
       <Line variant="Surface" size="300" />
-      <div className={css.VoiceContainer}>
+      <div className={css.VoiceContainer} style={{ position: 'relative' }}>
+        {/* Voice details popout */}
+        {showVoicePopout && (
+          <div className={css.VoicePopout}>
+            <div className={css.VoicePopoutTitle}>Voice Connection</div>
+            <div className={css.VoicePopoutRow}>
+              <span>Channel</span>
+              <span className={css.VoicePopoutValue}>{channelName}</span>
+            </div>
+            {latencyMs !== null && (
+              <div className={css.VoicePopoutRow}>
+                <span>RTT</span>
+                <span className={css.VoicePopoutValue}>{latencyMs} ms</span>
+              </div>
+            )}
+            <RttChart history={rttHistoryRef.current} />
+          </div>
+        )}
+
         {/* Status row: signal icon + status text + disconnect */}
         <div className={css.StatusRow}>
           <div className={`${css.SignalIconWrap} ${isConnected ? css.SignalConnected : css.SignalConnecting}`}>
             {isConnected ? (
-              <WifiHigh size={16} weight="fill" />
+              <SignalStrengthIcon latencyMs={latencyMs} size={16} />
             ) : (
               <Spinner size="300" variant="Secondary" />
             )}
@@ -444,8 +454,12 @@ export function CallNavStatus() {
           <button
             type="button"
             className={`${css.StatusLabel} ${isConnected ? css.StatusConnected : css.StatusConnecting}`}
-            onClick={() => activeCallRoomId && navigateRoom(activeCallRoomId)}
-            aria-label="Go to voice channel"
+            onClick={() => isConnected
+              ? setShowVoicePopout((v) => !v)
+              : activeCallRoomId && navigateRoom(activeCallRoomId)
+            }
+            aria-label={isConnected ? 'Toggle voice details' : 'Go to voice channel'}
+            aria-expanded={isConnected ? showVoicePopout : undefined}
           >
             {isConnected ? 'Voice Connected' : 'Connecting...'}
           </button>
@@ -462,6 +476,7 @@ export function CallNavStatus() {
                   ref={triggerRef}
                   aria-label="Hang up"
                   onClick={() => {
+                    setShowVoicePopout(false);
                     if (activeCallRoomId) {
                       timedOutCalls.add(activeCallRoomId);
                       hungUpCalls.add(activeCallRoomId);
@@ -485,9 +500,50 @@ export function CallNavStatus() {
             onClick={() => activeCallRoomId && navigateRoom(activeCallRoomId)}
             aria-label="Go to room"
           >
-            {activeCallRoomId ? mx.getRoom(activeCallRoomId)?.name ?? activeCallRoomId : ''}
+            {channelName}
           </button>
         </div>
+
+        {/* Speaking avatar stack */}
+        {isConnected && avatarMembers.length > 0 && (
+          <div className={css.AvatarStack}>
+            {avatarMembers.map(({ userId, httpUrl, initials, displayName }) => {
+              const isSpeaking = speakingUsers.has(userId);
+              return (
+                <div
+                  key={userId}
+                  className={`${css.AvatarItem}${isSpeaking ? ` ${css.AvatarItemSpeaking}` : ''}`}
+                  title={displayName}
+                >
+                  {httpUrl ? (
+                    <img src={httpUrl} alt={displayName} className={css.AvatarImg} />
+                  ) : (
+                    <div className={css.AvatarInitials}>{initials || '?'}</div>
+                  )}
+                </div>
+              );
+            })}
+            {callMembers.length > 4 && (
+              <button
+                type="button"
+                className={css.overflowBadge}
+                onClick={() => setShowMembersPopout((v) => !v)}
+                title={`${callMembers.length - 4} more`}
+              >
+                +{callMembers.length - 4}
+              </button>
+            )}
+            {showMembersPopout && (
+              <div className={css.membersPopout}>
+                {callMembers.map((userId) => (
+                  <div key={userId} className={css.membersPopoutItem}>
+                    {mx.getUser(userId)?.displayName ?? userId ?? 'Unknown'}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Media section: mute + video + screenshare (3-column grid) */}
         <div className={css.MediaSection} style={{ gridTemplateColumns: 'repeat(3, 1fr)' }}>

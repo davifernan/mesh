@@ -1,0 +1,194 @@
+.container {
+  position: fixed;
+  top: 0;
+  left: 0;
+  z-index: 9000;
+  border-radius: 12px;
+  overflow: hidden;
+  background: var(--background-secondary, #2f3136);
+  box-shadow:
+    0 8px 32px rgba(0, 0, 0, 0.55),
+    0 2px 8px rgba(0, 0, 0, 0.3);
+  cursor: grab;
+  user-select: none;
+  touch-action: none;
+  will-change: transform;
+}
+
+.container:active {
+  cursor: grabbing;
+}
+
+.container[data-speaking='true'] {
+  box-shadow:
+    0 8px 32px rgba(0, 0, 0, 0.55),
+    0 2px 8px rgba(0, 0, 0, 0.3),
+    0 0 0 3px var(--voice-status-success, #23A55A);
+}
+
+.resizeHandle { position: absolute; z-index: 10; }
+.resizeNW { top: 0; left: 0; width: 12px; height: 12px; cursor: nw-resize; }
+.resizeNE { top: 0; right: 0; width: 12px; height: 12px; cursor: ne-resize; }
+.resizeSW { bottom: 0; left: 0; width: 12px; height: 12px; cursor: sw-resize; }
+.resizeSE { bottom: 0; right: 0; width: 12px; height: 12px; cursor: se-resize; }
+.resizeN { top: 0; left: 12px; right: 12px; height: 4px; cursor: n-resize; }
+.resizeS { bottom: 0; left: 12px; right: 12px; height: 4px; cursor: s-resize; }
+.resizeW { left: 0; top: 12px; bottom: 12px; width: 4px; cursor: w-resize; }
+.resizeE { right: 0; top: 12px; bottom: 12px; width: 4px; cursor: e-resize; }
+
+/* Video fills the tile */
+.video {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: inherit;
+}
+
+/* Avatar fallback */
+.avatarFallback {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--background-secondary, #2f3136);
+}
+
+.avatarCircle {
+  width: 64px;
+  height: 64px;
+  border-radius: 9999px;
+  background: var(--brand-primary, #5865f2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 24px;
+  font-weight: 700;
+  color: #fff;
+  flex-shrink: 0;
+}
+
+/* Hover overlay — invisible by default, shown on hover/drag */
+.hoverOverlay {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.18s ease;
+}
+
+.hoverOverlayVisible {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+/* Top gradient + controls */
+.topBar {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 48px;
+  padding: 8px 10px;
+  background: linear-gradient(to bottom, rgba(0, 0, 0, 0.72) 0%, transparent 100%);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  pointer-events: auto;
+}
+
+.returnBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  background: none;
+  border: none;
+  border-bottom: 1px solid transparent;
+  color: #fff;
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 0;
+  min-width: 0;
+  transition: border-color 120ms;
+}
+
+.returnBtn:hover {
+  border-bottom-color: currentColor;
+}
+
+.returnLabel {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 160px;
+}
+
+.iconBtn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 4px;
+  background: none;
+  border: none;
+  color: #fff;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: background-color 120ms;
+}
+
+.iconBtn:hover {
+  background: rgba(255, 255, 255, 0.15);
+}
+
+/* Bottom gradient + controls */
+.bottomBar {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 48px;
+  padding: 8px 10px;
+  background: linear-gradient(to top, rgba(0, 0, 0, 0.72) 0%, transparent 100%);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  pointer-events: auto;
+}
+
+.channelName {
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.88);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  flex: 1 1 0;
+  min-width: 0;
+}
+
+.hangupBtn {
+  background: #F23F43;
+  border: none;
+  border-radius: 9999px;
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: #fff;
+  flex-shrink: 0;
+  transition: background-color 120ms;
+}
+
+.hangupBtn:hover {
+  background: #d93a3e;
+}
