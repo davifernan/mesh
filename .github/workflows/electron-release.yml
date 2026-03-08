@@ -41,6 +41,10 @@ jobs:
         run: npm run build
 
       # ── Desktop build + publish to GitHub Release ──────────────────────
+      - name: Set desktop version from git tag
+        working-directory: desktop
+        run: npm version --no-git-tag-version ${GITHUB_REF_NAME#v}
+
       - name: Install desktop dependencies
         working-directory: desktop
         run: npm ci
