@@ -495,7 +495,7 @@ body {
    border-radius: 8px, border, padding: 0.625rem 1rem, 0.875rem font-size
    transition: 150ms cubic-bezier(0.4, 0, 0.2, 1)
    ================================================================ */
-input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="file"]):not([type="search"]):not([type="number"]):not([type="date"]):not([type="color"]):not(._1rrvnjmr),
+input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="file"]):not([type="search"]):not([type="number"]):not([type="date"]):not([type="color"]),
 textarea {
   background-color: var(--background-textarea) !important;
   border: 1px solid var(--background-modifier-accent) !important;
@@ -506,7 +506,7 @@ textarea {
   line-height: 1.25rem !important;
   transition: border-color 150ms cubic-bezier(0.4, 0, 0.2, 1), box-shadow 150ms cubic-bezier(0.4, 0, 0.2, 1) !important;
 }
-input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="file"]):not([type="search"]):not([type="number"]):not([type="date"]):not([type="color"]):not(._1rrvnjmr):focus,
+input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="file"]):not([type="search"]):not([type="number"]):not([type="date"]):not([type="color"]):focus,
 textarea:focus {
   border-color: var(--background-modifier-accent-focus) !important;
   outline: none !important;
@@ -543,12 +543,10 @@ select {
 }
 
 /* 2. Strip ALL visual styling from the raw <input> inside folds wrapper.
-   Target by both the hashed inner-input class AND by structural selectors.
-   Both rules carry !important so we beat the global input styling above. */
-._1rrvnjm8 input,
-._1rrvnjmr,
-div > input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="file"]):not([type="color"]):not([type="date"]):not([type="number"]),
-label > input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="file"]):not([type="color"]):not([type="date"]):not([type="number"]) {
+   Keep this scoped to folds only; use matching specificity so it always beats
+   the global input rule above without relying on brittle global exclusions. */
+._1rrvnjm8 > input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="file"]):not([type="search"]):not([type="number"]):not([type="date"]):not([type="color"]),
+._1rrvnjmr {
   background-color: transparent !important;
   border: none !important;
   border-radius: 0 !important;
