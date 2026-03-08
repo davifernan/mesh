@@ -27,6 +27,7 @@ interface CallContextState {
   hangUp: () => void;
   toggleAudio: () => Promise<void>;
   toggleVideo: () => Promise<void>;
+  flipCamera: () => Promise<void>;
   startScreenShare: (ssRes: string, ssFps: number, ssAudio: boolean) => Promise<void>;
   stopScreenShare: () => Promise<void>;
   isAudioEnabled: boolean;
@@ -244,6 +245,7 @@ export function CallProvider({ children }: CallProviderProps) {
     hangUp,
     toggleAudio: engine.toggleAudio,
     toggleVideo: engine.toggleVideo,
+    flipCamera: engine.flipCamera,
     startScreenShare: engine.startScreenShare,
     stopScreenShare: engine.stopScreenShare,
     isAudioEnabled: engine.isAudioEnabled,

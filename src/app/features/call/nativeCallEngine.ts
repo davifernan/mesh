@@ -14,7 +14,7 @@
  */
 
 import { useEffect, useRef, useState, useCallback } from 'react';
-import { Room, RoomEvent, Track } from 'livekit-client';
+import { Room, RoomEvent, Track, LocalVideoTrack } from 'livekit-client';
 import type { MatrixClient } from 'matrix-js-sdk';
 import { useAtomValue } from 'jotai';
 import { useMatrixClient } from '../../hooks/useMatrixClient';
@@ -47,6 +47,7 @@ export interface NativeCallEngine {
   hangUp: () => void;
   toggleAudio: () => Promise<void>;
   toggleVideo: () => Promise<void>;
+  flipCamera: () => Promise<void>;
   startScreenShare: (ssRes: string, ssFps: number, ssAudio: boolean) => Promise<void>;
   stopScreenShare: () => Promise<void>;
   toggleDeafen: () => void;
@@ -124,6 +125,8 @@ export function useNativeCall(roomId: string | null): NativeCallEngine {
   const [isVideoEnabled, setIsVideoEnabled] = useState(false);
   const [isScreenShareEnabled, setIsScreenShareEnabled] = useState(false);
   const [isDeafened, setIsDeafened] = useState(false);
+  // Tracks current camera facing mode for mobile flip toggle ('user' | 'environment')
+  const facingModeRef = useRef<'user' | 'environment'>('user');
   const [speakingUsers, setSpeakingUsers] = useState<Set<string>>(new Set());
   const [remoteParticipantStates, setRemoteParticipantStates] = useState<Map<string, { audioEnabled: boolean; videoEnabled: boolean; isScreenSharing: boolean }>>(new Map());
   const [error, setError] = useState<Error | null>(null);
@@ -231,12 +234,24 @@ export function useNativeCall(roomId: string | null): NativeCallEngine {
         };
         rtcSession.joinRoomSession([livekitFocus], livekitFocus, { manageMediaKeys: true });
 
+        // Store refs IMMEDIATELY after joinRoomSession so the cleanup function
+        // can always call leaveRoomSession() — even if an error is thrown below.
+        // Previously these were set later (after getSFUConfigWithOpenID), meaning
+        // any error between joinRoomSession and that point left an orphaned delayed
+        // event that fired after ~8s and wiped the membership.
+        roomRef.current = room;
+        rtcSessionRef.current = rtcSession;
+        e2eeWorkerRef.current = e2eeWorker;
+
         if (keyProvider) keyProvider.setRTCSession(rtcSession);
 
         if (aborted) {
           void room.disconnect();
           void rtcSession.leaveRoomSession?.();
+          roomRef.current = null;
+          rtcSessionRef.current = null;
           e2eeWorker?.terminate();
+          e2eeWorkerRef.current = null;
           return;
         }
 
@@ -252,14 +267,14 @@ export function useNativeCall(roomId: string | null): NativeCallEngine {
         if (aborted) {
           void room.disconnect();
           void rtcSession.leaveRoomSession?.();
+          roomRef.current = null;
+          rtcSessionRef.current = null;
           e2eeWorker?.terminate();
+          e2eeWorkerRef.current = null;
           return;
         }
 
-        // 6. Store refs so cleanup can always reach them
-        roomRef.current = room;
-        rtcSessionRef.current = rtcSession;
-        e2eeWorkerRef.current = e2eeWorker;
+        // 6. Refs already stored above — nothing to do here.
 
         // 7. Attach event listeners
 
@@ -413,6 +428,28 @@ export function useNativeCall(roomId: string | null): NativeCallEngine {
     await lp.setCameraEnabled(newEnabled);
   }, []);
 
+  /** Flip between front and rear camera on mobile devices */
+  const flipCamera = useCallback(async () => {
+    if (!roomRef.current) return;
+    const lp = roomRef.current.localParticipant;
+    if (!lp.isCameraEnabled) {
+      // Camera is off — enable it with current facing mode
+      await lp.setCameraEnabled(true, { facingMode: facingModeRef.current });
+      return;
+    }
+    // Detect current facing mode from the live track settings
+    const camPub = lp.getTrackPublication(Track.Source.Camera);
+    if (camPub?.track) {
+      const settings = (camPub.track as LocalVideoTrack).mediaStreamTrack.getSettings();
+      const currentFacing = (settings.facingMode as 'user' | 'environment') ?? facingModeRef.current;
+      facingModeRef.current = currentFacing === 'environment' ? 'user' : 'environment';
+    } else {
+      facingModeRef.current = facingModeRef.current === 'environment' ? 'user' : 'environment';
+    }
+    // Restart camera track with new facing mode
+    await lp.setCameraEnabled(true, { facingMode: facingModeRef.current });
+  }, []);
+
   const startScreenShare = useCallback(
     async (ssRes: string, ssFps: number, ssAudio: boolean) => {
       if (!roomRef.current) return;
@@ -457,6 +494,7 @@ export function useNativeCall(roomId: string | null): NativeCallEngine {
     hangUp,
     toggleAudio,
     toggleVideo,
+    flipCamera,
     startScreenShare,
     stopScreenShare,
     toggleDeafen,

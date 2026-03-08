@@ -14,7 +14,9 @@ import {
   SpeakerHigh,
   SpeakerSlash,
   CaretDown,
+  CameraRotate,
 } from '@phosphor-icons/react';
+import { ScreenSize, useScreenSizeContext } from '../../../hooks/useScreenSize';
 import { useLocalParticipant } from '@livekit/components-react';
 import { LocalAudioTrack, Track } from 'livekit-client';
 import { useAtom } from 'jotai';
@@ -34,10 +36,14 @@ function formatDuration(s: number): string {
 }
 
 export function NativeCallControlBar() {
+  const screenSize = useScreenSizeContext();
+  const isMobile = screenSize === ScreenSize.Mobile;
+
   const {
     hangUp,
     toggleAudio,
     toggleVideo,
+    flipCamera,
     isAudioEnabled,
     isVideoEnabled,
     isChatOpen,
@@ -281,7 +287,7 @@ export function NativeCallControlBar() {
             {isDeafened ? <SpeakerSlash size={20} /> : <SpeakerHigh size={20} />}
           </button>
 
-          {/* Camera + device caret */}
+          {/* Camera + device caret (desktop) / flip button (mobile) */}
           <div className={styles.btnWrap} ref={camMenuRef}>
             <button
               className={`${styles.btn} ${!isVideoEnabled ? styles.btnMuted : ''}`}
@@ -292,14 +298,29 @@ export function NativeCallControlBar() {
             >
               {isVideoEnabled ? <VideoCamera size={20} /> : <VideoCameraSlash size={20} />}
             </button>
-            <button
-              className={styles.caretBtn}
-              onClick={openCamMenu}
-              title="Switch camera"
-              aria-label="Switch camera device"
-            >
-              <CaretDown size={12} />
-            </button>
+            {isMobile ? (
+              /* Mobile: flip front/back camera button (replaces device caret) */
+              isVideoEnabled && (
+                <button
+                  className={styles.caretBtn}
+                  onClick={() => void flipCamera()}
+                  title="Flip camera"
+                  aria-label="Flip camera (front/back)"
+                >
+                  <CameraRotate size={12} />
+                </button>
+              )
+            ) : (
+              /* Desktop: device picker caret */
+              <button
+                className={styles.caretBtn}
+                onClick={openCamMenu}
+                title="Switch camera"
+                aria-label="Switch camera device"
+              >
+                <CaretDown size={12} />
+              </button>
+            )}
             {showCamMenu && (
               <div className={styles.deviceMenu}>
                 {camDevices.length === 0 && (

@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { X } from '@phosphor-icons/react';
-import { RoomContext } from '@livekit/components-react';
+import { RoomContext, RoomAudioRenderer, useAudioPlayback } from '@livekit/components-react';
 import { useAtomValue, useSetAtom } from 'jotai';
 import { useCallState } from './CallProvider';
 import { useMatrixClient } from '../../../hooks/useMatrixClient';
@@ -14,7 +14,7 @@ function useVoiceHUDIdle(timeoutMs = 3000) {
   const [isActive, setIsActive] = useState(true);
   const timerRef = useRef<ReturnType<typeof setTimeout>>();
 
-  const handlePointerMove = useCallback(() => {
+  const activate = useCallback(() => {
     setIsActive(true);
     clearTimeout(timerRef.current);
     timerRef.current = setTimeout(() => setIsActive(false), timeoutMs);
@@ -25,13 +25,50 @@ function useVoiceHUDIdle(timeoutMs = 3000) {
     return () => clearTimeout(timerRef.current);
   }, [timeoutMs]);
 
-  return { isActive, handlePointerMove };
+  return { isActive, activate };
+}
+
+/** Shows an "Allow Audio" overlay when browser autoplay is blocked */
+function AudioUnblockButton() {
+  const { canPlayAudio } = useAudioPlayback();
+  if (canPlayAudio) return null;
+  return (
+    <div style={{
+      position: 'absolute',
+      inset: 0,
+      zIndex: 200,
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      background: 'rgba(0,0,0,0.6)',
+      backdropFilter: 'blur(4px)',
+    }}>
+      <button
+        style={{
+          background: 'var(--brand-primary)',
+          color: '#fff',
+          border: 'none',
+          borderRadius: '9999px',
+          padding: '12px 28px',
+          fontSize: '15px',
+          fontWeight: 600,
+          cursor: 'pointer',
+        }}
+        onClick={() => {
+          // LiveKit's useAudioPlayback / startAudio is triggered by any user gesture;
+          // rendering this button inside RoomContext means clicking it unblocks audio.
+        }}
+      >
+        Allow Audio
+      </button>
+    </div>
+  );
 }
 
 export function NativeCallView() {
   const { livekitRoom, callStatus, callError, activeCallRoomId, toggleCallView } = useCallState();
   const mx = useMatrixClient();
-  const { isActive, handlePointerMove } = useVoiceHUDIdle(3000);
+  const { isActive, activate } = useVoiceHUDIdle(3000);
   const showStats = useAtomValue(showStatsAtom);
   const setShowStats = useSetAtom(showStatsAtom);
 
@@ -63,7 +100,8 @@ export function NativeCallView() {
   return (
     <div
       className={`${styles.voiceRoot}${isActive ? ` ${styles.pointerActive}` : ''}`}
-      onPointerMove={handlePointerMove}
+      onPointerMove={activate}
+      onPointerDown={activate}
     >
       {/* Header chrome (auto-hiding) */}
       <div className={styles.voiceHeader}>
@@ -92,6 +130,13 @@ export function NativeCallView() {
 
       {/* RoomContext wraps grid, stats panel, and control bar */}
       <RoomContext.Provider value={livekitRoom}>
+        {/* Audio renderer — attaches <audio> elements for ALL remote participants.
+            Without this, audio tracks are subscribed but never played. */}
+        <RoomAudioRenderer />
+
+        {/* Autoplay unblock overlay — shown when browser blocks audio autoplay */}
+        <AudioUnblockButton />
+
         {/* Main content — fills all remaining space */}
         <NativeCallParticipantGrid />
 

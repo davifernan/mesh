@@ -1,7 +1,7 @@
 import React, { useMemo } from 'react';
 import { type Participant, LocalParticipant, Track } from 'livekit-client';
 import { VideoTrack, useTracks, type TrackReference } from '@livekit/components-react';
-import { MicrophoneSlash, MonitorPlay, CornersOut } from '@phosphor-icons/react';
+import { MicrophoneSlash, MonitorPlay, CornersOut, SpeakerSlash } from '@phosphor-icons/react';
 import { useMatrixClient } from '../../../hooks/useMatrixClient';
 import { useMediaAuthentication } from '../../../hooks/useMediaAuthentication';
 import { useCallState } from './CallProvider';
@@ -54,7 +54,7 @@ export function NativeCallParticipantTile({
 }: NativeCallParticipantTileProps) {
   const mx = useMatrixClient();
   const useAuthentication = useMediaAuthentication();
-  const { activeCallRoomId, remoteParticipantStates, isAudioEnabled } = useCallState();
+  const { activeCallRoomId, remoteParticipantStates, isAudioEnabled, isDeafened } = useCallState();
 
   // ── Track resolution ──────────────────────────────────────────────────
   const allTracksUnfiltered = useTracks([
@@ -201,11 +201,15 @@ export function NativeCallParticipantTile({
         </div>
       )}
 
-      {/* ── Metadata bar (hover-revealed, bottom) ───────────────────── */}
+      {/* ── Metadata bar (hover-revealed, bottom; always shown on mobile) ── */}
       <div className={styles.metadata}>
         <span className={styles.metaName}>{displayName}</span>
         {isMuted && (
           <MicrophoneSlash className={styles.muteIcon} size={14} weight="fill" />
+        )}
+        {/* Deafen indicator: only meaningful for the local participant */}
+        {isLocal && isDeafened && (
+          <SpeakerSlash className={styles.muteIcon} size={14} weight="fill" />
         )}
       </div>
     </div>
