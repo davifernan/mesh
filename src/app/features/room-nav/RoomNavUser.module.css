@@ -11,7 +11,9 @@
 }
 
 .speakingAvatar {
-  box-shadow: 0 0 0 2px var(--voice-status-success, #23a55a);
+  box-shadow:
+    0 0 0 2px var(--voice-status-success, #23a55a),
+    0 0 10px color-mix(in srgb, var(--voice-status-success, #23a55a) 45%, transparent);
   border-radius: 50%;
   transition: box-shadow 0.15s ease;
 }

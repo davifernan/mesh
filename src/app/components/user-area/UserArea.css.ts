@@ -4,6 +4,7 @@ import { toRem } from 'folds';
 const LINE_H = '1.0625rem'; // 17px — single text line height
 const MOBILE_MAX = '750px';
 const GUILD_STRIP_W = '72px';
+const USER_AREA_LEFT_OVERLAP = toRem(64);
 
 export const userArea = style({
   display: 'flex',
@@ -14,13 +15,13 @@ export const userArea = style({
   paddingBottom: toRem(8),
   paddingLeft: `calc(${toRem(10)} + ${GUILD_STRIP_W}) !important`,
   minHeight: toRem(52),
-  width: `calc(100% + ${GUILD_STRIP_W}) !important`,
-  margin: `${toRem(4)} ${toRem(8)} ${toRem(10)} calc(${toRem(8)} - ${GUILD_STRIP_W}) !important`,
+  width: `calc(100% + ${USER_AREA_LEFT_OVERLAP} - ${toRem(8)}) !important`,
+  margin: `${toRem(4)} ${toRem(8)} ${toRem(8)} calc(${toRem(8)} - ${USER_AREA_LEFT_OVERLAP}) !important`,
   borderRadius: toRem(12),
   border: '1px solid color-mix(in srgb, var(--background-modifier-accent) 82%, transparent)',
   borderLeftColor: 'color-mix(in srgb, var(--background-modifier-accent) 58%, transparent)',
   background: 'linear-gradient(135deg, color-mix(in srgb, var(--background-secondary) 92%, transparent), color-mix(in srgb, var(--background-primary) 88%, transparent))',
-  boxShadow: '0 8px 22px rgba(0, 0, 0, 0.28), inset 0 0 0 1px color-mix(in srgb, var(--background-modifier-accent) 36%, transparent)',
+  boxShadow: '0 4px 12px rgba(0, 0, 0, 0.2), inset 0 0 0 1px color-mix(in srgb, var(--background-modifier-accent) 30%, transparent)',
   backdropFilter: 'blur(8px)',
   position: 'relative',
   zIndex: 12,

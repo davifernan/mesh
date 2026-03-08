@@ -8,7 +8,7 @@ export const Sidebar = style([
   {
     width: toRem(72),
     backgroundColor: 'var(--background-tertiary)',
-    borderRight: 'none',
+    borderRight: '1px solid color-mix(in srgb, var(--background-modifier-accent) 70%, transparent)',
 
     display: 'flex',
     flexDirection: 'column',

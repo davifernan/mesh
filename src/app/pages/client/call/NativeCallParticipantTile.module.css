@@ -165,14 +165,10 @@
   align-items: center;
   gap: 4px;
   min-width: 0;
-  opacity: 0;
+  opacity: 1;
   transition: opacity 0.2s ease;
   z-index: 9;
   pointer-events: none;
-}
-
-.tile:hover .metadata {
-  opacity: 1;
 }
 
 /* Always show on mobile / small screens */

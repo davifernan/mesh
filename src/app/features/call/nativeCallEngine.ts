@@ -21,7 +21,14 @@ import { useMatrixClient } from '../../hooks/useMatrixClient';
 import { useClientConfig } from '../../hooks/useClientConfig';
 import { effectiveAVSettingsAtom } from '../../state/avQuality';
 import { settingsAtom } from '../../state/settings';
-import { buildLiveKitRoomOptions, buildSSCaptureOptions, buildSSPublishOptions, type AVSettings } from './avPresets';
+import {
+  buildLiveKitRoomOptions,
+  buildSSCaptureOptions,
+  buildSSPublishOptions,
+  resolutionToHeight,
+  resolutionToWidth,
+  type AVSettings,
+} from './avPresets';
 import { MatrixKeyProvider } from './matrixKeyProvider';
 import { getSFUConfigWithOpenID } from './sfuToken';
 
@@ -450,15 +457,50 @@ export function useNativeCall(roomId: string | null): NativeCallEngine {
     await lp.setCameraEnabled(true, { facingMode: facingModeRef.current });
   }, []);
 
+  const enforceScreenShareConstraints = useCallback(async (ssRes: string, ssFps: number) => {
+    if (!roomRef.current) return;
+
+    const ssPub = roomRef.current.localParticipant.getTrackPublication(Track.Source.ScreenShare);
+    const track = ssPub?.track as LocalVideoTrack | undefined;
+    const mediaTrack = track?.mediaStreamTrack;
+    if (!mediaTrack?.applyConstraints) return;
+
+    const targetWidth = ssRes === 'source' ? undefined : resolutionToWidth(ssRes);
+    const targetHeight = ssRes === 'source' ? undefined : resolutionToHeight(ssRes);
+
+    const exactConstraints: MediaTrackConstraints = {
+      ...(targetWidth && { width: { exact: targetWidth } }),
+      ...(targetHeight && { height: { exact: targetHeight } }),
+      ...(ssFps ? { frameRate: { exact: ssFps } } : {}),
+    };
+
+    const fallbackConstraints: MediaTrackConstraints = {
+      ...(targetWidth && { width: { ideal: targetWidth, max: targetWidth } }),
+      ...(targetHeight && { height: { ideal: targetHeight, max: targetHeight } }),
+      ...(ssFps ? { frameRate: { ideal: ssFps, max: ssFps } } : {}),
+    };
+
+    try {
+      if (Object.keys(exactConstraints).length > 0) {
+        await mediaTrack.applyConstraints(exactConstraints);
+      }
+    } catch {
+      if (Object.keys(fallbackConstraints).length > 0) {
+        await mediaTrack.applyConstraints(fallbackConstraints).catch(() => {});
+      }
+    }
+  }, []);
+
   const startScreenShare = useCallback(
     async (ssRes: string, ssFps: number, ssAudio: boolean) => {
       if (!roomRef.current) return;
       const captureOpts = buildSSCaptureOptions(ssRes, ssFps, ssAudio);
       const publishOpts = buildSSPublishOptions(ssRes, ssFps);
       await roomRef.current.localParticipant.setScreenShareEnabled(true, captureOpts as any, publishOpts);
+      await enforceScreenShareConstraints(ssRes, ssFps);
       setIsScreenShareEnabled(true);
     },
-    [],
+    [enforceScreenShareConstraints],
   );
 
   const stopScreenShare = useCallback(async () => {

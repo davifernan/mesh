@@ -3,6 +3,9 @@ import { recipe, RecipeVariants } from '@vanilla-extract/recipes';
 import { DefaultReset, color, config, toRem } from 'folds';
 
 export const PageNav = recipe({
+  base: {
+    borderLeft: '1px solid color-mix(in srgb, var(--background-modifier-accent) 68%, transparent)',
+  },
   variants: {
     size: {
       '400': {
