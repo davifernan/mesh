@@ -13,6 +13,7 @@ import {
   VideoCamera,
   VideoCameraSlash,
   Monitor,
+  SpeakerSlash,
 } from '@phosphor-icons/react';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { AnimatePresence } from 'framer-motion';
@@ -104,6 +105,7 @@ export function CallNavStatus() {
     isAudioEnabled,
     isVideoEnabled,
     isScreenShareEnabled,
+    isDeafened,
     toggleAudio,
     toggleVideo,
     startScreenShare,
@@ -111,6 +113,7 @@ export function CallNavStatus() {
     hangUp,
     setActiveCallRoomId,
     speakingUsers,
+    remoteParticipantStates,
     livekitRoom,
   } = useCallState();
 
@@ -397,20 +400,38 @@ export function CallNavStatus() {
     ? mx.getRoom(activeCallRoomId)?.name ?? activeCallRoomId
     : '';
 
-  // Build avatar data for connected members (max 4)
-  const avatarMembers = callMembers.slice(0, 4).map((userId) => {
+  // Build member data for the voice channel user list (all connected members)
+  const memberListData = callMembers.map((userId) => {
+    const isLocalUser = userId === myUserId;
     const user = mx.getUser(userId);
+    const displayName = user?.displayName ?? userId;
     const mxcUrl = user?.avatarUrl;
     const httpUrl = mxcUrl
       ? mxcUrlToHttp(mx, mxcUrl, useAuthentication, 24, 24, 'crop')
       : null;
-    const displayName = user?.displayName ?? userId;
     const initials = displayName
       .split(/\s+/)
       .slice(0, 2)
       .map((w: string) => w[0]?.toUpperCase() ?? '')
       .join('');
-    return { userId, httpUrl, initials, displayName };
+
+    const remoteState = remoteParticipantStates.get(userId);
+    const isMicMuted = isLocalUser
+      ? !isAudioEnabled
+      : !(remoteState?.audioEnabled ?? true);
+    const isCameraOn = isLocalUser
+      ? isVideoEnabled
+      : (remoteState?.videoEnabled ?? false);
+    const isSharing = isLocalUser
+      ? isScreenShareEnabled
+      : (remoteState?.isScreenSharing ?? false);
+    const isUserDeafened = isLocalUser && isDeafened;
+    const isSpeaking = speakingUsers.has(userId);
+
+    return {
+      userId, displayName, httpUrl, initials, isLocalUser,
+      isMicMuted, isCameraOn, isSharing, isUserDeafened, isSpeaking,
+    };
   });
 
   return (
@@ -506,44 +527,45 @@ export function CallNavStatus() {
           </button>
         </div>
 
-        {/* Speaking avatar stack */}
-        {isConnected && avatarMembers.length > 0 && (
-          <div className={css.AvatarStack}>
-            {avatarMembers.map(({ userId, httpUrl, initials, displayName }) => {
-              const isSpeaking = speakingUsers.has(userId);
-              return (
-                <div
-                  key={userId}
-                  className={`${css.AvatarItem}${isSpeaking ? ` ${css.AvatarItemSpeaking}` : ''}`}
-                  title={displayName}
-                >
+        {/* Voice channel member list with state badges */}
+        {isConnected && memberListData.length > 0 && (
+          <div className={css.MemberList}>
+            {memberListData.map(({
+              userId, displayName, httpUrl, initials,
+              isMicMuted, isCameraOn, isSharing, isUserDeafened, isSpeaking,
+            }) => (
+              <div key={userId} className={css.MemberRow} title={displayName}>
+                {/* Avatar with speaking ring */}
+                <div className={`${css.MemberAvatar}${isSpeaking ? ` ${css.MemberAvatarSpeaking}` : ''}`}>
                   {httpUrl ? (
-                    <img src={httpUrl} alt={displayName} className={css.AvatarImg} />
+                    <img src={httpUrl} alt={displayName} className={css.MemberAvatarImg} />
                   ) : (
-                    <div className={css.AvatarInitials}>{initials || '?'}</div>
+                    <div className={css.MemberAvatarInitials}>{initials || '?'}</div>
                   )}
                 </div>
-              );
-            })}
-            {callMembers.length > 4 && (
-              <button
-                type="button"
-                className={css.overflowBadge}
-                onClick={() => setShowMembersPopout((v) => !v)}
-                title={`${callMembers.length - 4} more`}
-              >
-                +{callMembers.length - 4}
-              </button>
-            )}
-            {showMembersPopout && (
-              <div className={css.membersPopout}>
-                {callMembers.map((userId) => (
-                  <div key={userId} className={css.membersPopoutItem}>
-                    {mx.getUser(userId)?.displayName ?? userId ?? 'Unknown'}
-                  </div>
-                ))}
+
+                {/* Display name */}
+                <span className={`${css.MemberName}${isSpeaking ? ` ${css.MemberNameSpeaking}` : ''}`}>
+                  {displayName}
+                </span>
+
+                {/* State badges: LIVE | camera | deafen | muted */}
+                <div className={css.MemberBadges}>
+                  {isSharing && (
+                    <span className={css.LiveBadge}>LIVE</span>
+                  )}
+                  {isCameraOn && (
+                    <VideoCamera size={12} weight="fill" className={css.BadgeCamera} />
+                  )}
+                  {isUserDeafened && (
+                    <SpeakerSlash size={12} weight="fill" className={css.BadgeDeafened} />
+                  )}
+                  {isMicMuted && (
+                    <MicrophoneSlash size={12} weight="fill" className={css.BadgeMuted} />
+                  )}
+                </div>
               </div>
-            )}
+            ))}
           </div>
         )}
 

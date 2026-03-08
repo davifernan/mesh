@@ -468,3 +468,118 @@ export const membersPopoutItem = style({
   fontSize: toRem(13),
   color: 'var(--text-primary)',
 });
+
+/* ── Voice channel member list (replaces avatar stack) ──────────────── */
+
+export const MemberList = style({
+  display: 'flex',
+  flexDirection: 'column',
+  gap: toRem(1),
+  marginTop: toRem(2),
+});
+
+export const MemberRow = style({
+  display: 'flex',
+  alignItems: 'center',
+  gap: toRem(6),
+  padding: `${toRem(3)} ${toRem(4)}`,
+  borderRadius: toRem(4),
+  minWidth: 0,
+  selectors: {
+    '&:hover': {
+      background: 'var(--background-modifier-hover)',
+    },
+  },
+});
+
+export const MemberAvatar = style({
+  width: toRem(24),
+  height: toRem(24),
+  borderRadius: '50%',
+  overflow: 'hidden',
+  background: 'var(--background-tertiary)',
+  flexShrink: 0,
+  border: '2px solid transparent',
+  transition: 'border-color 150ms ease',
+});
+
+export const MemberAvatarSpeaking = style({
+  borderColor: '#23a55a',
+  boxShadow: '0 0 0 1px #23a55a44',
+});
+
+export const MemberAvatarImg = style({
+  width: '100%',
+  height: '100%',
+  objectFit: 'cover',
+  display: 'block',
+});
+
+export const MemberAvatarInitials = style({
+  width: '100%',
+  height: '100%',
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  fontSize: toRem(9),
+  fontWeight: 700,
+  color: 'var(--text-muted)',
+  userSelect: 'none',
+});
+
+export const MemberName = style({
+  flex: 1,
+  minWidth: 0,
+  fontSize: toRem(13),
+  fontWeight: 500,
+  color: 'var(--text-secondary)',
+  overflow: 'hidden',
+  textOverflow: 'ellipsis',
+  whiteSpace: 'nowrap',
+  lineHeight: toRem(18),
+});
+
+export const MemberNameSpeaking = style({
+  color: 'var(--text-primary)',
+});
+
+export const MemberBadges = style({
+  display: 'flex',
+  alignItems: 'center',
+  gap: toRem(3),
+  flexShrink: 0,
+  color: 'var(--text-muted)',
+});
+
+/** Mic muted: red */
+export const BadgeMuted = style({
+  color: '#F23F43',
+});
+
+/** Camera on: subtle green */
+export const BadgeCamera = style({
+  color: '#23A55A',
+});
+
+/** Deafened: orange */
+export const BadgeDeafened = style({
+  color: '#FCC23B',
+});
+
+/** LIVE screenshare pill */
+export const LiveBadge = style({
+  fontSize: toRem(9),
+  fontWeight: 700,
+  letterSpacing: '0.06em',
+  color: '#F23F43',
+  background: 'rgba(242, 63, 67, 0.15)',
+  border: '1px solid rgba(242, 63, 67, 0.3)',
+  borderRadius: toRem(3),
+  padding: `0 ${toRem(4)}`,
+  lineHeight: toRem(14),
+  userSelect: 'none',
+  animation: 'livePulse 2s ease-in-out infinite',
+});
+
+// keyframes need to be defined separately – injecting as global for now
+// (vanilla-extract keyframes are typed, this is the simplest compatible approach)
