@@ -68,11 +68,14 @@ export interface NativeCallEngine {
  * New hashed format: return as-is (no leading '@' or no underscore after pos 1)
  */
 function extractUserId(identity: string): string {
-  if (identity.startsWith('@')) {
-    const lastUnderscore = identity.lastIndexOf('_');
-    if (lastUnderscore > 1) return identity.slice(0, lastUnderscore);
+  const normalizedIdentity = identity.startsWith('_@') ? identity.slice(1) : identity;
+
+  if (normalizedIdentity.startsWith('@')) {
+    const lastUnderscore = normalizedIdentity.lastIndexOf('_');
+    if (lastUnderscore > 1) return normalizedIdentity.slice(0, lastUnderscore);
   }
-  return identity;
+
+  return normalizedIdentity;
 }
 
 /**
@@ -309,7 +312,11 @@ export function useNativeCall(roomId: string | null): NativeCallEngine {
         }
 
         room.on(RoomEvent.ActiveSpeakersChanged, (speakers) => {
-          setSpeakingUsers(new Set(speakers.map((s) => extractUserId(s.identity))));
+          const nextSpeakers = new Set(speakers.map((s) => extractUserId(s.identity)));
+          if (room.localParticipant.isSpeaking) {
+            nextSpeakers.add(userId);
+          }
+          setSpeakingUsers(nextSpeakers);
         });
 
         room.on(RoomEvent.TrackMuted, (pub, participant) => {

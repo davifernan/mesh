@@ -1,6 +1,6 @@
 import React, { useMemo, useEffect, useState, useRef, useCallback } from 'react';
 import { useParticipants, useTracks, VideoTrack, type TrackReference } from '@livekit/components-react';
-import { Track } from 'livekit-client';
+import { Track, type Room } from 'livekit-client';
 import { Monitor, CaretUp, CaretDown, CornersOut, ArrowSquareOut } from '@phosphor-icons/react';
 import { useAtom, useSetAtom } from 'jotai';
 import { voiceCallLayoutAtom, pinParticipantAtom } from './VoiceCallLayoutStore';
@@ -12,14 +12,21 @@ import styles from './NativeCallParticipantGrid.module.css';
 function ScreenShareTile({
   trackRef,
   onWatch,
+  livekitRoom,
 }: {
   trackRef: TrackReference;
   onWatch?: () => void;
+  livekitRoom: Room | null;
 }) {
   const tileRef = useRef<HTMLDivElement>(null);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [isPiPActive, setIsPiPActive] = useState(false);
   const [isPopoutActive, setIsPopoutActive] = useState(false);
+  const [outboundQuality, setOutboundQuality] = useState<{
+    width: number;
+    height: number;
+    fps?: number;
+  } | null>(null);
   const popoutWindowRef = useRef<Window | null>(null);
   const popoutVideoRef = useRef<HTMLMediaElement | null>(null);
   const name = trackRef.participant?.name ?? trackRef.participant?.identity ?? 'Someone';
@@ -171,19 +178,78 @@ function ScreenShareTile({
     [closePopoutWindow]
   );
 
+  useEffect(() => {
+    if (!trackRef.participant?.isLocal || !livekitRoom) {
+      setOutboundQuality(null);
+      return;
+    }
+
+    const localTrackId = trackRef.publication?.track?.mediaStreamTrack?.id;
+
+    const updateOutboundStats = () => {
+      const pc: RTCPeerConnection | undefined = (livekitRoom as any).engine?.publisher?.pc;
+      if (!pc) return;
+
+      void pc.getStats().then((report) => {
+        let bestBytes = -1;
+        let bestWidth: number | null = null;
+        let bestHeight: number | null = null;
+        let bestFps: number | undefined;
+
+        report.forEach((stat) => {
+          const s = stat as RTCStats & {
+            kind?: string;
+            frameWidth?: number;
+            frameHeight?: number;
+            framesPerSecond?: number;
+            trackIdentifier?: string;
+            bytesSent?: number;
+          };
+
+          if (s.type !== 'outbound-rtp' || s.kind !== 'video') return;
+          if (localTrackId && s.trackIdentifier && s.trackIdentifier !== localTrackId) return;
+          if (!s.frameWidth || !s.frameHeight) return;
+
+          const candidate = {
+            width: s.frameWidth,
+            height: s.frameHeight,
+            fps: s.framesPerSecond,
+            bytes: s.bytesSent ?? 0,
+          };
+
+          if (candidate.bytes >= bestBytes) {
+            bestBytes = candidate.bytes;
+            bestWidth = candidate.width;
+            bestHeight = candidate.height;
+            bestFps = candidate.fps;
+          }
+        });
+
+        if (bestWidth && bestHeight) {
+          setOutboundQuality({ width: bestWidth, height: bestHeight, fps: bestFps });
+        }
+      }).catch(() => {});
+    };
+
+    updateOutboundStats();
+    const interval = window.setInterval(updateOutboundStats, 1000);
+    return () => window.clearInterval(interval);
+  }, [livekitRoom, trackRef.participant?.isLocal, trackRef.publication?.track?.mediaStreamTrack?.id]);
+
   const dims = trackRef.publication?.dimensions;
   const mediaSettings = trackRef.publication?.track?.mediaStreamTrack?.getSettings();
   const trackFps = mediaSettings?.frameRate;
 
   const qualityLabel = useMemo(() => {
-    const width = dims?.width ?? mediaSettings?.width;
-    const height = dims?.height ?? mediaSettings?.height;
+    const width = outboundQuality?.width ?? dims?.width ?? mediaSettings?.width;
+    const height = outboundQuality?.height ?? dims?.height ?? mediaSettings?.height;
+    const fps = outboundQuality?.fps ?? trackFps;
     if (!width || !height) {
       return null;
     }
 
-    return `${width}x${height}${trackFps ? ` · ${Math.round(trackFps)}fps` : ''}`;
-  }, [dims?.height, dims?.width, mediaSettings?.height, mediaSettings?.width, trackFps]);
+    return `${width}x${height}${fps ? ` · ${Math.round(fps)}fps` : ''}`;
+  }, [dims?.height, dims?.width, mediaSettings?.height, mediaSettings?.width, outboundQuality, trackFps]);
 
   return (
     <div className={styles.screenTile} ref={tileRef}>
@@ -252,7 +318,7 @@ interface NativeCallParticipantGridProps {
 
 export function NativeCallParticipantGrid({ onPin }: NativeCallParticipantGridProps) {
   const participants = useParticipants();
-  const { remoteParticipantStates } = useCallState();
+  const { remoteParticipantStates, livekitRoom } = useCallState();
   const [layoutState, setLayoutState] = useAtom(voiceCallLayoutAtom);
   const pinParticipant = useSetAtom(pinParticipantAtom);
   const { layoutMode, pinnedParticipantId, isCarouselExpanded } = layoutState;
@@ -313,7 +379,7 @@ export function NativeCallParticipantGrid({ onPin }: NativeCallParticipantGridPr
         {/* Main large tile */}
         <div className={styles.focusMain}>
           {pinnedSSTrack ? (
-            <ScreenShareTile trackRef={pinnedSSTrack} />
+            <ScreenShareTile trackRef={pinnedSSTrack} livekitRoom={livekitRoom} />
           ) : pinnedParticipant ? (
             <NativeCallParticipantTile
               participant={pinnedParticipant}
@@ -365,6 +431,7 @@ export function NativeCallParticipantGrid({ onPin }: NativeCallParticipantGridPr
         <div key={`ss-${t.participant?.identity}`} className={styles.screenTileWrap}>
           <ScreenShareTile
             trackRef={t}
+            livekitRoom={livekitRoom}
             onWatch={() => {
               if (t.participant?.identity) {
                 pinParticipant(t.participant.identity);

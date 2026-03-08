@@ -247,6 +247,7 @@ export function SystemNotification() {
     'inboxUnreadNotifications'
   );
   const [callAutoJoin, setCallAutoJoin] = useSetting(settingsAtom, 'callAutoJoin');
+  const [autoJoinSpaceRooms, setAutoJoinSpaceRooms] = useSetting(settingsAtom, 'autoJoinSpaceRooms');
 
   const requestNotificationPermission = () => {
     window.Notification.requestPermission();
@@ -340,6 +341,11 @@ export function SystemNotification() {
           title="Auto-Join Calls"
           description="Skip the call lobby and join immediately when opening a call."
           after={<Switch value={callAutoJoin} onChange={setCallAutoJoin} />}
+        />
+        <SettingTile
+          title="Auto-Join Space Rooms"
+          description="After joining a community, automatically join joinable text and voice rooms."
+          after={<Switch value={autoJoinSpaceRooms} onChange={setAutoJoinSpaceRooms} />}
         />
       </SequenceCard>
       <SequenceCard

@@ -226,23 +226,31 @@ const getRoomMemberStr: SearchItemStrGetter<RoomMember> = (m, query) =>
 
 type MembersDrawerProps = {
   room: Room;
+  memberRoom: Room;
   members: RoomMember[];
   width?: number;
   isFullWidth?: boolean;
   onToggleFullWidth?: () => void;
 };
-export function MembersDrawer({ room, members, width = 266, isFullWidth, onToggleFullWidth }: MembersDrawerProps) {
+export function MembersDrawer({
+  room,
+  memberRoom,
+  members,
+  width = 266,
+  isFullWidth,
+  onToggleFullWidth,
+}: MembersDrawerProps) {
   const mx = useMatrixClient();
   const useAuthentication = useMediaAuthentication();
   const scrollRef = useRef<HTMLDivElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
   const scrollTopAnchorRef = useRef<HTMLDivElement>(null);
   const powerLevels = usePowerLevelsContext();
-  const creators = useRoomCreators(room);
-  const getPowerTag = useGetMemberPowerTag(room, creators, powerLevels);
+  const creators = useRoomCreators(memberRoom);
+  const getPowerTag = useGetMemberPowerTag(memberRoom, creators, powerLevels);
   const getPowerLevel = useGetMemberPowerLevel(powerLevels);
 
-  const fetchingMembers = members.length < room.getJoinedMemberCount();
+  const fetchingMembers = members.length < memberRoom.getJoinedMemberCount();
   const openUserRoomProfile = useOpenUserRoomProfile();
   const space = useSpaceOptionally();
   const openProfileUserId = useUserRoomProfileState()?.userId;
@@ -360,7 +368,7 @@ export function MembersDrawer({ room, members, width = 266, isFullWidth, onToggl
     const btn = evt.currentTarget as HTMLButtonElement;
     const userId = btn.getAttribute('data-user-id');
     if (!userId) return;
-    openUserRoomProfile(room.roomId, space?.roomId, userId, btn.getBoundingClientRect(), 'Left');
+    openUserRoomProfile(memberRoom.roomId, space?.roomId, userId, btn.getBoundingClientRect(), 'Left');
   };
 
   // Keyboard navigation: only member items (skip power-tag label rows and presence headers).
@@ -468,7 +476,7 @@ export function MembersDrawer({ room, members, width = 266, isFullWidth, onToggl
         firstMember?.focus();
       }}
     >
-      <MemberDrawerHeader room={room} isFullWidth={isFullWidth} onToggleFullWidth={onToggleFullWidth} />
+      <MemberDrawerHeader room={memberRoom} isFullWidth={isFullWidth} onToggleFullWidth={onToggleFullWidth} />
       <Box className={css.MemberDrawerContentBase} grow="Yes">
         <Scroll ref={scrollRef} variant="Background" size="300" visibility="Hover" hideTrack>
           <Box className={css.MemberDrawerContent} direction="Column" gap="200">
@@ -626,7 +634,7 @@ export function MembersDrawer({ room, members, width = 266, isFullWidth, onToggl
                         }}
                         data-index={vItem.index}
                         ref={virtualizer.measureElement}
-                        key={`${room.roomId}-presence-${tagOrMember.label}`}
+                        key={`${memberRoom.roomId}-presence-${tagOrMember.label}`}
                         className={classNames(css.MembersGroupLabel, css.DrawerVirtualItem)}
                         size="L400"
                       >
@@ -644,7 +652,7 @@ export function MembersDrawer({ room, members, width = 266, isFullWidth, onToggl
                         }}
                         data-index={vItem.index}
                         ref={virtualizer.measureElement}
-                        key={`${room.roomId}-${vItem.index}`}
+                        key={`${memberRoom.roomId}-${vItem.index}`}
                         className={classNames(css.MembersGroupLabel, css.DrawerVirtualItem)}
                         size="L400"
                       >
@@ -668,13 +676,13 @@ export function MembersDrawer({ room, members, width = 266, isFullWidth, onToggl
                       }}
                       className={css.DrawerVirtualItem}
                       data-index={vItem.index}
-                      key={`${room.roomId}-${member.userId}`}
+                       key={`${memberRoom.roomId}-${member.userId}`}
                       ref={virtualizer.measureElement}
                     >
                       <MemberItem
                         mx={mx}
                         useAuthentication={useAuthentication}
-                        room={room}
+                         room={memberRoom}
                         member={member}
                         onClick={handleMemberClick}
                         pressed={openProfileUserId === member.userId}

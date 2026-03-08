@@ -265,6 +265,7 @@ export function RoomNavItem({
     setActiveCallRoomId,
     setViewedCallRoomId,
     isChatOpen,
+    speakingUsers,
     toggleChat,
     hangUp,
     callStatus,
@@ -318,6 +319,11 @@ export function RoomNavItem({
 
     return merged;
   }, [callMemberships, isActiveCall, callStatus, livekitRoom, mx]);
+
+  const hasSpeakingMember =
+    room.isCallRoom() &&
+    isActiveCall &&
+    displayedCallMembers.some((memberId) => speakingUsers.has(memberId));
 
   const powerLevels = usePowerLevels(room);
   const creators = useRoomCreators(room);
@@ -469,7 +475,15 @@ export function RoomNavItem({
                 <SpeakerHigh
                   size={12}
                   weight="fill"
-                  style={{ color: isActiveCall ? '#23a55a' : 'rgba(255,255,255,0.4)', flexShrink: 0 }}
+                  style={{
+                    color: hasSpeakingMember
+                      ? '#23a55a'
+                      : isActiveCall
+                        ? 'color-mix(in srgb, #23a55a 65%, #ffffff 35%)'
+                        : 'rgba(255,255,255,0.4)',
+                    filter: hasSpeakingMember ? 'drop-shadow(0 0 6px rgba(35,165,90,0.65))' : undefined,
+                    flexShrink: 0,
+                  }}
                   aria-label={`${displayedCallMembers.length} in voice`}
                 />
               )}

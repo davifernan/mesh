@@ -217,9 +217,9 @@ export function NativeCallParticipantTile({
         className={styles.pinButton}
         onClick={(e) => {
           e.stopPropagation();
-          onPin?.(participant.identity);
+          onPin?.(isPinned ? null : participant.identity);
         }}
-        aria-label="Pin participant"
+        aria-label={isPinned ? 'Unpin participant' : 'Pin participant'}
         type="button"
       >
         <CornersOut size={16} />

@@ -22,7 +22,6 @@ import { LocalAudioTrack, Track } from 'livekit-client';
 import { useAtom } from 'jotai';
 import { useCallState } from './CallProvider';
 import { settingsAtom } from '../../../state/settings';
-import { buildSSCaptureOptions, buildSSPublishOptions } from '../../../features/call/avPresets';
 import { ScreenShareModal } from '../../../components/voice/ScreenShareModal/ScreenShareModal';
 import { showStatsAtom } from './VoiceCallLayoutStore';
 import styles from './NativeCallControlBar.module.css';
@@ -52,11 +51,13 @@ export function NativeCallControlBar() {
     isDeafened,
     toggleDeafen,
     callStatus,
+    startScreenShare,
     stopScreenShare,
     remoteParticipantStates,
     livekitRoom,
     callJoinTime,
   } = useCallState();
+  const isElectron = typeof window !== 'undefined' && Boolean(window.electron);
 
   // Screen share state comes from the LiveKit RoomContext — no polling needed.
   const { localParticipant } = useLocalParticipant();
@@ -172,6 +173,8 @@ export function NativeCallControlBar() {
       setShowSSMenu((v) => !v);
       setShowMicMenu(false);
       setShowCamMenu(false);
+    } else if (isElectron) {
+      void startScreenShare(userSettings.ssResolution, userSettings.ssFps, userSettings.ssAudio);
     } else {
       setShowQualityModal(true);
     }
@@ -184,17 +187,19 @@ export function NativeCallControlBar() {
 
   const handleShareSettings = useCallback(() => {
     setShowSSMenu(false);
+    if (isElectron) {
+      void startScreenShare(userSettings.ssResolution, userSettings.ssFps, userSettings.ssAudio);
+      return;
+    }
     setShowQualityModal(true);
-  }, []);
+  }, [isElectron, startScreenShare, userSettings.ssAudio, userSettings.ssFps, userSettings.ssResolution]);
 
   const handleConfirmScreenShare = useCallback(
     (ssRes: string, ssFps: number, ssAudio: boolean) => {
-      const captureOpts = buildSSCaptureOptions(ssRes, ssFps, ssAudio);
-      const publishOpts = buildSSPublishOptions(ssRes, ssFps);
-      void localParticipant.setScreenShareEnabled(true, captureOpts as any, publishOpts);
+      void startScreenShare(ssRes, ssFps, ssAudio);
       setShowQualityModal(false);
     },
-    [localParticipant],
+    [startScreenShare],
   );
 
   const handleToggleNoiseSup = useCallback(async () => {

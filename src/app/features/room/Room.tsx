@@ -24,6 +24,7 @@ import { WidgetsDrawer } from './WidgetsDrawer';
 import { useAtom } from 'jotai';
 import { useResizablePanel } from '../../hooks/useResizablePanel';
 import { useToolbarConfig } from '../../hooks/useToolbarConfig';
+import { useSpaceOptionally } from '../../hooks/useSpace';
 
 const PANEL_DIVIDER_STYLE: React.CSSProperties = {
   width: '6px',
@@ -35,13 +36,15 @@ const PANEL_DIVIDER_STYLE: React.CSSProperties = {
 export function Room() {
   const { eventId } = useParams();
   const room = useRoom();
+  const space = useSpaceOptionally();
   const mx = useMatrixClient();
 
   const [isDrawer, setPeopleDrawer] = useSetting(settingsAtom, 'isPeopleDrawer');
   const [hideActivity] = useSetting(settingsAtom, 'hideActivity');
   const screenSize = useScreenSizeContext();
   const powerLevels = usePowerLevels(room);
-  const members = useRoomMembers(mx, room?.roomId);
+  const memberSourceRoom = space ?? room;
+  const members = useRoomMembers(mx, memberSourceRoom.roomId);
 
   const { activeCallRoomId, isCallViewOpen, isChatOpen, callStatus, toggleChat } = useCallState();
   const isActiveCall = activeCallRoomId === room?.roomId;
@@ -276,6 +279,7 @@ export function Room() {
             <MembersDrawer
               key={room.roomId}
               room={room}
+              memberRoom={memberSourceRoom}
               members={members}
               width={memberPanelWidth}
               isFullWidth={rightPanelFullWidth}

@@ -21,11 +21,12 @@ type RoomNavUserProps = {
 };
 
 function extractUserId(identity: string): string {
-  if (identity.startsWith('@')) {
-    const lastUnderscore = identity.lastIndexOf('_');
-    if (lastUnderscore > 1) return identity.slice(0, lastUnderscore);
+  const normalizedIdentity = identity.startsWith('_@') ? identity.slice(1) : identity;
+  if (normalizedIdentity.startsWith('@')) {
+    const lastUnderscore = normalizedIdentity.lastIndexOf('_');
+    if (lastUnderscore > 1) return normalizedIdentity.slice(0, lastUnderscore);
   }
-  return identity;
+  return normalizedIdentity;
 }
 
 type AttachableVideoTrack = {

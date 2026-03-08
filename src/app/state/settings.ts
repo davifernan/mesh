@@ -49,6 +49,7 @@ export interface Settings {
   callRingScope: 'dm' | 'nonVoice' | 'all';
   callRingtoneUrl: string | null;
   callAutoJoin: boolean;
+  autoJoinSpaceRooms: boolean;
 
   // A/V Devices (deviceId from enumerateDevices, undefined = system default)
   micDeviceId?: string;
@@ -115,6 +116,7 @@ const defaultSettings: Settings = {
   callRingScope: 'nonVoice',
   callRingtoneUrl: null,
   callAutoJoin: false,
+  autoJoinSpaceRooms: false,
 
   micDeviceId: undefined,
   cameraDeviceId: undefined,
