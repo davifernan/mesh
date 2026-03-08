@@ -513,6 +513,19 @@ textarea::placeholder {
   opacity: 1 !important;
 }
 
+/* folds Input renders as <label><input /></label> — the label is the styled container.
+   Strip all native styling from the inner input to prevent double borders. */
+label > input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="file"]) {
+  background-color: transparent !important;
+  border: none !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  padding: 0 !important;
+  outline: none !important;
+  transition: none !important;
+  min-width: 0 !important;
+}
+
 /* ================================================================
    MESSAGES — Fluxer Message.module.css faithful clone
    ================================================================ */
