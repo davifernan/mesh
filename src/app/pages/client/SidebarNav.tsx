@@ -63,17 +63,26 @@ export function SidebarNav() {
     <Sidebar role="navigation" aria-label="Main navigation" onKeyDown={handleKeyDown}>
       <SidebarContent
         scrollable={
-          <Scroll ref={scrollRef} variant="Background" size="0">
-            <SidebarStack>
-              <HomeTab />
-              <DirectTab />
-            </SidebarStack>
-            <SpaceTabs scrollRef={scrollRef} />
-            <SidebarStackSeparator />
-            <SidebarStack>
-              <ExploreTab />
-              <CreateTab />
-            </SidebarStack>
+          <Scroll ref={scrollRef} variant="Background" size="0" style={{ width: '100%' }}>
+            <div
+              style={{
+                width: '100%',
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+              }}
+            >
+              <SidebarStack>
+                <HomeTab />
+                <DirectTab />
+              </SidebarStack>
+              <SpaceTabs scrollRef={scrollRef} />
+              <SidebarStackSeparator />
+              <SidebarStack>
+                <ExploreTab />
+                <CreateTab />
+              </SidebarStack>
+            </div>
           </Scroll>
         }
         sticky={
