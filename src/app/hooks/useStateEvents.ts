@@ -5,14 +5,14 @@ import { useForceUpdate } from './useForceUpdate';
 import { useStateEventCallback } from './useStateEventCallback';
 import { getStateEvents } from '../utils/room';
 
-export const useStateEvents = (room: Room, eventType: StateEvent) => {
+export const useStateEvents = (room: Room | null | undefined, eventType: StateEvent) => {
   const [updateCount, forceUpdate] = useForceUpdate();
 
   useStateEventCallback(
-    room.client,
+    room?.client,
     useCallback(
       (event) => {
-        if (event.getRoomId() === room.roomId && event.getType() === eventType) {
+        if (room && event.getRoomId() === room.roomId && event.getType() === eventType) {
           forceUpdate();
         }
       },
@@ -21,7 +21,7 @@ export const useStateEvents = (room: Room, eventType: StateEvent) => {
   );
 
   return useMemo(
-    () => getStateEvents(room, eventType),
+    () => (room ? getStateEvents(room, eventType) : []),
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [room, eventType, updateCount]
   );

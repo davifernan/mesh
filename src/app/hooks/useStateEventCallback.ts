@@ -7,8 +7,12 @@ export type StateEventCallback = (
   lastStateEvent: MatrixEvent | null
 ) => void;
 
-export const useStateEventCallback = (mx: MatrixClient, onStateEvent: StateEventCallback) => {
+export const useStateEventCallback = (
+  mx: MatrixClient | null | undefined,
+  onStateEvent: StateEventCallback
+) => {
   useEffect(() => {
+    if (!mx) return undefined;
     mx.on(RoomStateEvent.Events, onStateEvent);
     return () => {
       mx.removeListener(RoomStateEvent.Events, onStateEvent);
