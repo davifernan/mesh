@@ -43,79 +43,99 @@ export const RoomViewTyping = as<'div', RoomViewTypingProps>(
       );
     };
 
-    return (
-      <div style={{ position: 'relative' }}>
-        <Box
-          className={classNames(css.RoomViewTyping, className)}
-          alignItems="Center"
-          gap="400"
-          {...props}
-          ref={ref}
-        >
-          <TypingIndicator />
-          <Text className={css.TypingText} size="T300" truncate>
-            {typingNames.length === 1 && (
-              <>
-                <b>{typingNames[0]}</b>
-                <Text as="span" size="Inherit" priority="300">
-                  {' is typing...'}
-                </Text>
-              </>
-            )}
-            {typingNames.length === 2 && (
-              <>
-                <b>{typingNames[0]}</b>
-                <Text as="span" size="Inherit" priority="300">
-                  {' and '}
-                </Text>
-                <b>{typingNames[1]}</b>
-                <Text as="span" size="Inherit" priority="300">
-                  {' are typing...'}
-                </Text>
-              </>
-            )}
-            {typingNames.length === 3 && (
-              <>
-                <b>{typingNames[0]}</b>
-                <Text as="span" size="Inherit" priority="300">
-                  {', '}
-                </Text>
-                <b>{typingNames[1]}</b>
-                <Text as="span" size="Inherit" priority="300">
-                  {' and '}
-                </Text>
-                <b>{typingNames[2]}</b>
-                <Text as="span" size="Inherit" priority="300">
-                  {' are typing...'}
-                </Text>
-              </>
-            )}
-            {typingNames.length > 3 && (
-              <>
-                <b>{typingNames[0]}</b>
-                <Text as="span" size="Inherit" priority="300">
-                  {', '}
-                </Text>
-                <b>{typingNames[1]}</b>
-                <Text as="span" size="Inherit" priority="300">
-                  {', '}
-                </Text>
-                <b>{typingNames[2]}</b>
-                <Text as="span" size="Inherit" priority="300">
-                  {' and '}
-                </Text>
-                <b>{typingNames.length - 3} others</b>
-                <Text as="span" size="Inherit" priority="300">
-                  {' are typing...'}
-                </Text>
-              </>
-            )}
+    const n = typingNames.length;
+
+    const typingContent = (() => {
+      if (n >= 10) {
+        return (
+          <Text as="span" size="Inherit" priority="300">
+            {'Viele Personen tippen…'}
           </Text>
-          <IconButton title="Drop Typing Status" aria-label="Drop typing status" size="300" radii="Pill" onClick={handleDropAll}>
-            <Icon size="50" src={Icons.Cross} />
-          </IconButton>
-        </Box>
-      </div>
+        );
+      }
+      if (n === 1) {
+        return (
+          <>
+            <b>{typingNames[0]}</b>
+            <Text as="span" size="Inherit" priority="300">
+              {' tippt…'}
+            </Text>
+          </>
+        );
+      }
+      if (n === 2) {
+        return (
+          <>
+            <b>{typingNames[0]}</b>
+            <Text as="span" size="Inherit" priority="300">
+              {' und '}
+            </Text>
+            <b>{typingNames[1]}</b>
+            <Text as="span" size="Inherit" priority="300">
+              {' tippen…'}
+            </Text>
+          </>
+        );
+      }
+      if (n === 3) {
+        return (
+          <>
+            <b>{typingNames[0]}</b>
+            <Text as="span" size="Inherit" priority="300">
+              {', '}
+            </Text>
+            <b>{typingNames[1]}</b>
+            <Text as="span" size="Inherit" priority="300">
+              {' und '}
+            </Text>
+            <b>{typingNames[2]}</b>
+            <Text as="span" size="Inherit" priority="300">
+              {' tippen…'}
+            </Text>
+          </>
+        );
+      }
+      // 4–9 people
+      const rest = n - 3;
+      const restLabel = rest === 1 ? 'Person tippt' : 'Personen tippen';
+      return (
+        <>
+          <b>{typingNames[0]}</b>
+          <Text as="span" size="Inherit" priority="300">
+            {', '}
+          </Text>
+          <b>{typingNames[1]}</b>
+          <Text as="span" size="Inherit" priority="300">
+            {', '}
+          </Text>
+          <b>{typingNames[2]}</b>
+          <Text as="span" size="Inherit" priority="300">
+            {' und '}
+          </Text>
+          <b>{rest} weitere</b>
+          <Text as="span" size="Inherit" priority="300">
+            {` ${restLabel}…`}
+          </Text>
+        </>
+      );
+    })();
+
+    return (
+      <Box
+        className={classNames(css.RoomViewTyping, className)}
+        alignItems="Center"
+        gap="400"
+        {...props}
+        ref={ref}
+      >
+        <TypingIndicator />
+        <Text className={css.TypingText} size="T300" truncate>
+          {typingContent}
+        </Text>
+        <IconButton title="Tipp-Status verwerfen" aria-label="Tipp-Status verwerfen" size="300" radii="Pill" onClick={handleDropAll}>
+          <Icon size="50" src={Icons.Cross} />
+        </IconButton>
+      </Box>
     );
   }
 );

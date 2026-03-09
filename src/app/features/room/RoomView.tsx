@@ -235,9 +235,9 @@ export function RoomView({ room, eventId }: { room: Room; eventId?: string }) {
             roomInputRef={roomInputRef}
             editor={editor}
           />
-          <RoomViewTyping room={room} />
         </Box>
         <Box shrink="No" direction="Column">
+          <RoomViewTyping room={room} />
           <div style={{ padding: `0 ${config.space.S400}` }}>
             {tombstoneEvent ? (
               <RoomTombstone

@@ -1,11 +1,13 @@
 import { keyframes, style } from '@vanilla-extract/css';
 import { DefaultReset, color, config } from 'folds';
 
-const SlideUpAnime = keyframes({
+const FadeSlideAnime = keyframes({
   from: {
-    transform: 'translateY(100%)',
+    opacity: 0,
+    transform: 'translateY(4px)',
   },
   to: {
+    opacity: 1,
     transform: 'translateY(0)',
   },
 });
@@ -13,13 +15,11 @@ const SlideUpAnime = keyframes({
 export const RoomViewTyping = style([
   DefaultReset,
   {
-    padding: `0 ${config.space.S500}`,
+    padding: `${config.space.S100} ${config.space.S500}`,
     width: '100%',
     backgroundColor: color.Surface.Container,
     color: color.Surface.OnContainer,
-    position: 'absolute',
-    bottom: 0,
-    animation: `${SlideUpAnime} 100ms ease-in-out`,
+    animation: `${FadeSlideAnime} 120ms ease-out`,
   },
 ]);
 export const TypingText = style({
