@@ -53,9 +53,9 @@ export function SidebarBottomDock() {
           <UserArea docked />
         </div>
       ) : (
-        <div className={css.inner}>
+        <div className={css.card}>
           <CallNavStatus />
-          <UserArea />
+          <UserArea docked />
         </div>
       )}
     </div>

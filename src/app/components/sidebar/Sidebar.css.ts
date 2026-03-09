@@ -87,7 +87,8 @@ export const SidebarItem = recipe({
   base: [
     DefaultReset,
     {
-      minWidth: toRem(42),
+      width: '100%',
+      minWidth: 0,
       display: 'flex',
       alignItems: 'center',
       justifyContent: 'center',
@@ -176,6 +177,7 @@ export const SidebarAvatar = recipe({
       display: 'flex',
       alignItems: 'center',
       justifyContent: 'center',
+      marginInline: 'auto',
       overflow: 'hidden',
       border: 'none',
       selectors: {
