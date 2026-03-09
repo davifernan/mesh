@@ -72,6 +72,25 @@ export const userArea = style({
   },
 });
 
+export const userAreaDocked = style([
+  userArea,
+  {
+    width: '100% !important',
+    margin: '0 !important',
+    border: 'none',
+    background: 'transparent',
+    boxShadow: 'none',
+    backdropFilter: 'none',
+    borderRadius: 0,
+    zIndex: 1,
+    selectors: {
+      '&::before': {
+        display: 'none',
+      },
+    },
+  },
+]);
+
 export const avatarWrap = style({
   position: 'relative',
   zIndex: 1,

@@ -12,7 +12,11 @@ import { useCallStateOptional } from '../../pages/client/call/CallProvider';
 import { openUserSettingsAtom } from '../../state/keyboardShortcutsHelp';
 import * as css from './UserArea.css';
 
-export function UserArea() {
+type UserAreaProps = {
+  docked?: boolean;
+};
+
+export function UserArea({ docked = false }: UserAreaProps) {
   const mx = useMatrixClient();
   const useAuthentication = useMediaAuthentication();
   const userId = mx.getUserId() as string;
@@ -35,7 +39,7 @@ export function UserArea() {
   const isDeafened = callState?.isDeafened ?? false;
 
   return (
-    <div className={css.userArea}>
+    <div className={docked ? css.userAreaDocked : css.userArea}>
       <div className={css.avatarWrap}>
         <Avatar size="300">
           <UserAvatar

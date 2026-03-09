@@ -358,10 +358,10 @@ function HomeEmpty() {
 
 const DEFAULT_CATEGORY_ID = makeNavCategoryId('home', 'room');
 export function Home() {
+  const screenSize = useScreenSizeContext();
   const mx = useMatrixClient();
   useNavToActivePathMapper('home');
   const scrollRef = useRef<HTMLDivElement>(null);
-  const screenSize = useScreenSizeContext();
   const isMobile = screenSize === ScreenSize.Mobile;
   const rooms = useHomeRooms();
   const notificationPreferences = useRoomsNotificationPreferencesContext();
@@ -558,10 +558,12 @@ export function Home() {
           </Box>
         </PageNavContent>
       )}
-      <PageNavDock>
-        <CallNavStatus />
-        <UserArea />
-      </PageNavDock>
+      {screenSize === ScreenSize.Mobile && (
+        <PageNavDock>
+          <CallNavStatus />
+          <UserArea />
+        </PageNavDock>
+      )}
     </PageNav>
   );
 }

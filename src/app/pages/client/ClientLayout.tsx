@@ -1,5 +1,6 @@
 import React, { ReactNode } from 'react';
 import { Box } from 'folds';
+import { SidebarBottomDock } from './SidebarBottomDock';
 
 type ClientLayoutProps = {
   nav: ReactNode;
@@ -7,7 +8,7 @@ type ClientLayoutProps = {
 };
 export function ClientLayout({ nav, children }: ClientLayoutProps) {
   return (
-    <Box grow="Yes" className="bc-app-shell">
+    <Box grow="Yes" className="bc-app-shell" style={{ position: 'relative' }}>
       <Box shrink="No" style={{ height: '100%' }}>
         {nav}
       </Box>
@@ -18,6 +19,7 @@ export function ClientLayout({ nav, children }: ClientLayoutProps) {
       >
         {children}
       </Box>
+      <SidebarBottomDock />
     </Box>
   );
 }

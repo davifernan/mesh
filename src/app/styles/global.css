@@ -836,26 +836,6 @@ select {
   z-index: var(--z-index-toast) !important;
 }
 
-/* ================================================================
-   USER AREA — bottom of channel sidebar (72px)
-   Ensure it is full-width and flush — no extra margin from PageNav internals
-   ================================================================ */
-[class*="CallNavStatus"],
-[data-ui-kind="PageNav"] > * > * > * > div:last-child {
-  background-color: var(--panel-control-bg) !important;
-  border-top: 1px solid var(--user-area-divider-color) !important;
-  min-height: var(--layout-user-area-height) !important;
-}
-
-/* UserArea component — force full-width stretch, no left margin offset */
-[class*="userArea_"] {
-  width: 100% !important;
-  box-sizing: border-box !important;
-  margin: 0 !important;
-  align-self: stretch !important;
-  flex-shrink: 0 !important;
-}
-
 /* Control buttons (mic, deafen, settings) */
 [class*="RoomCallNavStatus"] button,
 [class*="CallNavStatus"] button {

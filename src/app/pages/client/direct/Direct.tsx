@@ -57,6 +57,7 @@ import { UserArea } from '../../../components/user-area/UserArea';
 import { useRoomListKeyboard } from '../../../hooks/useRoomListKeyboard';
 import { RoomListbox } from '../../../components/room-listbox/RoomListbox';
 import { searchModalAtom, searchModalInitialCharAtom } from '../../../state/searchModal';
+import { ScreenSize, useScreenSizeContext } from '../../../hooks/useScreenSize';
 
 type DirectMenuProps = {
   requestClose: () => void;
@@ -246,6 +247,7 @@ function DirectEmpty() {
 
 const DEFAULT_CATEGORY_ID = makeNavCategoryId('direct', 'direct');
 export function Direct() {
+  const screenSize = useScreenSizeContext();
   const mx = useMatrixClient();
   useNavToActivePathMapper('direct');
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -390,10 +392,12 @@ export function Direct() {
           </Box>
         </PageNavContent>
       )}
-      <PageNavDock>
-        <CallNavStatus />
-        <UserArea />
-      </PageNavDock>
+      {screenSize === ScreenSize.Mobile && (
+        <PageNavDock>
+          <CallNavStatus />
+          <UserArea />
+        </PageNavDock>
+      )}
     </PageNav>
   );
 }

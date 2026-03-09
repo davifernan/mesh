@@ -45,6 +45,21 @@ export const VoiceContainer = style({
   flexShrink: 0,
 });
 
+export const VoiceContainerDocked = style([
+  VoiceContainer,
+  {
+    left: 0,
+    width: '100%',
+    margin: 0,
+    border: 'none',
+    background: 'transparent',
+    boxShadow: 'none',
+    backdropFilter: 'none',
+    borderRadius: 0,
+    zIndex: 1,
+  },
+]);
+
 export const StatusRow = style({
   display: 'flex',
   alignItems: 'center',

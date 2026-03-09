@@ -15,7 +15,7 @@ export const Sidebar = style([
     flexDirection: 'column',
     color: 'var(--text-secondary)',
     position: 'relative',
-    overflowY: 'auto',
+    overflowY: 'hidden',
     overflowX: 'hidden',
     scrollbarWidth: 'none',
     // @ts-ignore

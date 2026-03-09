@@ -92,7 +92,11 @@ function RttChart({ history }: { history: number[] }) {
   );
 }
 
-export function CallNavStatus() {
+type CallNavStatusProps = {
+  docked?: boolean;
+};
+
+export function CallNavStatus({ docked = false }: CallNavStatusProps) {
   const mx = useMatrixClient();
   const {
     activeCallRoomId,
@@ -431,7 +435,7 @@ export function CallNavStatus() {
           onCancel={() => setShowSSModal(false)}
         />
       )}
-      <div className={css.VoiceContainer} style={{ position: 'relative' }}>
+      <div className={docked ? css.VoiceContainerDocked : css.VoiceContainer} style={{ position: 'relative' }}>
         {/* Voice details popout */}
         {showVoicePopout && (
           <div className={css.VoicePopout}>

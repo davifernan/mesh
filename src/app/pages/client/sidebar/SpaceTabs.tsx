@@ -26,7 +26,7 @@ import {
 } from 'folds';
 import { useAtom, useAtomValue } from 'jotai';
 import { Room } from 'matrix-js-sdk';
-import { SpeakerHigh } from '@phosphor-icons/react';
+import { Monitor, SpeakerHigh } from '@phosphor-icons/react';
 import { selectSpaceHasVoiceActivity } from '../../../state/voiceActivity';
 import { useSpaceVoiceActivity } from '../../../hooks/useSpaceVoiceActivity';
 import {
@@ -518,19 +518,16 @@ function SpaceTab({
                   display: 'inline-flex',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  minWidth: toRem(22),
-                  height: toRem(12),
-                  borderRadius: toRem(6),
-                  paddingInline: toRem(4),
-                  background: 'var(--voice-status-danger, #f23f43)',
+                  width: toRem(18),
+                  height: toRem(18),
+                  borderRadius: '999px',
+                  background: 'rgba(17, 18, 20, 0.95)',
+                  boxShadow: '0 0 0 2px var(--background-secondary)',
                   color: '#fff',
-                  fontSize: '8px',
-                  fontWeight: 700,
-                  letterSpacing: '0.04em',
                   lineHeight: 1,
                 }}
               >
-                LIVE
+                <Monitor size={10} weight="fill" />
               </span>
             </SidebarItemBadge>
           )}
@@ -820,7 +817,7 @@ export function SpaceTabs({ scrollRef }: SpaceTabsProps) {
 
         const newSpacesContent = makeCinnySpacesContent(mx, newItems);
         localEchoSidebarItem(parseSidebar(mx, orphanSpaces, newSpacesContent));
-        mx.setAccountData(AccountDataEvent.CinnySpaces, newSpacesContent);
+        mx.setAccountData(AccountDataEvent.CinnySpaces as any, newSpacesContent as any);
       },
       [mx, sidebarItems, setOpenedFolder, localEchoSidebarItem, orphanSpaces]
     )
@@ -866,7 +863,7 @@ export function SpaceTabs({ scrollRef }: SpaceTabsProps) {
 
       const newSpacesContent = makeCinnySpacesContent(mx, newItems);
       localEchoSidebarItem(parseSidebar(mx, orphanSpaces, newSpacesContent));
-      mx.setAccountData(AccountDataEvent.CinnySpaces, newSpacesContent);
+      mx.setAccountData(AccountDataEvent.CinnySpaces as any, newSpacesContent as any);
     },
     [mx, sidebarItems, orphanSpaces, localEchoSidebarItem]
   );

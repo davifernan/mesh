@@ -88,6 +88,7 @@ import { useRoomNavigate } from '../../../hooks/useRoomNavigate';
 import { useRoomCreators } from '../../../hooks/useRoomCreators';
 import { useRoomPermissions } from '../../../hooks/useRoomPermissions';
 import { ContainerColor } from '../../../styles/ContainerColor.css';
+import { ScreenSize, useScreenSizeContext } from '../../../hooks/useScreenSize';
 import { AsyncStatus, useAsyncCallback } from '../../../hooks/useAsyncCallback';
 import { BreakWord } from '../../../styles/Text.css';
 import { InviteUserPrompt } from '../../../components/invite-user-prompt';
@@ -416,6 +417,7 @@ export function SpaceTombstone({ roomId, replacementRoomId }: SpaceTombstoneProp
 }
 
 export function Space() {
+  const screenSize = useScreenSizeContext();
   const mx = useMatrixClient();
   const space = useSpace();
   useNavToActivePathMapper(space.roomId);
@@ -803,10 +805,12 @@ export function Space() {
           </NavCategory>
         </Box>
       </PageNavContent>
-      <PageNavDock>
-        <CallNavStatus />
-        <UserArea />
-      </PageNavDock>
+      {screenSize === ScreenSize.Mobile && (
+        <PageNavDock>
+          <CallNavStatus />
+          <UserArea />
+        </PageNavDock>
+      )}
     </PageNav>
   );
 }
