@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useRef } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Transforms } from 'slate';
 import { Box, Text, config } from 'folds';
 import { EventType, JoinRule, Room } from 'matrix-js-sdk';
@@ -68,6 +68,7 @@ const shouldFocusMessageField = (evt: KeyboardEvent): boolean => {
 export function RoomView({ room, eventId }: { room: Room; eventId?: string }) {
   const roomInputRef = useRef<HTMLDivElement>(null);
   const roomViewRef = useRef<HTMLDivElement>(null);
+  const [editId, setEditId] = useState<string | undefined>(undefined);
 
   const [hideActivity] = useSetting(settingsAtom, 'hideActivity');
 
@@ -234,6 +235,8 @@ export function RoomView({ room, eventId }: { room: Room; eventId?: string }) {
             eventId={eventId}
             roomInputRef={roomInputRef}
             editor={editor}
+            editId={editId}
+            setEditId={setEditId}
           />
         </Box>
         <Box shrink="No" direction="Column">
@@ -254,6 +257,8 @@ export function RoomView({ room, eventId }: { room: Room; eventId?: string }) {
                     roomId={roomId}
                     fileDropContainerRef={roomViewRef}
                     ref={roomInputRef}
+                    editId={editId}
+                    setEditId={setEditId}
                   />
                 )}
                 {!canMessage && (

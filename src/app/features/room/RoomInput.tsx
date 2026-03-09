@@ -101,6 +101,7 @@ import {
 } from './msgContent';
 import { getMemberDisplayName, getMentionContent, trimReplyFromBody } from '../../utils/room';
 import { CommandAutocomplete } from './CommandAutocomplete';
+import { CharacterCounter } from '../../components/editor/CharacterCounter';
 import { Command, SHRUG, TABLEFLIP, UNFLIP, useCommands } from '../../hooks/useCommands';
 import { mobileOrTablet } from '../../utils/user-agent';
 import { useElementSizeObserver } from '../../hooks/useElementSizeObserver';
@@ -124,9 +125,11 @@ interface RoomInputProps {
   roomId: string;
   room: Room;
   threadId?: string;
+  editId?: string;
+  setEditId?: (id: string | undefined) => void;
 }
 export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
-  ({ editor, fileDropContainerRef, roomId, room, threadId }, ref) => {
+  ({ editor, fileDropContainerRef, roomId, room, threadId, editId, setEditId }, ref) => {
     const mx = useMatrixClient();
     const useAuthentication = useMediaAuthentication();
     const [enterForNewline] = useSetting(settingsAtom, 'enterForNewline');
@@ -404,14 +407,32 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
         }
         if (isKeyHotkey('escape', evt)) {
           evt.preventDefault();
+          // 1. Autocomplete
           if (autocompleteQuery) {
             setAutocompleteQuery(undefined);
             return;
           }
-          setReplyDraft(undefined);
+          // 2. Edit abbrechen
+          if (editId !== undefined && setEditId) {
+            setEditId(undefined);
+            return;
+          }
+          // 3. Reply abbrechen
+          if (replyDraft) {
+            setReplyDraft(undefined);
+            return;
+          }
+          // 4. Als gelesen markieren
+          const escRoom = mx.getRoom(roomId);
+          if (escRoom) {
+            const lastEvent = escRoom.getLiveTimeline().getEvents().at(-1);
+            if (lastEvent) {
+              mx.sendReadReceipt(lastEvent).catch(() => {});
+            }
+          }
         }
       },
-      [submit, setReplyDraft, enterForNewline, autocompleteQuery, isComposing]
+      [submit, setReplyDraft, enterForNewline, autocompleteQuery, isComposing, editId, setEditId, mx, roomId]
     );
 
     const handleKeyUp: KeyboardEventHandler = useCallback(
@@ -704,6 +725,7 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
             )
           }
         />
+        <CharacterCounter count={toPlainText(editor.children, isMarkdown).length} />
       </div>
     );
   }
