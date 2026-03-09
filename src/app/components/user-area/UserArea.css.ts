@@ -100,10 +100,10 @@ export const presenceDot = style({
 export const textStack = style({
   flex: 1,
   minWidth: 0,
-  height: LINE_H,
-  overflow: 'hidden',
+  minHeight: `calc(${LINE_H} * 2)`,
   display: 'flex',
   flexDirection: 'column',
+  justifyContent: 'center',
   flexShrink: 1,
   position: 'relative',
   zIndex: 1,
@@ -120,13 +120,6 @@ export const usernameText = style({
   whiteSpace: 'nowrap',
   overflow: 'hidden',
   textOverflow: 'ellipsis',
-  transform: 'translateY(0)',
-  transition: 'transform 0.22s ease',
-  selectors: {
-    [`${userArea}:hover &`]: {
-      transform: 'translateY(-107%)',
-    },
-  },
 });
 
 /* Status — starts hidden below, slides up into view on hover */
@@ -140,15 +133,7 @@ export const statusText = style({
   whiteSpace: 'nowrap',
   overflow: 'hidden',
   textOverflow: 'ellipsis',
-  opacity: 0,
-  transform: 'translateY(0)',
-  transition: 'transform 0.22s ease, opacity 0.15s ease',
-  selectors: {
-    [`${userArea}:hover &`]: {
-      transform: 'translateY(-107%)',
-      opacity: 1,
-    },
-  },
+  opacity: 1,
 });
 
 export const controlsRow = style({

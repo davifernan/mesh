@@ -53,7 +53,7 @@ import { makeNavCategoryId } from '../../../state/closedNavCategories';
 import { roomToUnreadAtom } from '../../../state/room/roomToUnread';
 import { useCategoryHandler } from '../../../hooks/useCategoryHandler';
 import { useNavToActivePathMapper } from '../../../hooks/useNavToActivePathMapper';
-import { PageNav, PageNavHeader, PageNavContent } from '../../../components/page';
+import { PageNav, PageNavHeader, PageNavContent, PageNavDock } from '../../../components/page';
 import { useRoomsUnread } from '../../../state/hooks/unread';
 import { markAsRead } from '../../../utils/notifications';
 import { useClosedNavCategoriesAtom } from '../../../state/hooks/closedNavCategories';
@@ -558,8 +558,10 @@ export function Home() {
           </Box>
         </PageNavContent>
       )}
-      <CallNavStatus />
-      <UserArea />
+      <PageNavDock>
+        <CallNavStatus />
+        <UserArea />
+      </PageNavDock>
     </PageNav>
   );
 }

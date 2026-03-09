@@ -79,6 +79,10 @@ export function PageNavContent({
   );
 }
 
+export function PageNavDock({ children }: { children: ReactNode }) {
+  return <div className={css.PageNavDock}>{children}</div>;
+}
+
 export const Page = as<'div'>(({ className, ...props }, ref) => (
   <Box
     grow="Yes"

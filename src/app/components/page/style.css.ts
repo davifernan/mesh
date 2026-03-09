@@ -64,6 +64,16 @@ export const PageNavContent = style({
   paddingBottom: config.space.S700,
 });
 
+export const PageNavDock = style({
+  position: 'relative',
+  zIndex: 90,
+  display: 'flex',
+  flexDirection: 'column',
+  gap: toRem(4),
+  overflow: 'visible',
+  paddingBottom: toRem(8),
+});
+
 export const PageHeader = recipe({
   base: {
     paddingLeft: config.space.S400,
