@@ -357,7 +357,13 @@ interface NativeCallParticipantGridProps {
 }
 
 export function NativeCallParticipantGrid({ onPin }: NativeCallParticipantGridProps) {
-  const participants = useParticipants();
+  const allParticipants = useParticipants();
+  // Filter out the LiveKit SFU/Focus server participant — its identity is a
+  // base64 string that does NOT start with '@' (or '_@' for MSC4143).
+  // All real Matrix users always have an identity beginning with '@' or '_@'.
+  const participants = allParticipants.filter(
+    (p) => p.identity.startsWith('@') || p.identity.startsWith('_@') || p.isLocal
+  );
   const { remoteParticipantStates, livekitRoom } = useCallState();
   const [layoutState, setLayoutState] = useAtom(voiceCallLayoutAtom);
   const pinParticipant = useSetAtom(pinParticipantAtom);
