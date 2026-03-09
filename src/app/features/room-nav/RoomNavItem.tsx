@@ -61,14 +61,6 @@ import { useRoomNavigate } from '../../hooks/useRoomNavigate';
 import { RoomNavUser } from './RoomNavUser';
 import { useRoomName } from '../../hooks/useRoomMeta';
 
-function extractUserId(identity: string): string {
-  if (identity.startsWith('@')) {
-    const lastUnderscore = identity.lastIndexOf('_');
-    if (lastUnderscore > 1) return identity.slice(0, lastUnderscore);
-  }
-  return identity;
-}
-
 type RoomNavItemMenuProps = {
   room: Room;
   requestClose: () => void;
@@ -269,7 +261,6 @@ export function RoomNavItem({
     toggleChat,
     hangUp,
     callStatus,
-    livekitRoom,
   } = useCallState();
 
   // isActiveCall: true as soon as this room is set as active call (including while connecting)
@@ -297,28 +288,9 @@ export function RoomNavItem({
   }
   const callMemberships = useCallMembers(mx, room.roomId);
 
-  const displayedCallMembers = useMemo(() => {
-    const merged = [...callMemberships];
-    const seen = new Set(merged);
-
-    if (isActiveCall && callStatus === 'connected' && livekitRoom) {
-      const myUserId = mx.getUserId();
-      if (myUserId && !seen.has(myUserId)) {
-        merged.push(myUserId);
-        seen.add(myUserId);
-      }
-
-      for (const participant of livekitRoom.remoteParticipants.values()) {
-        const userId = extractUserId(participant.identity);
-        if (!seen.has(userId)) {
-          merged.push(userId);
-          seen.add(userId);
-        }
-      }
-    }
-
-    return merged;
-  }, [callMemberships, isActiveCall, callStatus, livekitRoom, mx]);
+  // IMPORTANT: sidebar membership must come from Matrix call.member state only.
+  // LiveKit participant.identity can be opaque/non-Matrix IDs and creates ghost users.
+  const displayedCallMembers = callMemberships;
 
   const hasSpeakingMember =
     room.isCallRoom() &&
