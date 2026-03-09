@@ -1,7 +1,7 @@
 {
   "defaultHomeserver": 0,
   "homeserverList": [
-    "matrix.org"
+    "matrix.nilo.live"
   ],
   "allowCustomHomeservers": true,
 
@@ -10,5 +10,5 @@
     "basename": "/"
   },
 
-  "livekitServiceUrl": ""
+  "livekitServiceUrl": "https://livekit-jwt.nilo.live"
 }

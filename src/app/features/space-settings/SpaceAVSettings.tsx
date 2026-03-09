@@ -4,18 +4,18 @@ import { Page, PageContent, PageHeader } from '../../components/page';
 import { useRoom } from '../../hooks/useRoom';
 import { useMatrixClient } from '../../hooks/useMatrixClient';
 import { usePowerLevels, readPowerLevel } from '../../hooks/usePowerLevels';
-import { SpaceAVSettings } from '../../state/avQuality';
+import { SpaceAVSettings as SpaceAVSettingsContent } from '../../state/avQuality';
 
 const AV_SETTINGS_EVENT_TYPE = 'io.bettercord.space.av_settings';
 
 // Required power level to edit space A/V settings (admin = 100)
 const REQUIRED_POWER_LEVEL = 100;
 
-type VideoResolution = SpaceAVSettings['maxVideoResolution'];
-type VideoFps = SpaceAVSettings['maxVideoFps'];
-type SSResolution = SpaceAVSettings['maxSSResolution'];
-type SSFps = SpaceAVSettings['maxSSFps'];
-type AudioBitrate = SpaceAVSettings['maxAudioBitrate'];
+type VideoResolution = SpaceAVSettingsContent['maxVideoResolution'];
+type VideoFps = SpaceAVSettingsContent['maxVideoFps'];
+type SSResolution = SpaceAVSettingsContent['maxSSResolution'];
+type SSFps = SpaceAVSettingsContent['maxSSFps'];
+type AudioBitrate = SpaceAVSettingsContent['maxAudioBitrate'];
 
 const VIDEO_RESOLUTIONS: VideoResolution[] = ['360p', '480p', '720p', '1080p', '1440p', '2160p'];
 const VIDEO_FPS: VideoFps[] = [15, 24, 30, 60, 120];
@@ -73,7 +73,7 @@ export function SpaceAVSettings({ requestClose }: SpaceAVSettingsProps) {
 
   // Load current settings from state event
   const stateEvent = room.currentState.getStateEvents(AV_SETTINGS_EVENT_TYPE, '');
-  const current = stateEvent?.getContent<Partial<SpaceAVSettings>>() ?? {};
+  const current = stateEvent?.getContent<Partial<SpaceAVSettingsContent>>() ?? {};
 
   const [maxAudioBitrate, setMaxAudioBitrate] = useState<AudioBitrate>(
     current.maxAudioBitrate ?? 510

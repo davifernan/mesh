@@ -1,5 +1,4 @@
 import React, { useEffect, useRef } from 'react';
-import { Scroll } from 'folds';
 
 import {
   Sidebar,
@@ -63,7 +62,17 @@ export function SidebarNav() {
     <Sidebar role="navigation" aria-label="Main navigation" onKeyDown={handleKeyDown}>
       <SidebarContent
         scrollable={
-          <Scroll ref={scrollRef} variant="Background" size="0" style={{ width: '100%' }}>
+          <div
+            ref={scrollRef}
+            style={{
+              width: '100%',
+              minHeight: 0,
+              overflowY: 'auto',
+              overflowX: 'hidden',
+              scrollbarWidth: 'none',
+              msOverflowStyle: 'none',
+            }}
+          >
             <div
               style={{
                 width: '100%',
@@ -83,7 +92,7 @@ export function SidebarNav() {
                 <CreateTab />
               </SidebarStack>
             </div>
-          </Scroll>
+          </div>
         }
         sticky={
           <>
