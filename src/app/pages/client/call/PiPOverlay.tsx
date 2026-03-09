@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { atom, useAtom } from 'jotai';
 import { motion, animate, useMotionValue, type SpringOptions } from 'framer-motion';
-import { RoomContext, VideoTrack, useTracks, isTrackReference, RoomAudioRenderer } from '@livekit/components-react';
+import { RoomContext, VideoTrack, useTracks, isTrackReference } from '@livekit/components-react';
 import { Track } from 'livekit-client';
 import { ArrowLeft, PhoneX } from '@phosphor-icons/react';
 import { useCallState } from './CallProvider';
@@ -302,7 +302,6 @@ export function PiPOverlay() {
 
   return (
     <RoomContext.Provider value={livekitRoom}>
-      <RoomAudioRenderer />
       <PiPContent
         channelName={channelName}
         width={width}
