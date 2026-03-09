@@ -144,9 +144,7 @@ export function NativeCallView() {
 
       {/* RoomContext wraps grid, stats panel, and control bar */}
       <RoomContext.Provider value={livekitRoom}>
-        {/* Audio renderer — attaches <audio> elements for ALL remote participants.
-            Without this, audio tracks are subscribed but never played. */}
-        <RoomAudioRenderer />
+        {/* RoomAudioRenderer lives in PersistentCallContainer — no duplicate here */}
 
         {/* Autoplay unblock overlay — shown when browser blocks audio autoplay */}
         <AudioUnblockButton />

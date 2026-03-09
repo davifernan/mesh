@@ -14,7 +14,7 @@ import {
   Monitor,
   SpeakerSlash,
 } from '@phosphor-icons/react';
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { AnimatePresence } from 'framer-motion';
 import { SignalStrengthIcon } from './SignalStrengthIcon';
 import { IncomingCallCard } from './RoomCallNavStatusIncoming';
@@ -390,8 +390,25 @@ export function CallNavStatus({ docked = false }: CallNavStatusProps) {
     ? mx.getRoom(activeCallRoomId)?.name ?? activeCallRoomId
     : '';
 
+  // Build the set of Matrix user IDs that are actually connected via LiveKit.
+  // This filters out bot/focus-server participants that have Matrix memberships
+  // but are not real users (their LiveKit identity doesn't start with '@').
+  const livekitUserIds = useMemo(() => {
+    const ids = new Set<string>([myUserId]);
+    if (!livekitRoom) return ids;
+    for (const [, p] of livekitRoom.remoteParticipants) {
+      const id = p.identity;
+      const normalized = id.startsWith('_@') ? id.slice(1) : id;
+      if (!normalized.startsWith('@')) continue;
+      const lastUnderscore = normalized.lastIndexOf('_');
+      const userId = lastUnderscore > 1 ? normalized.slice(0, lastUnderscore) : normalized;
+      ids.add(userId);
+    }
+    return ids;
+  }, [livekitRoom, myUserId]);
+
   // Build member data for the voice channel user list (all connected members)
-  const memberListData = callMembers.map((userId) => {
+  const memberListData = callMembers.filter((userId) => livekitUserIds.has(userId)).map((userId) => {
     const isLocalUser = userId === myUserId;
     const user = mx.getUser(userId);
     const displayName = user?.displayName ?? userId;
