@@ -79,16 +79,6 @@ function extractUserId(identity: string): string {
 }
 
 /**
- * Returns true if the LiveKit participant identity belongs to a real Matrix user.
- * The LiveKit SFU/Focus server uses a base64 identity (no leading '@'),
- * whereas all real Matrix participants have an identity that starts with '@'
- * (possibly with a leading '_' in the MSC4143 format: "_@user:server_DEVICE").
- */
-function isMatrixParticipant(identity: string): boolean {
-  return identity.startsWith('@') || identity.startsWith('_@');
-}
-
-/**
  * Resolves the LiveKit SFU URL from room state events.
  * Checks the call state event first, then scans member events as a fallback.
  */
@@ -300,8 +290,6 @@ export function useNativeCall(roomId: string | null): NativeCallEngine {
 
         // Helper to update remote participant state snapshot
         const updateRemote = (participant: { identity: string; isMicrophoneEnabled: boolean; isCameraEnabled: boolean; isScreenShareEnabled: boolean }, isDisconnecting = false) => {
-          // Skip SFU/Focus server participants — they are not real Matrix users.
-          if (!isMatrixParticipant(participant.identity)) return;
           const userId = extractUserId(participant.identity);
           setRemoteParticipantStates((prev) => {
             const next = new Map(prev);
@@ -324,11 +312,7 @@ export function useNativeCall(roomId: string | null): NativeCallEngine {
         }
 
         room.on(RoomEvent.ActiveSpeakersChanged, (speakers) => {
-          const nextSpeakers = new Set(
-            speakers
-              .filter((s) => isMatrixParticipant(s.identity))
-              .map((s) => extractUserId(s.identity))
-          );
+          const nextSpeakers = new Set(speakers.map((s) => extractUserId(s.identity)));
           if (room.localParticipant.isSpeaking) {
             nextSpeakers.add(userId);
           }
