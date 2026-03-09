@@ -226,7 +226,7 @@ const getRoomMemberStr: SearchItemStrGetter<RoomMember> = (m, query) =>
 
 type MembersDrawerProps = {
   room: Room;
-  memberRoom: Room;
+  memberRoom?: Room;
   members: RoomMember[];
   width?: number;
   isFullWidth?: boolean;
@@ -234,12 +234,13 @@ type MembersDrawerProps = {
 };
 export function MembersDrawer({
   room,
-  memberRoom,
+  memberRoom: memberRoomProp,
   members,
   width = 266,
   isFullWidth,
   onToggleFullWidth,
 }: MembersDrawerProps) {
+  const memberRoom = memberRoomProp ?? room;
   const mx = useMatrixClient();
   const useAuthentication = useMediaAuthentication();
   const scrollRef = useRef<HTMLDivElement>(null);
