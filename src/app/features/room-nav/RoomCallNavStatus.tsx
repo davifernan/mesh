@@ -440,10 +440,6 @@ export function CallNavStatus({ docked = false }: CallNavStatusProps) {
         {showVoicePopout && (
           <div className={css.VoicePopout}>
             <div className={css.VoicePopoutTitle}>Voice Connection</div>
-            <div className={css.VoicePopoutRow}>
-              <span>Channel</span>
-              <span className={css.VoicePopoutValue}>{channelName}</span>
-            </div>
             {latencyMs !== null && (
               <div className={css.VoicePopoutRow}>
                 <span>RTT</span>
@@ -504,17 +500,6 @@ export function CallNavStatus({ docked = false }: CallNavStatusProps) {
           </div>
         </div>
 
-        {/* Channel source row: room name link */}
-        <div className={css.ChannelSourceRow}>
-          <button
-            type="button"
-            className={css.ChannelSourceLink}
-            onClick={() => activeCallRoomId && navigateRoom(activeCallRoomId)}
-            aria-label="Go to room"
-          >
-            {channelName}
-          </button>
-        </div>
 
         {/* Media section: mute + video + screenshare (3-column grid) */}
         <div className={css.MediaSection} style={{ gridTemplateColumns: 'repeat(3, 1fr)' }}>

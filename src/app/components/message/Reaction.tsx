@@ -7,6 +7,14 @@ import { getHexcodeForEmoji, getShortcodeFor } from '../../plugins/emoji';
 import { getMemberDisplayName } from '../../utils/room';
 import { eventWithShortcode, getMxIdLocalPart, mxcUrlToHttp } from '../../utils/matrix';
 
+function usePrevious<T>(value: T): T | undefined {
+  const ref = React.useRef<T | undefined>(undefined);
+  React.useEffect(() => {
+    ref.current = value;
+  });
+  return ref.current;
+}
+
 export const Reaction = as<
   'button',
   {
@@ -15,35 +23,41 @@ export const Reaction = as<
     reaction: string;
     useAuthentication?: boolean;
   }
->(({ className, mx, count, reaction, useAuthentication, ...props }, ref) => (
-  <Box
-    as="button"
-    className={classNames(css.Reaction, className)}
-    alignItems="Center"
-    shrink="No"
-    gap="200"
-    {...props}
-    ref={ref}
-  >
-    <Text className={css.ReactionText} as="span" size="T400">
-      {reaction.startsWith('mxc://') ? (
-        <img
-          className={css.ReactionImg}
-          src={mxcUrlToHttp(mx, reaction, useAuthentication) ?? reaction
-          }
-          alt={reaction}
-        />
-      ) : (
-        <Text as="span" size="Inherit" truncate>
-          {reaction}
-        </Text>
-      )}
-    </Text>
-    <Text as="span" size="T300">
-      {count}
-    </Text>
-  </Box>
-));
+>(({ className, mx, count, reaction, useAuthentication, ...props }, ref) => {
+  const prevCount = usePrevious(count);
+  const direction = count > (prevCount ?? count) ? 'up' : 'down';
+
+  return (
+    <Box
+      as="button"
+      className={classNames(css.Reaction, className)}
+      alignItems="Center"
+      shrink="No"
+      gap="200"
+      {...props}
+      ref={ref}
+    >
+      <Text className={css.ReactionText} as="span" size="T400">
+        {reaction.startsWith('mxc://') ? (
+          <img
+            className={css.ReactionImg}
+            src={mxcUrlToHttp(mx, reaction, useAuthentication) ?? reaction}
+            alt={reaction}
+          />
+        ) : (
+          <Text as="span" size="Inherit" truncate>
+            {reaction}
+          </Text>
+        )}
+      </Text>
+      <Text as="span" size="T300">
+        <span key={count} className={css.countAnim} data-dir={direction}>
+          {count}
+        </span>
+      </Text>
+    </Box>
+  );
+});
 
 type ReactionTooltipMsgProps = {
   room: Room;

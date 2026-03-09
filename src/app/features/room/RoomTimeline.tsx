@@ -230,6 +230,8 @@ type RoomTimelineProps = {
   roomInputRef: RefObject<HTMLElement>;
   editor: Editor;
   threadId?: string;
+  editId?: string;
+  setEditId?: (id: string | undefined) => void;
 };
 
 const PAGINATION_LIMIT = 80;
@@ -517,7 +519,7 @@ const getRoomUnreadInfo = (room: Room, scrollTo = false) => {
   };
 };
 
-export function RoomTimeline({ room, eventId, roomInputRef, editor, threadId }: RoomTimelineProps) {
+export function RoomTimeline({ room, eventId, roomInputRef, editor, threadId, editId: editIdProp, setEditId: setEditIdProp }: RoomTimelineProps) {
   const mx = useMatrixClient();
   const useAuthentication = useMediaAuthentication();
   const [hideActivity] = useSetting(settingsAtom, 'hideActivity');
@@ -562,7 +564,9 @@ export function RoomTimeline({ room, eventId, roomInputRef, editor, threadId }: 
   const canDeleteOwn = permissions.event(MessageEvent.RoomRedaction, mx.getSafeUserId());
   const canSendReaction = permissions.event(MessageEvent.Reaction, mx.getSafeUserId());
   const canPinEvent = permissions.stateEvent(StateEvent.RoomPinnedEvents, mx.getSafeUserId());
-  const [editId, setEditId] = useState<string>();
+  const [editIdInternal, setEditIdInternal] = useState<string>();
+  const editId = editIdProp !== undefined ? editIdProp : editIdInternal;
+  const setEditId = setEditIdProp ?? setEditIdInternal;
 
   const roomToParents = useAtomValue(roomToParentsAtom);
   const unread = useRoomUnread(room.roomId, roomToUnreadAtom);

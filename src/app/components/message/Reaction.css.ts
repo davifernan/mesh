@@ -1,4 +1,4 @@
-import { createVar, style } from '@vanilla-extract/css';
+import { createVar, keyframes, style } from '@vanilla-extract/css';
 import { DefaultReset, FocusOutline, color, config, toRem } from 'folds';
 
 const Container = createVar();
@@ -73,3 +73,25 @@ export const ReactionImg = style([
     objectFit: 'contain',
   },
 ]);
+
+const slideUp = keyframes({
+  from: { opacity: 0, transform: 'translateY(6px)' },
+  to: { opacity: 1, transform: 'translateY(0)' },
+});
+
+const slideDown = keyframes({
+  from: { opacity: 0, transform: 'translateY(-6px)' },
+  to: { opacity: 1, transform: 'translateY(0)' },
+});
+
+export const countAnim = style({
+  display: 'inline-block',
+  selectors: {
+    '&[data-dir="up"]': {
+      animation: `${slideUp} 150ms ease-out`,
+    },
+    '&[data-dir="down"]': {
+      animation: `${slideDown} 150ms ease-out`,
+    },
+  },
+});
