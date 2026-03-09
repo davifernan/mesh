@@ -359,7 +359,20 @@ export const MessagePinItem = as<
   const pinnedEvents = useRoomPinnedEvents(room);
   const isPinned = pinnedEvents.includes(mEvent.getId() ?? '');
 
-  const handlePin = () => {
+  const handlePin = (evt?: React.MouseEvent) => {
+    if (evt?.shiftKey) {
+      // Shift+Click: bypass any confirmation and pin/unpin directly
+      const eventId = mEvent.getId();
+      const pinContent: RoomPinnedEventsEventContent = {
+        pinned: Array.from(pinnedEvents).filter((id) => id !== eventId),
+      };
+      if (!isPinned && eventId) {
+        pinContent.pinned.push(eventId);
+      }
+      mx.sendStateEvent(room.roomId, StateEvent.RoomPinnedEvents as any, pinContent);
+      onClose?.();
+      return;
+    }
     const eventId = mEvent.getId();
     const pinContent: RoomPinnedEventsEventContent = {
       pinned: Array.from(pinnedEvents).filter((id) => id !== eventId),
@@ -376,7 +389,7 @@ export const MessagePinItem = as<
       size="300"
       after={<Icon size="100" src={Icons.Pin} />}
       radii="300"
-      onClick={handlePin}
+      onClick={(evt) => handlePin(evt)}
       {...props}
       ref={ref}
     >

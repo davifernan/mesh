@@ -155,6 +155,7 @@ type MemberItemProps = {
   focused?: boolean;
   optionId?: string;
   tabIndex?: number;
+  online?: boolean;
 };
 function MemberItem({
   mx,
@@ -167,6 +168,7 @@ function MemberItem({
   focused,
   optionId,
   tabIndex: tabIndexProp,
+  online,
 }: MemberItemProps) {
   const name =
     getMemberDisplayName(room, member.userId) ?? getMxIdLocalPart(member.userId) ?? member.userId;
@@ -205,7 +207,14 @@ function MemberItem({
       }
     >
       <Box grow="Yes">
-        <Text size="T400" truncate>
+        <Text
+          size="T400"
+          truncate
+          style={{
+            color: online ? 'var(--text-primary)' : 'var(--text-muted)',
+            transition: 'color 200ms ease',
+          }}
+        >
           {name}
         </Text>
       </Box>
@@ -664,6 +673,7 @@ export function MembersDrawer({
 
                   const member = tagOrMember as RoomMember;
                   const isFocused = focusedVirtIndex === vItem.index;
+                  const memberPresence = getMemberPresence(mx, member.userId);
                   // Roving tabindex: first member starts as tabIndex=0 (Tab entry point),
                   // then whichever member last had focus keeps tabIndex=0.
                   const memberTabIndex =
@@ -693,6 +703,7 @@ export function MembersDrawer({
                         focused={isFocused}
                         optionId={`member-option-${member.userId}`}
                         tabIndex={memberTabIndex}
+                        online={isOnline(memberPresence)}
                       />
                     </div>
                   );
