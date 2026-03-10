@@ -1,0 +1,36 @@
+version: '3.9'
+
+services:
+  # ── BetterCord frontend (nginx + static SPA) ─────────────────────────────────
+  bettercord:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - '${BETTERCORD_PORT:-80}:80'
+    environment:
+      BETTERCORD_HOMESERVER: '${BETTERCORD_HOMESERVER}'
+      BETTERCORD_LIVEKIT_URL: '${BETTERCORD_LIVEKIT_URL}'
+    depends_on:
+      bridge:
+        condition: service_healthy
+    restart: unless-stopped
+
+  # ── Presence bridge (Bun + Hono) ──────────────────────────────────────────────
+  bridge:
+    build:
+      context: ./bridge
+      dockerfile: Dockerfile
+    environment:
+      LIVEKIT_API_KEY: '${LIVEKIT_API_KEY}'
+      LIVEKIT_API_SECRET: '${LIVEKIT_API_SECRET}'
+      PORT: '3001'
+    expose:
+      - '3001'
+    healthcheck:
+      test: ['CMD-SHELL', 'wget -qO- http://localhost:3001/health || exit 1']
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 5s
+    restart: unless-stopped

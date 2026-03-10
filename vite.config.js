@@ -42,8 +42,33 @@ const copyFiles = {
       src: 'public/locales',
       dest: 'public/',
     },
+    {
+      src: 'public/sound',
+      dest: 'sound',
+    },
   ],
 };
+
+function serverSoundFiles() {
+  return {
+    name: 'vite-plugin-serve-sound-files',
+    configureServer(server) {
+      server.middlewares.use((req, res, next) => {
+        if (req.url?.startsWith('/sound/') && req.url.endsWith('.mp3')) {
+          const filename = decodeURIComponent(req.url.replace('/sound/', '').split('?')[0]);
+          const filePath = path.join(path.resolve(), 'public/sound', filename);
+          if (fs.existsSync(filePath)) {
+            res.setHeader('Content-Type', 'audio/mpeg');
+            res.setHeader('Cache-Control', 'no-cache');
+            fs.createReadStream(filePath).pipe(res);
+            return;
+          }
+        }
+        next();
+      });
+    },
+  };
+}
 
 function serverMatrixSdkCryptoWasm(wasmFilePath) {
   return {
@@ -78,8 +103,18 @@ export default defineConfig({
   server: {
     port: 8080,
     host: true,
+    proxy: {
+      // Forward /api/presence/* to the local presence bridge (bun run bridge/src/index.ts)
+      // so SSE and REST presence calls work in dev without Docker.
+      '/api/presence': {
+        target: 'http://localhost:3001',
+        rewrite: (path) => path.replace(/^\/api\/presence/, '/presence'),
+        changeOrigin: true,
+      },
+    },
   },
   plugins: [
+    serverSoundFiles(),
     serverMatrixSdkCryptoWasm('/node_modules/.vite/deps/pkg/matrix_sdk_crypto_wasm_bg.wasm'),
     topLevelAwait({
       // The export name of top-level await promise for each chunk module

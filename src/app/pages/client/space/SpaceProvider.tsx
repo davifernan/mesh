@@ -8,6 +8,7 @@ import { SpaceProvider } from '../../../hooks/useSpace';
 import { JoinBeforeNavigate } from '../../../features/join-before-navigate';
 import { useSearchParamsViaServers } from '../../../hooks/router/useSearchParamsViaServers';
 import { useSpaceAVSettings } from '../../../hooks/useSpaceAVSettings';
+import { useSpaceUploadSettings } from '../../../hooks/useSpaceUploadSettings';
 
 type RouteSpaceProviderProps = {
   children: ReactNode;
@@ -21,6 +22,17 @@ function SpaceAVSettingsLoader({
   children: ReactNode;
 }) {
   useSpaceAVSettings(spaceId);
+  return <>{children}</>;
+}
+
+function SpaceUploadSettingsLoader({
+  spaceId,
+  children,
+}: {
+  spaceId: string;
+  children: ReactNode;
+}) {
+  useSpaceUploadSettings(spaceId);
   return <>{children}</>;
 }
 
@@ -39,8 +51,10 @@ export function RouteSpaceProvider({ children }: RouteSpaceProviderProps) {
   }
 
   return (
-    <SpaceProvider key={space.roomId} value={space}>
-      <SpaceAVSettingsLoader spaceId={space.roomId}>{children}</SpaceAVSettingsLoader>
-    </SpaceProvider>
+      <SpaceProvider key={space.roomId} value={space}>
+        <SpaceAVSettingsLoader spaceId={space.roomId}>
+          <SpaceUploadSettingsLoader spaceId={space.roomId}>{children}</SpaceUploadSettingsLoader>
+        </SpaceAVSettingsLoader>
+      </SpaceProvider>
   );
 }

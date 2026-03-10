@@ -1,6 +1,13 @@
 import { atom } from 'jotai';
 
 const STORAGE_KEY = 'settings';
+/** Migration key — set once when mobile DSP defaults have been applied to an existing profile. */
+const MOBILE_DSP_MIGRATION_KEY = 'bc-mobile-dsp-v1';
+/** Migration key — set once when auto-join-space-rooms has been flipped to true for all users. */
+const AUTO_JOIN_MIGRATION_KEY = 'bc-autojoin-v1';
+/** True when running in a mobile browser (iOS / Android). */
+const isMobile =
+  typeof navigator !== 'undefined' && /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
 export type DateFormat = 'D MMM YYYY' | 'DD/MM/YYYY' | 'MM/DD/YYYY' | 'YYYY/MM/DD' | '';
 export type MessageSpacing = '0' | '100' | '200' | '300' | '400' | '500';
 export enum MessageLayout {
@@ -49,6 +56,8 @@ export interface Settings {
   callRingScope: 'dm' | 'nonVoice' | 'all';
   callRingtoneUrl: string | null;
   callAutoJoin: boolean;
+  callSoundsEnabled: boolean;
+  callSoundsVolume: number;
   autoJoinSpaceRooms: boolean;
 
   // A/V Devices (deviceId from enumerateDevices, undefined = system default)
@@ -116,16 +125,21 @@ const defaultSettings: Settings = {
   callRingScope: 'nonVoice',
   callRingtoneUrl: null,
   callAutoJoin: false,
-  autoJoinSpaceRooms: false,
+  callSoundsEnabled: true,
+  callSoundsVolume: 1.0,
+  autoJoinSpaceRooms: true,
 
   micDeviceId: undefined,
   cameraDeviceId: undefined,
   speakerDeviceId: undefined,
 
   audioBitrate: 64,
-  echoCancellation: true,
-  noiseSuppression: true,
-  autoGainControl: true,
+  // On mobile, disable CPU-intensive browser-side audio DSP by default.
+  // These filters run in software on mobile (no hardware offload) and are a
+  // significant source of battery drain during calls.
+  echoCancellation: !isMobile,
+  noiseSuppression: !isMobile,
+  autoGainControl: !isMobile,
   videoResolution: '480p',
   videoFps: 24,
   ssResolution: '720p',
@@ -147,13 +161,33 @@ const defaultSettings: Settings = {
 
 export const getSettings = () => {
   const settings = localStorage.getItem(STORAGE_KEY);
-  if (settings === null) return defaultSettings;
+  if (settings === null) {
+    // New user — mark all one-time migrations as applied so they never fire later
+    // and accidentally override a preference the user explicitly set.
+    localStorage.setItem(AUTO_JOIN_MIGRATION_KEY, '1');
+    return defaultSettings;
+  }
   const parsed = JSON.parse(settings) as Settings;
 
   // Migrate old twitterEmoji boolean to new emojiFont enum
   if (parsed.twitterEmoji !== undefined && parsed.emojiFont === undefined) {
     parsed.emojiFont = parsed.twitterEmoji ? EmojiFont.Twemoji : EmojiFont.System;
     delete parsed.twitterEmoji;
+  }
+
+  // Mobile DSP migration (runs once): existing mobile users who still have the old
+  // desktop defaults (all three = true) get their audio DSP disabled to save battery.
+  if (isMobile && !localStorage.getItem(MOBILE_DSP_MIGRATION_KEY)) {
+    parsed.echoCancellation = false;
+    parsed.noiseSuppression = false;
+    parsed.autoGainControl = false;
+    localStorage.setItem(MOBILE_DSP_MIGRATION_KEY, '1');
+  }
+
+  // Auto-join migration (runs once): force all existing users to have auto-join enabled.
+  if (!localStorage.getItem(AUTO_JOIN_MIGRATION_KEY)) {
+    parsed.autoJoinSpaceRooms = true;
+    localStorage.setItem(AUTO_JOIN_MIGRATION_KEY, '1');
   }
 
   return {

@@ -57,7 +57,11 @@
   padding: 0.75rem 1rem;
   background: var(--voice-header-gradient);
   opacity: var(--voice-hud-opacity);
-  pointer-events: var(--voice-hud-pointer-events);
+  /* Never block pointer events on the container itself — the gradient div
+     overlaps the screenshare tile's top-row buttons (z-index: 12 within the
+     grid stacking context, which is below z-index: 10 in voiceRoot).
+     Only individual interactive children opt in via pointer-events. */
+  pointer-events: none;
   transition: opacity 0.2s ease;
 }
 
@@ -79,6 +83,8 @@
   justify-content: center;
   transition: color 120ms, background-color 120ms;
   flex-shrink: 0;
+  /* Opt back in to pointer events individually (parent has pointer-events: none) */
+  pointer-events: var(--voice-hud-pointer-events);
 }
 .backBtn:hover {
   color: var(--text-primary);
@@ -159,7 +165,12 @@
 
 @media (max-width: 768px) {
   .controlBarWrap {
-    padding-bottom: calc(var(--mobile-bottom-nav-height, 60px) + 12px);
+    /* On mobile: full-width solid navbar flush to the bottom edge.
+       Switch to block so the bar stretches to full width naturally. */
+    display: block;
+    padding: 0;
+    opacity: 1 !important;
+    pointer-events: auto !important;
   }
 }
 

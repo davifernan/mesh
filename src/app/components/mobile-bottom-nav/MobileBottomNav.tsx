@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { NavLink } from 'react-router-dom';
 import { House, ChatCircle, Bell, MagnifyingGlass, List, User, X } from '@phosphor-icons/react';
 import { useSetAtom } from 'jotai';
@@ -6,6 +6,7 @@ import { ScreenSize, useScreenSizeContext } from '../../hooks/useScreenSize';
 import { HOME_PATH, DIRECT_PATH, INBOX_PATH, EXPLORE_PATH } from '../../pages/paths';
 import { openUserSettingsAtom } from '../../state/keyboardShortcutsHelp';
 import { useMobileDrawer } from '../mobile-drawer';
+import { useCallStateOptional } from '../../pages/client/call/CallProvider';
 import * as css from './MobileBottomNav.css';
 
 type NavTabProps = {
@@ -63,8 +64,22 @@ export function MobileBottomNav() {
   const screenSize = useScreenSizeContext();
   const setOpenUserSettings = useSetAtom(openUserSettingsAtom);
   const { isOpen, toggle, close } = useMobileDrawer();
+  const callState = useCallStateOptional();
+  const hideForActiveCall =
+    screenSize === ScreenSize.Mobile &&
+    !!callState?.activeCallRoomId &&
+    !!callState?.isCallViewOpen;
 
-  if (screenSize !== ScreenSize.Mobile) return null;
+  useEffect(() => {
+    const nextHeight = hideForActiveCall ? '0px' : '60px';
+    document.documentElement.style.setProperty('--mobile-bottom-nav-height', nextHeight);
+
+    return () => {
+      document.documentElement.style.setProperty('--mobile-bottom-nav-height', '60px');
+    };
+  }, [hideForActiveCall]);
+
+  if (screenSize !== ScreenSize.Mobile || hideForActiveCall) return null;
 
   return (
     <nav className={css.BottomNav} aria-label="Mobile navigation">

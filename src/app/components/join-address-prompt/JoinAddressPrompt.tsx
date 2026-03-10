@@ -19,14 +19,35 @@ import {
 import { stopPropagation } from '../../utils/keyboard';
 import { isRoomAlias, isRoomId } from '../../utils/matrix';
 import { parseMatrixToRoom, parseMatrixToRoomEvent, testMatrixTo } from '../../plugins/matrix-to';
+import { BetterCordPermalink, parseBetterCordPermalink } from '../../plugins/permalink';
 import { tryDecodeURIComponent } from '../../utils/dom';
+import { useMatrixClient } from '../../hooks/useMatrixClient';
 
 type JoinAddressProps = {
-  onOpen: (roomIdOrAlias: string, via?: string[], eventId?: string) => void;
+  onOpen: (target: BetterCordPermalink) => void;
   onCancel: () => void;
 };
 export function JoinAddressPrompt({ onOpen, onCancel }: JoinAddressProps) {
+  const mx = useMatrixClient();
   const [invalid, setInvalid] = useState(false);
+
+  const getJoinedSpaceTarget = (roomIdOrAlias: string, viaServers?: string[]): BetterCordPermalink | undefined => {
+    const roomId = isRoomAlias(roomIdOrAlias)
+      ? mx
+          .getRooms()
+          .find((room) => room.getCanonicalAlias() === roomIdOrAlias)
+          ?.roomId
+      : roomIdOrAlias;
+    const room = roomId ? mx.getRoom(roomId) : undefined;
+
+    if (!room?.isSpaceRoom()) return undefined;
+
+    return {
+      kind: 'space',
+      spaceIdOrAlias: roomIdOrAlias,
+      viaServers,
+    };
+  };
 
   const handleSubmit: FormEventHandler<HTMLFormElement> = (evt) => {
     evt.preventDefault();
@@ -38,7 +59,7 @@ export function JoinAddressPrompt({ onOpen, onCancel }: JoinAddressProps) {
     if (!address) return;
 
     if (isRoomId(address) || isRoomAlias(address)) {
-      onOpen(address);
+      onOpen(getJoinedSpaceTarget(address) ?? { kind: 'room', roomIdOrAlias: address });
       return;
     }
 
@@ -46,15 +67,32 @@ export function JoinAddressPrompt({ onOpen, onCancel }: JoinAddressProps) {
       const decodedAddress = tryDecodeURIComponent(address);
       const toRoom = parseMatrixToRoom(decodedAddress);
       if (toRoom) {
-        onOpen(toRoom.roomIdOrAlias, toRoom.viaServers);
+        onOpen(
+          getJoinedSpaceTarget(toRoom.roomIdOrAlias, toRoom.viaServers) ?? {
+            kind: 'room',
+            roomIdOrAlias: toRoom.roomIdOrAlias,
+            viaServers: toRoom.viaServers,
+          }
+        );
         return;
       }
 
       const toEvent = parseMatrixToRoomEvent(decodedAddress);
       if (toEvent) {
-        onOpen(toEvent.roomIdOrAlias, toEvent.viaServers, toEvent.eventId);
+        onOpen({
+          kind: 'room',
+          roomIdOrAlias: toEvent.roomIdOrAlias,
+          viaServers: toEvent.viaServers,
+          eventId: toEvent.eventId,
+        });
         return;
       }
+    }
+
+    const permalink = parseBetterCordPermalink(address);
+    if (permalink) {
+      onOpen(permalink);
+      return;
     }
 
     setInvalid(true);
@@ -95,12 +133,12 @@ export function JoinAddressPrompt({ onOpen, onCancel }: JoinAddressProps) {
             >
               <Box direction="Column" gap="200">
                 <Text priority="400" size="T300">
-                  Enter public address to join the community. Addresses looks like:
+                  Enter a public address to join a community or room. Addresses look like:
                 </Text>
                 <Text as="ul" size="T200" priority="300" style={{ paddingLeft: config.space.S400 }}>
                   <li>#community:server</li>
-                  <li>https://matrix.to/#/#community:server</li>
-                  <li>https://matrix.to/#/!xYzAj?via=server</li>
+                  <li>{`${window.location.origin}/#community:server/`}</li>
+                  <li>{`${window.location.origin}/home/#general:server/`}</li>
                 </Text>
               </Box>
               <Box direction="Column" gap="100">

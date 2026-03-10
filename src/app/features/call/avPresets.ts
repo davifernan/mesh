@@ -12,11 +12,12 @@
 
 import {
   AudioPresets,
+  type AudioCaptureOptions,
   type AudioPreset,
-  type BaseKeyProvider,
   DefaultReconnectPolicy,
   type E2EEManagerOptions,
   type RoomOptions,
+  type ScreenShareCaptureOptions,
   type TrackPublishOptions,
   ScreenSharePresets,
   type TrackPublishDefaults,
@@ -30,24 +31,33 @@ import {
 export const ScreenSharePresets1080p = {
   h1080fps15: ScreenSharePresets.h1080fps15,
   h1080fps30: ScreenSharePresets.h1080fps30,
-  h1080fps60: new VideoPreset(1920, 1080, 8_000_000, 60, 'high'),
-  h1080fps120: new VideoPreset(1920, 1080, 14_000_000, 120, 'high'),
+  // 60fps: extra headroom for motion; 120fps: high-motion gaming content
+  h1080fps60: new VideoPreset(1920, 1080, 10_000_000, 60, 'high'),
+  h1080fps120: new VideoPreset(1920, 1080, 16_000_000, 120, 'high'),
 } as const;
 
 /** 1440p / QHD screen share presets */
 export const ScreenSharePresets1440p = {
   h1440fps15: new VideoPreset(2560, 1440, 2_500_000, 15, 'high'),
-  h1440fps30: new VideoPreset(2560, 1440, 4_000_000, 30, 'high'),
-  h1440fps60: new VideoPreset(2560, 1440, 6_000_000, 60, 'high'),
-  h1440fps120: new VideoPreset(2560, 1440, 10_000_000, 120, 'high'),
+  h1440fps30: new VideoPreset(2560, 1440, 5_000_000, 30, 'high'),
+  // 60fps: 1440p at 60fps is a common gaming target — needs real bitrate
+  h1440fps60: new VideoPreset(2560, 1440, 10_000_000, 60, 'high'),
+  // 120fps: premium gaming mode — most demanding 1440p profile
+  h1440fps120: new VideoPreset(2560, 1440, 16_000_000, 120, 'high'),
 } as const;
 
-/** 4K / UHD screen share presets */
+/** 4K / UHD screen share presets.
+ *
+ * VP8 at 4k needs ~15-20 Mbps for crisp text/UI (content hint 'detail').
+ * Motion content at 60/120fps needs even more headroom.
+ */
 export const ScreenSharePresets4K = {
-  h2160fps15: new VideoPreset(3840, 2160, 5_000_000, 15, 'high'),
-  h2160fps30: new VideoPreset(3840, 2160, 8_000_000, 30, 'high'),
-  h2160fps60: new VideoPreset(3840, 2160, 12_000_000, 60, 'high'),
-  h2160fps120: new VideoPreset(3840, 2160, 20_000_000, 120, 'high'),
+  h2160fps15: new VideoPreset(3840, 2160, 6_000_000, 15, 'high'),
+  h2160fps30: new VideoPreset(3840, 2160, 10_000_000, 30, 'high'),
+  // 4k60: primary aggressive profile — 18 Mbps for legible text at full resolution
+  h2160fps60: new VideoPreset(3840, 2160, 18_000_000, 60, 'high'),
+  // 4k120: maximum quality — high-refresh gaming at 4k
+  h2160fps120: new VideoPreset(3840, 2160, 26_000_000, 120, 'high'),
 } as const;
 
 // ─── Mapping Functions ────────────────────────────────────────────────────────
@@ -123,9 +133,48 @@ export function getSimulcastLayers(res?: string): VideoPreset[] {
     case '720p': return [VideoPresets.h180, VideoPresets.h360];
     case '1080p': return [VideoPresets.h180, VideoPresets.h360, VideoPresets.h720];
     case '1440p':
-    case '2160p': return [VideoPresets.h180, VideoPresets.h360, VideoPresets.h720];
+    case '2160p': return [VideoPresets.h180, VideoPresets.h360, VideoPresets.h720, VideoPresets.h1080];
     default: return [VideoPresets.h180, VideoPresets.h360];
   }
+}
+
+function getCameraBitrateCap(res?: string): number | undefined {
+  switch (res) {
+    case '360p': return 900_000;
+    case '480p': return 1_200_000;
+    case '720p': return 4_000_000;
+    case '1080p': return 7_000_000;
+    case '1440p': return 12_000_000;
+    case '2160p': return 20_000_000;
+    default: return undefined;
+  }
+}
+
+export function scaleEncodingBitrateForFps(
+  maxBitrate: number,
+  baseFps: number,
+  targetFps: number,
+  cap?: number,
+): number {
+  if (!targetFps || targetFps <= baseFps) {
+    return maxBitrate;
+  }
+
+  const scaled = Math.round(maxBitrate * Math.min(targetFps / Math.max(baseFps, 1), 3));
+  return cap ? Math.min(scaled, cap) : scaled;
+}
+
+export function getScreenShareContentHint(
+  ssResolution: string,
+  ssFps: number,
+): 'detail' | 'text' | 'motion' {
+  if (ssFps >= 60) {
+    return 'motion';
+  }
+
+  return ssResolution === 'source' || ssResolution === '4k' || ssResolution === '1440p'
+    ? 'detail'
+    : 'text';
 }
 
 // ─── AV Settings Type ─────────────────────────────────────────────────────────
@@ -145,41 +194,42 @@ export interface AVSettings {
   speakerDeviceId?: string;
 }
 
-// ─── Screenshare Capture Options ──────────────────────────────────────────────
+export type AudioCaptureSettings = Pick<
+  AVSettings,
+  'echoCancellation' | 'noiseSuppression' | 'autoGainControl' | 'micDeviceId'
+>;
 
-export interface SSCaptureOptions {
-  audio: boolean;
-  selfBrowserSurface: 'include' | 'exclude';
-  surfaceSwitching: 'include' | 'exclude';
-  systemAudio: 'include' | 'exclude';
-  video?: MediaTrackConstraints | boolean;
+export function buildAudioCaptureDefaults(av: AudioCaptureSettings): AudioCaptureOptions {
+  return {
+    deviceId: av.micDeviceId,
+    echoCancellation: av.echoCancellation,
+    noiseSuppression: av.noiseSuppression,
+    autoGainControl: av.autoGainControl,
+    voiceIsolation: false,
+  };
 }
 
+// ─── Screenshare Capture Options ──────────────────────────────────────────────
+
 /**
- * Builds MediaStreamConstraints-style capture options for setScreenShareEnabled().
+ * Builds LiveKit ScreenShareCaptureOptions for setScreenShareEnabled().
  */
 export function buildSSCaptureOptions(
   ssResolution: string,
   ssFps: number,
   ssAudio: boolean,
-): SSCaptureOptions {
+): ScreenShareCaptureOptions {
   const preset = resolutionToSSPreset(ssResolution, ssFps);
 
   return {
     audio: ssAudio,
+    video: true,
+    resolution: preset?.resolution,
+    contentHint: getScreenShareContentHint(ssResolution, ssFps),
+    preferCurrentTab: false,
     selfBrowserSurface: 'include',
     surfaceSwitching: 'include',
-    systemAudio: 'include',
-    ...(preset && {
-      video: {
-        width: { ideal: preset.width, max: preset.width },
-        height: { ideal: preset.height, max: preset.height },
-        frameRate: { ideal: preset.encoding.maxFramerate, max: preset.encoding.maxFramerate },
-      },
-    }),
-    ...(!preset && ssFps !== undefined && {
-      video: { frameRate: { ideal: ssFps, max: ssFps } },
-    }),
+    systemAudio: ssAudio ? 'include' : 'exclude',
   };
 }
 
@@ -191,6 +241,9 @@ const defaultPublishOptions: TrackPublishDefaults = {
   videoSimulcastLayers: [VideoPresets.h180, VideoPresets.h360] as VideoPreset[],
   stopMicTrackOnMute: false, // NEVER set true — causes PublishTrackError on reconnect
   videoCodec: 'vp8',         // Keep vp8 — VP9 causes codec mismatches
+  dtx: true,
+  red: true,
+  forceStereo: false,
   videoEncoding: VideoPresets.h720.encoding,
   backupCodec: { codec: 'vp8', encoding: VideoPresets.h720.encoding },
 };
@@ -206,8 +259,19 @@ export function buildLiveKitRoomOptions(
   e2eeOptions?: E2EEManagerOptions,
 ): RoomOptions {
   const videoPreset = resolutionToVideoPreset(av.videoResolution);
+  const baseVideoFps = videoPreset.encoding.maxFramerate ?? 30;
+  const targetVideoFps = av.videoFps || baseVideoFps;
   const videoEncoding = av.videoFps
-    ? { ...videoPreset.encoding, maxFramerate: av.videoFps }
+    ? {
+      ...videoPreset.encoding,
+      maxFramerate: targetVideoFps,
+      maxBitrate: scaleEncodingBitrateForFps(
+        videoPreset.encoding.maxBitrate,
+        baseVideoFps,
+        targetVideoFps,
+        getCameraBitrateCap(av.videoResolution),
+      ),
+    }
     : videoPreset.encoding;
 
   return {
@@ -220,13 +284,9 @@ export function buildLiveKitRoomOptions(
     videoCaptureDefaults: {
       deviceId: av.cameraDeviceId,
       resolution: videoPreset.resolution,
+      frameRate: targetVideoFps,
     },
-    audioCaptureDefaults: {
-      deviceId: av.micDeviceId,
-      echoCancellation: av.echoCancellation,
-      noiseSuppression: av.noiseSuppression,
-      autoGainControl: av.autoGainControl,
-    },
+    audioCaptureDefaults: buildAudioCaptureDefaults(av),
     audioOutput: av.speakerDeviceId
       ? { deviceId: av.speakerDeviceId }
       : undefined,
@@ -246,7 +306,7 @@ export function buildLiveKitRoomOptions(
 
 /**
  * Builds LiveKit TrackPublishOptions for a screenshare track.
- * Sets videoEncoding to match the chosen resolution/fps so the SFU
+ * Sets screenShareEncoding to match the chosen resolution/fps so the SFU
  * applies correct bitrate caps — without this, quality settings are ignored.
  */
 export function buildSSPublishOptions(
@@ -254,22 +314,25 @@ export function buildSSPublishOptions(
   ssFps: number,
 ): TrackPublishOptions {
   const preset = resolutionToSSPreset(ssResolution, ssFps);
+  // 'source' mode — no resolution cap, so we budget more aggressively for high fps.
+  // At high fps the SFU still enforces maxBitrate; choose values that allow crisp
+  // native-resolution content without starving audio on a typical 25–50 Mbps uplink.
   const sourceEncoding =
     !preset && ssResolution === 'source'
       ? {
           maxFramerate: ssFps,
           maxBitrate:
             ssFps <= 15 ? 2_500_000
-              : ssFps <= 30 ? 4_500_000
-              : ssFps <= 60 ? 8_000_000
-              : 12_000_000,
+              : ssFps <= 30 ? 5_000_000
+              : ssFps <= 60 ? 10_000_000
+              : 16_000_000,
         }
       : undefined;
 
   return {
     simulcast: false, // screenshare must NOT simulcast
-    ...(preset && { videoEncoding: preset.encoding }),
-    ...(sourceEncoding && { videoEncoding: sourceEncoding }),
+    ...(preset && { screenShareEncoding: preset.encoding }),
+    ...(sourceEncoding && { screenShareEncoding: sourceEncoding }),
   };
 }
 

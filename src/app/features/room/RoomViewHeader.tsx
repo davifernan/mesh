@@ -39,6 +39,7 @@ import { settingsAtom } from '../../state/settings';
 import { useSpaceOptionally } from '../../hooks/useSpace';
 import { getHomeSearchPath, getSpaceSearchPath, withSearchParam } from '../../pages/pathUtils';
 import { getCanonicalAliasOrRoomId, isRoomAlias, mxcUrlToHttp } from '../../utils/matrix';
+import { getOrphanParents, guessPerfectParent } from '../../utils/room';
 import { _SearchPathSearchParams } from '../../pages/paths';
 import * as css from './RoomViewHeader.css';
 import { useRoomUnread } from '../../state/hooks/unread';
@@ -50,7 +51,7 @@ import { LeaveRoomPrompt } from '../../components/leave-room-prompt';
 import { useRoomAvatar, useRoomName, useRoomTopic } from '../../hooks/useRoomMeta';
 import { ScreenSize, useScreenSizeContext } from '../../hooks/useScreenSize';
 import { stopPropagation } from '../../utils/keyboard';
-import { getMatrixToRoom } from '../../plugins/matrix-to';
+import { getBetterCordPermalink } from '../../plugins/permalink';
 import { getViaServers } from '../../plugins/via-servers';
 import { BackRouteHandler } from '../../components/BackRouteHandler';
 import { useMediaAuthentication } from '../../hooks/useMediaAuthentication';
@@ -68,6 +69,7 @@ import { useRoomNavigate } from '../../hooks/useRoomNavigate';
 import { useRoomCreators } from '../../hooks/useRoomCreators';
 import { useRoomPermissions } from '../../hooks/useRoomPermissions';
 import { InviteUserPrompt } from '../../components/invite-user-prompt';
+import { useClientConfig } from '../../hooks/useClientConfig';
 import { useCallState } from '../../pages/client/call/CallProvider';
 import { ContainerColor } from '../../styles/ContainerColor.css';
 import { useKeyDown } from '../../hooks/useKeyDown';
@@ -77,7 +79,8 @@ import { useToolbarConfig } from '../../hooks/useToolbarConfig';
 import { ToolbarItemId } from '../../state/toolbarConfig';
 import { renderItemIcon } from './PanelIconPicker';
 import { activeWidgetIdAtom } from './WidgetsDrawer';
-import { useAtom } from 'jotai';
+import { useAtom, useAtomValue } from 'jotai';
+import { roomToParentsAtom } from '../../state/room/roomToParents';
 
 type UnpinnedItem = {
   id: ToolbarItemId;
@@ -123,6 +126,10 @@ const RoomMenu = forwardRef<HTMLDivElement, RoomMenuProps>(({ room, requestClose
   const [invitePrompt, setInvitePrompt] = useState(false);
 
   const hasIssueSchema = !!getIssueSchema(room);
+  const { hashRouter } = useClientConfig();
+  const parentSpace = useSpaceOptionally();
+  const isDirect = useIsDirectRoom();
+  const roomToParents = useAtomValue(roomToParentsAtom);
 
   const handleMarkAsRead = () => {
     markAsRead(mx, room.roomId, hideActivity);
@@ -136,12 +143,30 @@ const RoomMenu = forwardRef<HTMLDivElement, RoomMenuProps>(({ room, requestClose
   const handleCopyLink = () => {
     const roomIdOrAlias = getCanonicalAliasOrRoomId(mx, room.roomId);
     const viaServers = isRoomAlias(roomIdOrAlias) ? undefined : getViaServers(room);
-    copyToClipboard(getMatrixToRoom(roomIdOrAlias, viaServers));
+    const orphanParents = getOrphanParents(roomToParents, room.roomId);
+    const preferredSpaceId =
+      parentSpace?.roomId ??
+      (orphanParents.length > 0
+        ? guessPerfectParent(mx, room.roomId, orphanParents) ?? orphanParents[0]
+        : undefined);
+    copyToClipboard(
+      getBetterCordPermalink(
+        {
+          kind: 'room',
+          roomIdOrAlias,
+          viaServers,
+          spaceIdOrAlias: preferredSpaceId
+            ? getCanonicalAliasOrRoomId(mx, preferredSpaceId)
+            : undefined,
+          direct: isDirect,
+        },
+        hashRouter
+      )
+    );
     requestClose();
   };
 
   const openSettings = useOpenRoomSettings();
-  const parentSpace = useSpaceOptionally();
   const handleOpenSettings = () => {
     openSettings(room.roomId, parentSpace?.roomId);
     requestClose();

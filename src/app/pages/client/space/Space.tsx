@@ -57,7 +57,7 @@ import { useRoomName } from '../../../hooks/useRoomMeta';
 import { HierarchyItem, useSpaceJoinedHierarchy } from '../../../hooks/useSpaceHierarchy';
 import { factoryRoomIdByActivity, factoryRoomIdByAtoZ, factoryRoomIdByUnreadFirst, byOrderKey, byTsOldToNew } from '../../../utils/sort';
 import { allRoomsAtom } from '../../../state/room-list/roomList';
-import { PageNav, PageNavContent, PageNavDock, PageNavHeader } from '../../../components/page';
+import { PageNav, PageNavContent, PageNavHeader } from '../../../components/page';
 import { usePowerLevels } from '../../../hooks/usePowerLevels';
 import { useRecursiveChildScopeFactory, useSpaceChildren } from '../../../state/hooks/roomList';
 import { roomToParentsAtom } from '../../../state/room/roomToParents';
@@ -70,7 +70,7 @@ import { useClosedNavCategoriesAtom } from '../../../state/hooks/closedNavCatego
 import { useStateEvent } from '../../../hooks/useStateEvent';
 import { Membership, StateEvent } from '../../../../types/matrix/room';
 import { stopPropagation } from '../../../utils/keyboard';
-import { getMatrixToRoom } from '../../../plugins/matrix-to';
+import { getBetterCordPermalink } from '../../../plugins/permalink';
 import { getViaServers } from '../../../plugins/via-servers';
 import { useSetting } from '../../../state/hooks/settings';
 import { settingsAtom } from '../../../state/settings';
@@ -78,8 +78,6 @@ import {
   getRoomNotificationMode,
   useRoomsNotificationPreferencesContext,
 } from '../../../hooks/useRoomsNotificationPreferences';
-import { CallNavStatus } from '../../../features/room-nav/RoomCallNavStatus';
-import { UserArea } from '../../../components/user-area/UserArea';
 import { useRoomListKeyboard } from '../../../hooks/useRoomListKeyboard';
 import { RoomListbox } from '../../../components/room-listbox/RoomListbox';
 import { searchModalAtom, searchModalInitialCharAtom } from '../../../state/searchModal';
@@ -92,6 +90,7 @@ import { ScreenSize, useScreenSizeContext } from '../../../hooks/useScreenSize';
 import { AsyncStatus, useAsyncCallback } from '../../../hooks/useAsyncCallback';
 import { BreakWord } from '../../../styles/Text.css';
 import { InviteUserPrompt } from '../../../components/invite-user-prompt';
+import { useClientConfig } from '../../../hooks/useClientConfig';
 import * as css from './Space.css';
 
 type SpaceMenuProps = {
@@ -111,6 +110,7 @@ const SpaceMenu = forwardRef<HTMLDivElement, SpaceMenuProps>(({ room, requestClo
   const canInvite = permissions.action('invite', mx.getSafeUserId());
   const openSpaceSettings = useOpenSpaceSettings();
   const { navigateRoom } = useRoomNavigate();
+  const { hashRouter } = useClientConfig();
 
   const [invitePrompt, setInvitePrompt] = useState(false);
 
@@ -129,7 +129,16 @@ const SpaceMenu = forwardRef<HTMLDivElement, SpaceMenuProps>(({ room, requestClo
   const handleCopyLink = () => {
     const roomIdOrAlias = getCanonicalAliasOrRoomId(mx, room.roomId);
     const viaServers = isRoomAlias(roomIdOrAlias) ? undefined : getViaServers(room);
-    copyToClipboard(getMatrixToRoom(roomIdOrAlias, viaServers));
+    copyToClipboard(
+      getBetterCordPermalink(
+        {
+          kind: 'space',
+          spaceIdOrAlias: roomIdOrAlias,
+          viaServers,
+        },
+        hashRouter
+      )
+    );
     requestClose();
   };
 
@@ -805,12 +814,6 @@ export function Space() {
           </NavCategory>
         </Box>
       </PageNavContent>
-      {screenSize === ScreenSize.Mobile && (
-        <PageNavDock>
-          <CallNavStatus />
-          <UserArea />
-        </PageNavDock>
-      )}
     </PageNav>
   );
 }

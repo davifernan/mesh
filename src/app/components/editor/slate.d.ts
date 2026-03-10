@@ -29,8 +29,11 @@ export type LinkElement = {
 export type MentionElement = {
   type: BlockType.Mention;
   id: string;
+  linkKind?: 'room' | 'space';
   eventId?: string;
   viaServers?: string[];
+  spaceIdOrAlias?: string;
+  direct?: boolean;
   highlight: boolean;
   name: string;
   children: Text[];

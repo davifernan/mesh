@@ -35,6 +35,7 @@ import { useHover, useFocusWithin } from 'react-aria';
 import { MatrixEvent, Room } from 'matrix-js-sdk';
 import { Relations } from 'matrix-js-sdk/lib/models/relations';
 import classNames from 'classnames';
+import { useAtomValue, useSetAtom } from 'jotai';
 import { RoomPinnedEventsEventContent } from 'matrix-js-sdk/lib/types';
 import {
   AvatarBase,
@@ -48,12 +49,18 @@ import {
 } from '../../../components/message';
 import {
   canEditEvent,
+  getAccountData,
   getEventEdits,
+  getMDirects,
   getMemberAvatarMxc,
   getMemberDisplayName,
+  getOrphanParents,
+  guessPerfectParent,
 } from '../../../utils/room';
 import {
+  getCanonicalAliasOrRoomId,
   getMxIdLocalPart,
+  isRoomAlias,
   mxcUrlToHttp,
 } from '../../../utils/matrix';
 import { MessageLayout, MessageSpacing } from '../../../state/settings';
@@ -69,7 +76,7 @@ import { MessageEditor } from './MessageEditor';
 import { UserAvatar } from '../../../components/user-avatar';
 import { copyToClipboard } from '../../../utils/dom';
 import { stopPropagation } from '../../../utils/keyboard';
-import { getMatrixToRoomEvent } from '../../../plugins/matrix-to';
+import { getBetterCordPermalink } from '../../../plugins/permalink';
 import { getViaServers } from '../../../plugins/via-servers';
 import { useMediaAuthentication } from '../../../hooks/useMediaAuthentication';
 import { useRoomPinnedEvents } from '../../../hooks/useRoomPinnedEvents';
@@ -77,8 +84,12 @@ import { MemberPowerTag, StateEvent } from '../../../../types/matrix/room';
 import { PowerIcon } from '../../../components/power';
 import colorMXID from '../../../../util/colorMXID';
 import { getPowerTagIconSrc } from '../../../hooks/useMemberPowerTag';
-import { useSetAtom } from 'jotai';
 import { openThreadIdAtom } from '../ThreadsDrawer';
+import { useSpaceOptionally } from '../../../hooks/useSpace';
+import { mDirectAtom } from '../../../state/mDirectList';
+import { useClientConfig } from '../../../hooks/useClientConfig';
+import { roomToParentsAtom } from '../../../state/room/roomToParents';
+import { AccountDataEvent } from '../../../../types/matrix/accountData';
 
 export type ReactionHandler = (keyOrMxc: string, shortcode: string) => void;
 
@@ -324,10 +335,42 @@ export const MessageCopyLinkItem = as<
     onClose?: () => void;
   }
 >(({ room, mEvent, onClose, ...props }, ref) => {
+  const mx = useMatrixClient();
+  const space = useSpaceOptionally();
+  const mDirects = useAtomValue(mDirectAtom);
+  const roomToParents = useAtomValue(roomToParentsAtom);
+  const { hashRouter } = useClientConfig();
+
   const handleCopy = () => {
     const eventId = mEvent.getId();
     if (!eventId) return;
-    copyToClipboard(getMatrixToRoomEvent(room.roomId, eventId, getViaServers(room)));
+    const roomIdOrAlias = getCanonicalAliasOrRoomId(mx, room.roomId);
+    const viaServers = isRoomAlias(roomIdOrAlias) ? undefined : getViaServers(room);
+    const orphanParents = getOrphanParents(roomToParents, room.roomId);
+    const preferredSpaceId =
+      space?.roomId ??
+      (orphanParents.length > 0
+        ? guessPerfectParent(mx, room.roomId, orphanParents) ?? orphanParents[0]
+        : undefined);
+    const directEvent = getAccountData(mx, AccountDataEvent.Direct);
+    const isDirect =
+      mDirects.has(room.roomId) ||
+      (!!directEvent && getMDirects(directEvent).has(room.roomId));
+    copyToClipboard(
+      getBetterCordPermalink(
+        {
+          kind: 'room',
+          roomIdOrAlias,
+          eventId,
+          viaServers,
+          spaceIdOrAlias: preferredSpaceId
+            ? getCanonicalAliasOrRoomId(mx, preferredSpaceId)
+            : undefined,
+          direct: isDirect,
+        },
+        hashRouter
+      )
+    );
     onClose?.();
   };
 

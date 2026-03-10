@@ -30,6 +30,7 @@ import { ImageViewer } from './image-viewer';
 import { PdfViewer } from './Pdf-viewer';
 import { TextViewer } from './text-viewer';
 import { testMatrixTo } from '../plugins/matrix-to';
+import { testBetterCordPermalink } from '../plugins/permalink';
 import { IImageContent } from '../../types/matrix/common';
 
 type RenderMessageContentProps = {
@@ -59,7 +60,9 @@ export function RenderMessageContent({
   outlineAttachment,
 }: RenderMessageContentProps) {
   const renderUrlsPreview = (urls: string[]) => {
-    const filteredUrls = urls.filter((url) => !testMatrixTo(url));
+    const filteredUrls = urls.filter(
+      (url) => !testMatrixTo(url) && !testBetterCordPermalink(url)
+    );
     if (filteredUrls.length === 0) return undefined;
     return (
       <UrlPreviewHolder>

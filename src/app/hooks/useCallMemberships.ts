@@ -1,4 +1,4 @@
-import { ClientEvent, MatrixClient, MatrixEvent, Room } from 'matrix-js-sdk';
+import { ClientEvent, MatrixClient, MatrixEvent, Room, RoomStateEvent } from 'matrix-js-sdk';
 import { useEffect, useRef, useState } from 'react';
 
 // Return user IDs of everyone with an active (non-empty) call.member state event.
@@ -26,9 +26,61 @@ function getActiveSenders(room: Room): Set<string> {
 }
 
 // Grace period before a user is removed from the list after their state goes
-// empty. Keep non-zero to smooth membership renewal races, but short enough
-// to avoid long stale rows after leaves.
-const REMOVAL_GRACE_MS = 1000;
+// empty. Kept short (200ms) to cover membership-renewal delivery races
+// (delayed-event fires → new joinRoomSession() write propagates) while still
+// feeling instant on explicit hang-up. 1000ms was too long: the total perceived
+// delay was network-round-trip (~300ms) + grace (1000ms) ≈ 1.3s.
+const REMOVAL_GRACE_MS = 200;
+
+// ── Call Info Event ──────────────────────────────────────────────────────────
+// State event written by the first joiner to record when the call started.
+// Empty content = cleared (call ended).  All clients read this for the timer.
+export const CALL_INFO_EVENT = 'org.bettercord.call.info';
+
+function getCallStartedAt(room: Room): number | null {
+  const ev = room.currentState.getStateEvents(CALL_INFO_EVENT, '');
+  if (!ev) return null;
+  const startedAt = (ev as MatrixEvent).getContent?.()?.started_at;
+  return typeof startedAt === 'number' && startedAt > 0 ? startedAt : null;
+}
+
+/**
+ * Returns the server-written call start timestamp (ms) for the given room,
+ * or null when no call is active.  Reacts live to state event changes.
+ */
+export const useCallStartTime = (mx: MatrixClient, roomId: string): number | null => {
+  const [startedAt, setStartedAt] = useState<number | null>(() => {
+    const room = mx.getRoom(roomId);
+    return room ? getCallStartedAt(room) : null;
+  });
+
+  useEffect(() => {
+    const room = mx.getRoom(roomId);
+    if (!room) {
+      setStartedAt(null);
+      return undefined;
+    }
+
+    setStartedAt(getCallStartedAt(room));
+
+    const handleEvent = (ev: MatrixEvent) => {
+      if (ev.getRoomId() !== roomId) return;
+      if (ev.getType() !== CALL_INFO_EVENT) return;
+      setStartedAt(getCallStartedAt(room));
+    };
+
+    mx.on(ClientEvent.Event, handleEvent);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    mx.on(RoomStateEvent.Events as any, handleEvent);
+    return () => {
+      mx.off(ClientEvent.Event, handleEvent);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      mx.off(RoomStateEvent.Events as any, handleEvent);
+    };
+  }, [mx, roomId]);
+
+  return startedAt;
+};
 
 export const useCallMembers = (mx: MatrixClient, roomId: string): string[] => {
   const [senders, setSenders] = useState<string[]>(() => {
@@ -92,9 +144,17 @@ export const useCallMembers = (mx: MatrixClient, roomId: string): string[] => {
       });
     };
 
+    // Same dual-listener pattern as useSpaceVoiceActivity:
+    // ClientEvent.Event → timeline events (live joins while page is open)
+    // RoomStateEvent.Events → catches call.member already present on initial sync
+    //   (state-section events don't fire ClientEvent.Event, causing reload-only updates)
     mx.on(ClientEvent.Event, handleEvent);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    mx.on(RoomStateEvent.Events as any, handleEvent);
     return () => {
       mx.off(ClientEvent.Event, handleEvent);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      mx.off(RoomStateEvent.Events as any, handleEvent);
       graceTimers.current.forEach(clearTimeout);
       graceTimers.current.clear();
     };

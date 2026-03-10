@@ -36,6 +36,7 @@ import {
   useRoomsNotificationPreferences,
 } from '../../hooks/useRoomsNotificationPreferences';
 import { settingsAtom } from '../../state/settings';
+import { playCallSound, stopCallSound, CallSoundType } from '../../utils/callSounds';
 import * as css from './RoomCallNavStatus.css';
 
 const timedOutCalls = new Set<string>();
@@ -153,11 +154,16 @@ export function CallNavStatus({ docked = false }: CallNavStatusProps) {
   const audioCtxRef = useRef<AudioContext | null>(null);
   const ringTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const audioElRef = useRef<HTMLAudioElement | null>(null);
+  const usingCallSoundRef = useRef(false);
 
   const callRingtoneUrl = useAtomValue(settingsAtom).callRingtoneUrl ?? null;
   const useAuthentication = useMediaAuthentication();
 
   const stopRingtone = useCallback(() => {
+    if (usingCallSoundRef.current) {
+      stopCallSound(CallSoundType.IncomingRing);
+      usingCallSoundRef.current = false;
+    }
     if (ringTimerRef.current) {
       clearTimeout(ringTimerRef.current);
       ringTimerRef.current = null;
@@ -208,14 +214,9 @@ export function CallNavStatus({ docked = false }: CallNavStatusProps) {
       return;
     }
 
-    // Fallback: synthesized POTS ring
-    try {
-      const ctx = new AudioContext();
-      audioCtxRef.current = ctx;
-      scheduleNextCycle(ctx);
-    } catch {
-      // Audio blocked or not supported
-    }
+    // Default: use callSounds engine — handles autoplay blocking + retry automatically
+    usingCallSoundRef.current = true;
+    playCallSound(CallSoundType.IncomingRing, { loop: true });
   }, [callRingtoneUrl, mx, useAuthentication, scheduleNextCycle]);
 
   const notificationPreferences = useRoomsNotificationPreferences();

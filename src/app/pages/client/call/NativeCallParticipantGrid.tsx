@@ -1,12 +1,52 @@
 import React, { useMemo, useEffect, useState, useRef, useCallback } from 'react';
-import { useParticipants, useTracks, VideoTrack, type TrackReference } from '@livekit/components-react';
-import { Track, type Room } from 'livekit-client';
-import { Monitor, CaretUp, CaretDown, CornersOut, ArrowSquareOut } from '@phosphor-icons/react';
+import { useParticipants, useTracks, VideoTrack, type TrackReference, useRoomContext } from '@livekit/components-react';
+import { Track, RoomEvent, type Room } from 'livekit-client';
+import { Monitor, CaretUp, CaretDown, CornersOut, ArrowSquareOut, Eye } from '@phosphor-icons/react';
+import { playViewerJoinSound, playViewerLeaveSound } from '../../../utils/sounds';
 import { useAtom, useSetAtom } from 'jotai';
 import { voiceCallLayoutAtom, pinParticipantAtom } from './VoiceCallLayoutStore';
 import { NativeCallParticipantTile } from './NativeCallParticipantTile';
 import { useCallState } from './CallProvider';
 import styles from './NativeCallParticipantGrid.module.css';
+
+/** Tracks how many participants are watching a screen share track.
+ *  For the local participant's own share: uses LiveKit's numSubscribers (accurate).
+ *  For remote shares: counts other remote participants with that source subscribed. */
+function useScreenShareViewerCount(trackRef: TrackReference): number {
+  const room = useRoomContext();
+  const [count, setCount] = useState(0);
+
+  useEffect(() => {
+    const pub = trackRef.publication;
+    if (!pub) return;
+
+    const update = () => {
+      if (trackRef.participant.isLocal) {
+        // numSubscribers is not exposed in livekit-client public types;
+        // fall back to 0 — the badge is still useful for remote share counting.
+        setCount(0);
+      } else {
+        let n = 0;
+        for (const p of room.remoteParticipants.values()) {
+          for (const tp of p.trackPublications.values()) {
+            if (tp.source === Track.Source.ScreenShare && tp.isSubscribed) n++;
+          }
+        }
+        setCount(n);
+      }
+    };
+
+    update();
+    room.on(RoomEvent.TrackSubscribed, update);
+    room.on(RoomEvent.TrackUnsubscribed, update);
+    return () => {
+      room.off(RoomEvent.TrackSubscribed, update);
+      room.off(RoomEvent.TrackUnsubscribed, update);
+    };
+  }, [room, trackRef]);
+
+  return count;
+}
 
 /** A dedicated tile that renders a participant's screenshare video. */
 function ScreenShareTile({
@@ -27,6 +67,19 @@ function ScreenShareTile({
     height: number;
     fps?: number;
   } | null>(null);
+  const viewerCount = useScreenShareViewerCount(trackRef);
+  const prevViewerCountRef = useRef(0);
+
+  // Play sounds when viewer count changes
+  useEffect(() => {
+    if (viewerCount > prevViewerCountRef.current) {
+      playViewerJoinSound();
+    } else if (viewerCount < prevViewerCountRef.current) {
+      playViewerLeaveSound();
+    }
+    prevViewerCountRef.current = viewerCount;
+  }, [viewerCount]);
+
   const popoutWindowRef = useRef<Window | null>(null);
   const popoutVideoRef = useRef<HTMLMediaElement | null>(null);
   const name = trackRef.participant?.name ?? trackRef.participant?.identity ?? 'Someone';
@@ -272,7 +325,7 @@ function ScreenShareTile({
     };
 
     updateOutboundStats();
-    const interval = window.setInterval(updateOutboundStats, 1000);
+    const interval = window.setInterval(updateOutboundStats, 3000);
     return () => window.clearInterval(interval);
   }, [livekitRoom, trackRef.participant?.isLocal, trackRef.publication?.track?.mediaStreamTrack?.id]);
 
@@ -331,6 +384,13 @@ function ScreenShareTile({
 
       {qualityLabel && <div className={styles.screenQualityPill}>{qualityLabel}</div>}
 
+      {viewerCount > 0 && (
+        <div className={styles.viewerBadge}>
+          <Eye size={11} weight="fill" />
+          {viewerCount} {viewerCount === 1 ? 'viewer' : 'viewers'}
+        </div>
+      )}
+
       <div className={styles.screenTileLabel}>
         <Monitor size={13} weight="bold" style={{ flexShrink: 0 }} />
         {name}&apos;s screen
@@ -356,18 +416,69 @@ interface NativeCallParticipantGridProps {
   onPin?: (participantId: string | null) => void;
 }
 
+const DISPLAY_COLLATOR = new Intl.Collator(undefined, { sensitivity: 'base', numeric: true });
+
 export function NativeCallParticipantGrid({ onPin }: NativeCallParticipantGridProps) {
   const allParticipants = useParticipants();
-  // Filter out the LiveKit SFU/Focus server participant — its identity is a
-  // base64 string that does NOT start with '@' (or '_@' for MSC4143).
-  // All real Matrix users always have an identity beginning with '@' or '_@'.
-  const participants = allParticipants.filter(
-    (p) => p.identity.startsWith('@') || p.identity.startsWith('_@') || p.isLocal
+  // Filter out non-user helper/focus participants by actual published user media,
+  // not by identity format. Real users may have opaque LiveKit identities.
+  const allFilteredParticipants = allParticipants.filter(
+    (participant) =>
+      participant.isLocal ||
+      !!participant.getTrackPublication(Track.Source.Microphone) ||
+      !!participant.getTrackPublication(Track.Source.Camera) ||
+      !!participant.getTrackPublication(Track.Source.ScreenShare) ||
+      !!participant.name
   );
+
+  // Stable alphabetical sort: local participant first, then sorted by display name
+  const participants = useMemo(() => {
+    const sorted = [...allFilteredParticipants].sort((a, b) => {
+      if (a.isLocal) return -1;
+      if (b.isLocal) return 1;
+      return DISPLAY_COLLATOR.compare(a.name ?? a.identity, b.name ?? b.identity);
+    });
+    return sorted;
+  }, [allFilteredParticipants]);
   const { remoteParticipantStates, livekitRoom } = useCallState();
   const [layoutState, setLayoutState] = useAtom(voiceCallLayoutAtom);
   const pinParticipant = useSetAtom(pinParticipantAtom);
   const { layoutMode, pinnedParticipantId, isCarouselExpanded } = layoutState;
+
+  // Grid layout state — columns computed via ResizeObserver (bypasses CSS container query limitations)
+  const gridRef = useRef<HTMLDivElement>(null);
+  const [isOverflowing, setIsOverflowing] = useState(false);
+  const wasOverflowingRef = useRef(false);
+  const [gridColumns, setGridColumns] = useState(1);
+  const participantCountRef = useRef(participants.length);
+  participantCountRef.current = participants.length;
+
+  useEffect(() => {
+    const el = gridRef.current;
+    if (!el) return;
+    const observer = new ResizeObserver(() => {
+      const { width } = el.getBoundingClientRect();
+      const n = participantCountRef.current;
+
+      // Column count: mirrors Fluxer breakpoints
+      let cols = 1;
+      if (n >= 2 && width >= 520) cols = 2;
+      if (n >= 5 && width >= 860) cols = 3;
+      if (n >= 10 && width >= 1180) cols = 4;
+      setGridColumns(cols);
+
+      // Overflow hysteresis (2px enter / 6px exit)
+      const delta = el.scrollHeight - el.clientHeight;
+      const wasOver = wasOverflowingRef.current;
+      const nowOver = wasOver ? delta > -6 : delta > 2;
+      if (nowOver !== wasOverflowingRef.current) {
+        wasOverflowingRef.current = nowOver;
+        setIsOverflowing(nowOver);
+      }
+    });
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
 
   // Collect all active screenshare tracks across all participants.
   const allSSTracks = useTracks([{ source: Track.Source.ScreenShare, withPlaceholder: false }]);
@@ -471,7 +582,13 @@ export function NativeCallParticipantGrid({ onPin }: NativeCallParticipantGridPr
 
   // ── GRID MODE ────────────────────────────────────────────────────────────────
   return (
-    <div className={`${styles.grid}${isSingleParticipantView ? ` ${styles.gridSingle}` : ''}`}>
+    <div className={styles.gridWrapper}>
+    <div
+      ref={gridRef}
+      className={`${styles.grid}${isSingleParticipantView ? ` ${styles.gridSingle}` : ''}`}
+      data-overflowing={isOverflowing ? 'true' : 'false'}
+      style={{ '--voice-grid-columns': String(gridColumns) } as React.CSSProperties}
+    >
       {/* Screenshare tiles first */}
       {screenShareTracks.map((t) => (
         <div key={`ss-${t.participant?.identity}`} className={styles.screenTileWrap}>
@@ -506,6 +623,7 @@ export function NativeCallParticipantGrid({ onPin }: NativeCallParticipantGridPr
           />
         )
       ))}
+    </div>
     </div>
   );
 }

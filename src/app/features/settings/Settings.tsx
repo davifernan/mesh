@@ -16,6 +16,7 @@ import {
 import {
   UserCircle,
   Bell,
+  Hash,
   Microphone,
   Monitor,
   SmileySticker,
@@ -43,6 +44,7 @@ import { DeveloperTools } from './developer-tools';
 import { About } from './about';
 import { KeyboardShortcuts } from './keyboard-shortcuts/KeyboardShortcuts';
 import { VoiceVideo } from './voice-video';
+import { Rooms } from './rooms';
 import { UseStateProvider } from '../../components/UseStateProvider';
 import { stopPropagation } from '../../utils/keyboard';
 import { LogoutDialog } from '../../components/LogoutDialog';
@@ -52,6 +54,7 @@ export enum SettingsPages {
   AccountPage,
   NotificationPage,
   VoiceVideoPage,
+  RoomsPage,
   DevicesPage,
   EmojisStickersPage,
   DeveloperToolsPage,
@@ -83,6 +86,7 @@ const SETTINGS_CATEGORIES: SettingsMenuCategory[] = [
       { page: SettingsPages.GeneralPage, name: 'General', PhosphorIcon: Sliders },
       { page: SettingsPages.NotificationPage, name: 'Notifications', PhosphorIcon: Bell },
       { page: SettingsPages.VoiceVideoPage, name: 'Voice & Video', PhosphorIcon: Microphone },
+      { page: SettingsPages.RoomsPage, name: 'Rooms', PhosphorIcon: Hash },
       { page: SettingsPages.EmojisStickersPage, name: 'Emojis & Stickers', PhosphorIcon: SmileySticker },
     ],
   },
@@ -250,6 +254,9 @@ export function Settings({ initialPage, requestClose }: SettingsProps) {
       )}
       {activePage === SettingsPages.VoiceVideoPage && (
         <VoiceVideo requestClose={handlePageRequestClose} />
+      )}
+      {activePage === SettingsPages.RoomsPage && (
+        <Rooms requestClose={handlePageRequestClose} />
       )}
       {activePage === SettingsPages.DevicesPage && (
         <Devices requestClose={handlePageRequestClose} />

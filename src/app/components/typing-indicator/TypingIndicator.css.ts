@@ -3,9 +3,13 @@ import { recipe } from '@vanilla-extract/recipes';
 import { DefaultReset, toRem } from 'folds';
 
 const TypingDotAnime = keyframes({
-  to: {
-    opacity: '0.4',
-    transform: 'translateY(-15%)',
+  '0%, 100%': {
+    opacity: 0.4,
+    transform: 'translateY(0)',
+  },
+  '45%': {
+    opacity: 1,
+    transform: 'translateY(-3px)',
   },
 });
 
@@ -14,15 +18,15 @@ export const TypingDot = recipe({
     DefaultReset,
     {
       display: 'inline-block',
-      backgroundColor: 'currentColor',
+      backgroundColor: 'var(--text-secondary)',
       borderRadius: '50%',
-      transform: 'translateY(15%)',
+      opacity: 0.5,
     },
   ],
   variants: {
     animated: {
       true: {
-        animation: `${TypingDotAnime} 0.6s infinite alternate`,
+        animation: `${TypingDotAnime} 1.2s ease-in-out infinite`,
       },
     },
     size: {
@@ -31,8 +35,8 @@ export const TypingDot = recipe({
         height: toRem(4),
       },
       '400': {
-        width: toRem(8),
-        height: toRem(8),
+        width: toRem(5),
+        height: toRem(5),
       },
     },
     index: {

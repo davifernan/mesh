@@ -14,7 +14,7 @@
  */
 
 import { useEffect, useRef, useState, useCallback } from 'react';
-import { Room, RoomEvent, Track, LocalVideoTrack } from 'livekit-client';
+import { Room, RoomEvent, Track, LocalAudioTrack, LocalVideoTrack } from 'livekit-client';
 import type { MatrixClient } from 'matrix-js-sdk';
 import { useAtomValue } from 'jotai';
 import { useMatrixClient } from '../../hooks/useMatrixClient';
@@ -22,6 +22,8 @@ import { useClientConfig } from '../../hooks/useClientConfig';
 import { effectiveAVSettingsAtom } from '../../state/avQuality';
 import { settingsAtom } from '../../state/settings';
 import {
+  bitrateToAudioPreset,
+  buildAudioCaptureDefaults,
   buildLiveKitRoomOptions,
   buildSSCaptureOptions,
   buildSSPublishOptions,
@@ -30,7 +32,12 @@ import {
   type AVSettings,
 } from './avPresets';
 import { MatrixKeyProvider } from './matrixKeyProvider';
+import { resolveParticipantUserId } from './participantIdentity';
+import { publishCallPresenceState } from './callPresenceState';
+import { CALL_INFO_EVENT } from '../../hooks/useCallMemberships';
 import { getSFUConfigWithOpenID } from './sfuToken';
+import { useAudioWinsOverVideo } from './callQualityFallback';
+import { playCallSound, CallSoundType, setCallSoundsVolume } from '../../utils/callSounds';
 
 // Vite inline worker — TypeScript doesn't know this import
 // @ts-ignore
@@ -47,6 +54,7 @@ export interface NativeCallEngine {
   isVideoEnabled: boolean;
   isScreenShareEnabled: boolean;
   isDeafened: boolean;
+  isFrontCamera: boolean;
   speakingUsers: Set<string>;
   remoteParticipantStates: Map<string, { audioEnabled: boolean; videoEnabled: boolean; isScreenSharing: boolean }>;
   error: Error | null;
@@ -57,26 +65,10 @@ export interface NativeCallEngine {
   flipCamera: () => Promise<void>;
   startScreenShare: (ssRes: string, ssFps: number, ssAudio: boolean) => Promise<void>;
   stopScreenShare: () => Promise<void>;
-  toggleDeafen: () => void;
+  toggleDeafen: () => Promise<void>;
 }
 
 // ─── Internal Helpers ─────────────────────────────────────────────────────────
-
-/**
- * Extracts Matrix userId from a LiveKit participant identity.
- * Legacy format: "@user:server_DEVICEID" → "@user:server"
- * New hashed format: return as-is (no leading '@' or no underscore after pos 1)
- */
-function extractUserId(identity: string): string {
-  const normalizedIdentity = identity.startsWith('_@') ? identity.slice(1) : identity;
-
-  if (normalizedIdentity.startsWith('@')) {
-    const lastUnderscore = normalizedIdentity.lastIndexOf('_');
-    if (lastUnderscore > 1) return normalizedIdentity.slice(0, lastUnderscore);
-  }
-
-  return normalizedIdentity;
-}
 
 /**
  * Resolves the LiveKit SFU URL from room state events.
@@ -108,6 +100,27 @@ function getFocusUrl(mx: MatrixClient, roomId: string): string | null {
   return null;
 }
 
+/**
+ * Count users with an active (non-empty) call.member state event in a room.
+ * Used to decide whether we are the first joiner (write start time) or last
+ * leaver (clear start time).
+ */
+function countActiveCallMembers(mx: MatrixClient, roomId: string): number {
+  const room = mx.getRoom(roomId);
+  if (!room) return 0;
+  const types = ['org.matrix.msc3401.call.member', 'org.matrix.msc4143.call.member'];
+  const senders = new Set<string>();
+  for (const type of types) {
+    const events: any[] = (room.currentState.getStateEvents(type) ?? []) as any[];
+    for (const ev of Array.isArray(events) ? events : [events]) {
+      const sender = ev.getSender?.();
+      const content = ev.getContent?.() ?? {};
+      if (sender && Object.keys(content).length > 0) senders.add(sender as string);
+    }
+  }
+  return senders.size;
+}
+
 // ─── Hook ─────────────────────────────────────────────────────────────────────
 
 export function useNativeCall(roomId: string | null): NativeCallEngine {
@@ -121,6 +134,16 @@ export function useNativeCall(roomId: string | null): NativeCallEngine {
   // ── Atoms ──────────────────────────────────────────────────────────────────
   const effectiveAV = useAtomValue(effectiveAVSettingsAtom);
   const userSettings = useAtomValue(settingsAtom);
+
+  const callSoundsEnabled = useAtomValue(settingsAtom).callSoundsEnabled ?? true;
+  const callSoundsVolume = useAtomValue(settingsAtom).callSoundsVolume ?? 1.0;
+
+  useEffect(() => {
+    setCallSoundsVolume(callSoundsVolume);
+  }, [callSoundsVolume]);
+
+  const callSoundsEnabledRef = useRef(callSoundsEnabled);
+  useEffect(() => { callSoundsEnabledRef.current = callSoundsEnabled; }, [callSoundsEnabled]);
 
   // Refs so the connect() closure always sees fresh values without re-running
   const effectiveAVRef = useRef(effectiveAV);
@@ -137,6 +160,8 @@ export function useNativeCall(roomId: string | null): NativeCallEngine {
   const [isDeafened, setIsDeafened] = useState(false);
   // Tracks current camera facing mode for mobile flip toggle ('user' | 'environment')
   const facingModeRef = useRef<'user' | 'environment'>('user');
+  // Reactive state so tiles can conditionally mirror only the front camera
+  const [isFrontCamera, setIsFrontCamera] = useState(true);
   const [speakingUsers, setSpeakingUsers] = useState<Set<string>>(new Set());
   const [remoteParticipantStates, setRemoteParticipantStates] = useState<Map<string, { audioEnabled: boolean; videoEnabled: boolean; isScreenSharing: boolean }>>(new Map());
   const [error, setError] = useState<Error | null>(null);
@@ -147,6 +172,62 @@ export function useNativeCall(roomId: string | null): NativeCallEngine {
   const rtcSessionRef = useRef<any>(null);
   const e2eeWorkerRef = useRef<Worker | null>(null);
   const isDeafenedRef = useRef(false);
+  // True when the mic was muted automatically by deafen (so we can restore it on undeafen).
+  // Stays false if the user manually muted before deafening — we don't touch their manual mute.
+  const mutedByDeafenRef = useRef(false);
+
+  // Refs for publishing call presence to Matrix state (io.bettercord.call.presence)
+  // These mirror the latest local AV state so the publish helper always has fresh values.
+  const presenceRoomIdRef = useRef<string | null>(null);
+  const presenceUserIdRef = useRef<string>('');
+  const presenceDeviceIdRef = useRef<string>('');
+  const presenceAudioRef = useRef(true);    // mic enabled
+  const presenceVideoRef = useRef(false);   // camera enabled
+  const presenceSSRef = useRef(false);      // screenshare enabled
+  const presenceDeafRef = useRef(false);    // deafened
+
+  const prevAudioQualityRef = useRef<{
+    audioBitrate: number;
+    echoCancellation: boolean;
+    noiseSuppression: boolean;
+    autoGainControl: boolean;
+  } | null>(null);
+  const audioQualityUpdateRef = useRef<Promise<void>>(Promise.resolve());
+
+  // ── Presence publisher ─────────────────────────────────────────────────────
+  // Best-effort: publish local AV state as a Matrix room state event so observers
+  // outside the call can read mute/camera/screenshare/deafen badges.
+  const publishPresence = useCallback((overrides?: {
+    isMicMuted?: boolean;
+    isCameraOn?: boolean;
+    isScreenSharing?: boolean;
+    isDeafened?: boolean;
+  }) => {
+    const roomId = presenceRoomIdRef.current;
+    const userId = presenceUserIdRef.current;
+    const deviceId = presenceDeviceIdRef.current;
+    if (!roomId || !userId || !deviceId) return;
+
+    const state = {
+      isMicMuted: overrides?.isMicMuted ?? !presenceAudioRef.current,
+      isCameraOn: overrides?.isCameraOn ?? presenceVideoRef.current,
+      isScreenSharing: overrides?.isScreenSharing ?? presenceSSRef.current,
+      isDeafened: overrides?.isDeafened ?? presenceDeafRef.current,
+    };
+
+    publishCallPresenceState(mx, roomId, userId, deviceId, state).catch(() => {
+      // Network or permissions error — not fatal
+    });
+  }, [mx]);
+
+  const clearPresence = useCallback(() => {
+    const roomId = presenceRoomIdRef.current;
+    const userId = presenceUserIdRef.current;
+    const deviceId = presenceDeviceIdRef.current;
+    presenceRoomIdRef.current = null;
+    if (!roomId || !userId || !deviceId) return;
+    publishCallPresenceState(mx, roomId, userId, deviceId, null).catch(() => {});
+  }, [mx]);
 
   // ── Main Effect ────────────────────────────────────────────────────────────
   useEffect(() => {
@@ -244,6 +325,19 @@ export function useNativeCall(roomId: string | null): NativeCallEngine {
         };
         rtcSession.joinRoomSession([livekitFocus], livekitFocus, { manageMediaKeys: true });
 
+        // Write call start time if we are the first joiner.
+        // All clients (in-call or not) read this Matrix state event for the timer.
+        // activeAtJoin is read BEFORE our membership event is confirmed on the server,
+        // so 0 reliably means no one else was in the call.
+        if (countActiveCallMembers(mx, roomId!) === 0) {
+          void mx.sendStateEvent(
+            roomId!,
+            CALL_INFO_EVENT as any,
+            { started_at: Date.now() },
+            '',
+          );
+        }
+
         // Store refs IMMEDIATELY after joinRoomSession so the cleanup function
         // can always call leaveRoomSession() — even if an error is thrown below.
         // Previously these were set later (after getSFUConfigWithOpenID), meaning
@@ -289,8 +383,19 @@ export function useNativeCall(roomId: string | null): NativeCallEngine {
         // 7. Attach event listeners
 
         // Helper to update remote participant state snapshot
-        const updateRemote = (participant: { identity: string; isMicrophoneEnabled: boolean; isCameraEnabled: boolean; isScreenShareEnabled: boolean }, isDisconnecting = false) => {
-          const userId = extractUserId(participant.identity);
+        const updateRemote = (
+          participant: {
+            identity: string;
+            name?: string;
+            metadata?: string;
+            attributes?: Record<string, string>;
+            isMicrophoneEnabled: boolean;
+            isCameraEnabled: boolean;
+            isScreenShareEnabled: boolean;
+          },
+          isDisconnecting = false
+        ) => {
+          const userId = resolveParticipantUserId(participant, matrixRoom);
           setRemoteParticipantStates((prev) => {
             const next = new Map(prev);
             if (isDisconnecting) {
@@ -312,7 +417,9 @@ export function useNativeCall(roomId: string | null): NativeCallEngine {
         }
 
         room.on(RoomEvent.ActiveSpeakersChanged, (speakers) => {
-          const nextSpeakers = new Set(speakers.map((s) => extractUserId(s.identity)));
+          const nextSpeakers = new Set(
+            speakers.map((speaker) => resolveParticipantUserId(speaker, matrixRoom))
+          );
           if (room.localParticipant.isSpeaking) {
             nextSpeakers.add(userId);
           }
@@ -348,9 +455,17 @@ export function useNativeCall(roomId: string | null): NativeCallEngine {
         });
         room.on(RoomEvent.ParticipantConnected, (participant) => {
           updateRemote(participant);
+          playCallSound(CallSoundType.UserJoin, { enabled: callSoundsEnabledRef.current });
+          // If currently deafened, mute this new participant's audio tracks immediately
+          if (isDeafenedRef.current) {
+            for (const pub of participant.audioTrackPublications.values()) {
+              if (pub.track) pub.track.mediaStreamTrack.enabled = false;
+            }
+          }
         });
         room.on(RoomEvent.ParticipantDisconnected, (participant) => {
           updateRemote(participant, true);
+          playCallSound(CallSoundType.UserLeave, { enabled: callSoundsEnabledRef.current });
         });
 
         room.on(RoomEvent.LocalTrackPublished, (pub) => {
@@ -377,12 +492,29 @@ export function useNativeCall(roomId: string | null): NativeCallEngine {
         await room.localParticipant.setMicrophoneEnabled(true);
 
         if (!aborted) {
+          // Store identity refs for presence publishing
+          presenceRoomIdRef.current = roomId!;
+          presenceUserIdRef.current = userId;
+          presenceDeviceIdRef.current = deviceId;
+          presenceAudioRef.current = true;
+          presenceVideoRef.current = false;
+          presenceSSRef.current = false;
+          presenceDeafRef.current = false;
+
           setLivekitRoom(room);
           setStatus('connected');
           setIsAudioEnabled(true);
           setCallJoinTime(new Date());
           setIsVideoEnabled(false);
           setIsScreenShareEnabled(false);
+
+          // Publish initial presence (mic live, camera/SS/deafen off)
+          publishCallPresenceState(mx, roomId!, userId, deviceId, {
+            isMicMuted: false,
+            isCameraOn: false,
+            isScreenSharing: false,
+            isDeafened: false,
+          }).catch(() => {});
         }
       } catch (e) {
         if (!aborted) {
@@ -396,6 +528,24 @@ export function useNativeCall(roomId: string | null): NativeCallEngine {
 
     return () => {
       aborted = true;
+
+      // If we were in the call (rtcSession still held) and are the last member,
+      // clear the server-stored call start time so the timer resets for everyone.
+      if (rtcSessionRef.current !== null && roomId) {
+        if (countActiveCallMembers(mx, roomId) <= 1) {
+          mx.sendStateEvent(roomId, CALL_INFO_EVENT as any, {}, '').catch(() => {});
+        }
+      }
+
+      // Clear persisted presence before disconnecting
+      const leaveRoomId = presenceRoomIdRef.current;
+      const leaveUserId = presenceUserIdRef.current;
+      const leaveDeviceId = presenceDeviceIdRef.current;
+      presenceRoomIdRef.current = null;
+      if (leaveRoomId && leaveUserId && leaveDeviceId) {
+        publishCallPresenceState(mx, leaveRoomId, leaveUserId, leaveDeviceId, null).catch(() => {});
+      }
+
       void roomRef.current?.disconnect();
       roomRef.current = null;
       void rtcSessionRef.current?.leaveRoomSession?.();
@@ -410,9 +560,91 @@ export function useNativeCall(roomId: string | null): NativeCallEngine {
     };
   }, [roomId, mx]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  useEffect(() => {
+    const nextAudioQuality = {
+      audioBitrate: effectiveAV.audioBitrate,
+      echoCancellation: userSettings.echoCancellation,
+      noiseSuppression: userSettings.noiseSuppression,
+      autoGainControl: userSettings.autoGainControl,
+    };
+    const prevAudioQuality = prevAudioQualityRef.current;
+    prevAudioQualityRef.current = nextAudioQuality;
+
+    if (!prevAudioQuality || status !== 'connected') {
+      return;
+    }
+
+    const captureChanged =
+      prevAudioQuality.echoCancellation !== nextAudioQuality.echoCancellation ||
+      prevAudioQuality.noiseSuppression !== nextAudioQuality.noiseSuppression ||
+      prevAudioQuality.autoGainControl !== nextAudioQuality.autoGainControl;
+    const publishChanged = prevAudioQuality.audioBitrate !== nextAudioQuality.audioBitrate;
+
+    if (!captureChanged && !publishChanged) {
+      return;
+    }
+
+    audioQualityUpdateRef.current = audioQualityUpdateRef.current
+      .catch(() => {})
+      .then(async () => {
+        const room = roomRef.current;
+        if (!room) {
+          return;
+        }
+
+        const localParticipant = room.localParticipant;
+        const micPub = localParticipant.getTrackPublication(Track.Source.Microphone);
+        const micTrack = micPub?.track;
+        if (!(micTrack instanceof LocalAudioTrack)) {
+          return;
+        }
+
+        if (captureChanged) {
+          await micTrack.restartTrack(
+            buildAudioCaptureDefaults({
+              micDeviceId: userSettingsRef.current.micDeviceId,
+              echoCancellation: userSettingsRef.current.echoCancellation,
+              noiseSuppression: userSettingsRef.current.noiseSuppression,
+              autoGainControl: userSettingsRef.current.autoGainControl,
+            }),
+          );
+        }
+
+        if (publishChanged) {
+          await localParticipant.unpublishTrack(micTrack, false);
+          await localParticipant.publishTrack(micTrack, {
+            ...(micPub?.options ?? {}),
+            audioPreset: bitrateToAudioPreset(effectiveAVRef.current.audioBitrate),
+          });
+        }
+      })
+      .catch((err) => {
+        console.error('Failed to apply live audio quality update', err);
+      });
+  }, [
+    effectiveAV.audioBitrate,
+    status,
+    userSettings.autoGainControl,
+    userSettings.echoCancellation,
+    userSettings.noiseSuppression,
+  ]);
+
+  // ── Audio-wins-over-video quality fallback ────────────────────────────────
+  // When connection quality degrades (Poor/Lost), screenshare + camera video
+  // are throttled automatically. Microphone audio is never touched.
+  useAudioWinsOverVideo(roomRef, livekitRoom, status);
+
   // ── Control Functions ──────────────────────────────────────────────────────
 
   const hangUp = useCallback(() => {
+    playCallSound(CallSoundType.VoiceDisconnect, { enabled: callSoundsEnabledRef.current });
+    // Capture room id before clearPresence() nulls presenceRoomIdRef.
+    const leaveRoomId = presenceRoomIdRef.current;
+    // If we're the last member, clear the server-stored call start time.
+    if (leaveRoomId && countActiveCallMembers(mx, leaveRoomId) <= 1) {
+      mx.sendStateEvent(leaveRoomId, CALL_INFO_EVENT as any, {}, '').catch(() => {});
+    }
+    clearPresence();
     void roomRef.current?.disconnect();
     roomRef.current = null;
     void rtcSessionRef.current?.leaveRoomSession?.();
@@ -424,23 +656,29 @@ export function useNativeCall(roomId: string | null): NativeCallEngine {
     setLivekitRoom(null);
     setSpeakingUsers(new Set());
     setRemoteParticipantStates(new Map());
-  }, []);
+  }, [clearPresence]);
 
   const toggleAudio = useCallback(async () => {
     if (!roomRef.current) return;
     const lp = roomRef.current.localParticipant;
     const newEnabled = !lp.isMicrophoneEnabled;
+    presenceAudioRef.current = newEnabled;
     setIsAudioEnabled(newEnabled);
+    playCallSound(newEnabled ? CallSoundType.Unmute : CallSoundType.Mute, { enabled: callSoundsEnabledRef.current });
     await lp.setMicrophoneEnabled(newEnabled);
-  }, []);
+    publishPresence({ isMicMuted: !newEnabled });
+  }, [publishPresence]);
 
   const toggleVideo = useCallback(async () => {
     if (!roomRef.current) return;
     const lp = roomRef.current.localParticipant;
     const newEnabled = !lp.isCameraEnabled;
+    presenceVideoRef.current = newEnabled;
     setIsVideoEnabled(newEnabled);
+    playCallSound(newEnabled ? CallSoundType.CameraOn : CallSoundType.CameraOff, { enabled: callSoundsEnabledRef.current });
     await lp.setCameraEnabled(newEnabled);
-  }, []);
+    publishPresence({ isCameraOn: newEnabled });
+  }, [publishPresence]);
 
   /** Flip between front and rear camera on mobile devices */
   const flipCamera = useCallback(async () => {
@@ -449,6 +687,7 @@ export function useNativeCall(roomId: string | null): NativeCallEngine {
     if (!lp.isCameraEnabled) {
       // Camera is off — enable it with current facing mode
       await lp.setCameraEnabled(true, { facingMode: facingModeRef.current });
+      setIsFrontCamera(facingModeRef.current === 'user');
       return;
     }
     // Detect current facing mode from the live track settings
@@ -462,14 +701,25 @@ export function useNativeCall(roomId: string | null): NativeCallEngine {
     }
     // Restart camera track with new facing mode
     await lp.setCameraEnabled(true, { facingMode: facingModeRef.current });
+    setIsFrontCamera(facingModeRef.current === 'user');
   }, []);
 
   const enforceScreenShareConstraints = useCallback(async (ssRes: string, ssFps: number) => {
     if (!roomRef.current) return;
 
-    const ssPub = roomRef.current.localParticipant.getTrackPublication(Track.Source.ScreenShare);
-    const track = ssPub?.track as LocalVideoTrack | undefined;
-    const mediaTrack = track?.mediaStreamTrack;
+    let mediaTrack: MediaStreamTrack | undefined;
+    for (let attempt = 0; attempt < 10; attempt += 1) {
+      const ssPub = roomRef.current.localParticipant.getTrackPublication(Track.Source.ScreenShare);
+      const track = ssPub?.track as LocalVideoTrack | undefined;
+      mediaTrack = track?.mediaStreamTrack;
+      if (mediaTrack?.applyConstraints) {
+        break;
+      }
+      await new Promise((resolve) => {
+        window.setTimeout(resolve, 100);
+      });
+    }
+
     if (!mediaTrack?.applyConstraints) return;
 
     const targetWidth = ssRes === 'source' ? undefined : resolutionToWidth(ssRes);
@@ -503,30 +753,68 @@ export function useNativeCall(roomId: string | null): NativeCallEngine {
       if (!roomRef.current) return;
       const captureOpts = buildSSCaptureOptions(ssRes, ssFps, ssAudio);
       const publishOpts = buildSSPublishOptions(ssRes, ssFps);
-      await roomRef.current.localParticipant.setScreenShareEnabled(true, captureOpts as any, publishOpts);
+      await roomRef.current.localParticipant.setScreenShareEnabled(true, captureOpts, publishOpts);
       await enforceScreenShareConstraints(ssRes, ssFps);
+      presenceSSRef.current = true;
       setIsScreenShareEnabled(true);
+      playCallSound(CallSoundType.ScreenShareStart, { enabled: callSoundsEnabledRef.current });
+      publishPresence({ isScreenSharing: true });
     },
-    [enforceScreenShareConstraints],
+    [enforceScreenShareConstraints, publishPresence],
   );
 
   const stopScreenShare = useCallback(async () => {
     if (!roomRef.current) return;
     await roomRef.current.localParticipant.setScreenShareEnabled(false);
+    presenceSSRef.current = false;
     setIsScreenShareEnabled(false);
-  }, []);
+    playCallSound(CallSoundType.ScreenShareStop, { enabled: callSoundsEnabledRef.current });
+    publishPresence({ isScreenSharing: false });
+  }, [publishPresence]);
 
-  const toggleDeafen = useCallback(() => {
+  const toggleDeafen = useCallback(async () => {
     if (!roomRef.current) return;
     const next = !isDeafenedRef.current;
     isDeafenedRef.current = next;
+    presenceDeafRef.current = next;
     setIsDeafened(next);
+    playCallSound(next ? CallSoundType.Deaf : CallSoundType.Undeaf, { enabled: callSoundsEnabledRef.current });
+
+    // Mute/unmute all remote audio output locally (deafen is client-side only in LiveKit)
     for (const p of roomRef.current.remoteParticipants.values()) {
       for (const pub of p.audioTrackPublications.values()) {
         if (pub.track) pub.track.mediaStreamTrack.enabled = !next;
       }
     }
-  }, []);
+
+    // Discord-style: deafen also mutes the mic.
+    // On deafen: mute mic if it's currently live, and remember we auto-muted it.
+    // On undeafen: restore mic only if we were the one who muted it —
+    //   if the user manually muted before deafening, leave it muted.
+    const lp = roomRef.current.localParticipant;
+    if (next) {
+      if (lp.isMicrophoneEnabled) {
+        mutedByDeafenRef.current = true;
+        presenceAudioRef.current = false;
+        setIsAudioEnabled(false);
+        await lp.setMicrophoneEnabled(false);
+        publishPresence({ isMicMuted: true });
+      }
+    } else {
+      if (mutedByDeafenRef.current) {
+        mutedByDeafenRef.current = false;
+        presenceAudioRef.current = true;
+        setIsAudioEnabled(true);
+        await lp.setMicrophoneEnabled(true);
+        publishPresence({ isMicMuted: false });
+      }
+    }
+
+    // Propagate deafen state as a participant attribute so the presence bridge
+    // receives a participant_attributes_changed webhook and can update the SSE stream.
+    void roomRef.current.localParticipant.setAttributes({ isDeafened: next ? '1' : '0' });
+    publishPresence({ isDeafened: next });
+  }, [publishPresence]);
 
   // ── Return ─────────────────────────────────────────────────────────────────
 
@@ -537,6 +825,7 @@ export function useNativeCall(roomId: string | null): NativeCallEngine {
     isVideoEnabled,
     isScreenShareEnabled,
     isDeafened,
+    isFrontCamera,
     speakingUsers,
     remoteParticipantStates,
     error,

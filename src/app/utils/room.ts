@@ -19,6 +19,7 @@ import {
 } from 'matrix-js-sdk';
 import { CryptoBackend } from 'matrix-js-sdk/lib/common-crypto/CryptoBackend';
 import { AccountDataEvent } from '../../types/matrix/accountData';
+import { getBetterCordPermalink } from '../plugins/permalink';
 import {
   IRoomCreateContent,
   Membership,
@@ -366,9 +367,11 @@ export const parseReplyFormattedBody = (
   eventId: string,
   formattedBody: string
 ): string => {
-  const replyToLink = `<a href="https://matrix.to/#/${encodeURIComponent(
-    roomId
-  )}/${encodeURIComponent(eventId)}">In reply to</a>`;
+  const replyToLink = `<a href="${getBetterCordPermalink({
+    kind: 'room',
+    roomIdOrAlias: roomId,
+    eventId,
+  })}">In reply to</a>`;
   const userLink = `<a href="https://matrix.to/#/${encodeURIComponent(userId)}">${userId}</a>`;
 
   return `<mx-reply><blockquote>${replyToLink}${userLink}<br />${formattedBody}</blockquote></mx-reply>`;

@@ -54,6 +54,7 @@ import { useMatrixClient } from '../../../hooks/useMatrixClient';
 import { getEditedEvent, getMentionContent, trimReplyFromFormattedBody } from '../../../utils/room';
 import { mobileOrTablet } from '../../../utils/user-agent';
 import { useComposingCheck } from '../../../hooks/useComposingCheck';
+import { useClientConfig } from '../../../hooks/useClientConfig';
 
 type MessageEditorProps = {
   roomId: string;
@@ -66,6 +67,7 @@ export const MessageEditor = as<'div', MessageEditorProps>(
   ({ room, roomId, mEvent, imagePackRooms, onCancel, ...props }, ref) => {
     const mx = useMatrixClient();
     const editor = useEditor();
+    const { hashRouter } = useClientConfig();
     const [enterForNewline] = useSetting(settingsAtom, 'enterForNewline');
     const [globalToolbar] = useSetting(settingsAtom, 'editorToolbar');
     const [isMarkdown] = useSetting(settingsAtom, 'isMarkdown');
@@ -105,6 +107,7 @@ export const MessageEditor = as<'div', MessageEditorProps>(
             allowTextFormatting: true,
             allowBlockMarkdown: isMarkdown,
             allowInlineMarkdown: isMarkdown,
+            hashRouter,
           })
         );
 
@@ -154,7 +157,7 @@ export const MessageEditor = as<'div', MessageEditorProps>(
         };
 
         return mx.sendMessage(roomId, content);
-      }, [mx, editor, roomId, mEvent, isMarkdown, getPrevBodyAndFormattedBody])
+      }, [mx, editor, roomId, mEvent, isMarkdown, getPrevBodyAndFormattedBody, hashRouter])
     );
 
     const handleSave = useCallback(() => {

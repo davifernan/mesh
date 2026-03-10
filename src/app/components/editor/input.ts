@@ -25,6 +25,7 @@ import {
   parseMatrixToUser,
   testMatrixTo,
 } from '../../plugins/matrix-to';
+import { parseBetterCordPermalink } from '../../plugins/permalink';
 import { tryDecodeURIComponent } from '../../utils/dom';
 import {
   escapeMarkdownInlineSequences,
@@ -114,6 +115,7 @@ const getInlineNonMarkElement = (node: Element): MentionElement | EmoticonElemen
           roomMention.roomIdOrAlias,
           getText(node) || roomMention.roomIdOrAlias,
           false,
+          'room',
           undefined,
           roomMention.viaServers
         );
@@ -124,10 +126,35 @@ const getInlineNonMarkElement = (node: Element): MentionElement | EmoticonElemen
           eventMention.roomIdOrAlias,
           getText(node) || eventMention.roomIdOrAlias,
           false,
+          'room',
           eventMention.eventId,
           eventMention.viaServers
         );
       }
+    }
+
+    const permalink = parseBetterCordPermalink(href);
+    if (permalink?.kind === 'space') {
+      return createMentionElement(
+        permalink.spaceIdOrAlias,
+        getText(node) || permalink.spaceIdOrAlias,
+        false,
+        'space',
+        undefined,
+        permalink.viaServers
+      );
+    }
+    if (permalink?.kind === 'room') {
+      return createMentionElement(
+        permalink.roomIdOrAlias,
+        getText(node) || permalink.roomIdOrAlias,
+        false,
+        'room',
+        permalink.eventId,
+        permalink.viaServers,
+        permalink.spaceIdOrAlias,
+        permalink.direct
+      );
     }
   }
   return undefined;

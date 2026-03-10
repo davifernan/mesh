@@ -18,6 +18,7 @@ import { DeveloperTools } from '../common-settings/developer-tools';
 import { General } from './general';
 import { Permissions } from './permissions';
 import { SpaceAVSettings } from './SpaceAVSettings';
+import { SpaceUploadSettings } from './SpaceUploadSettings';
 
 type SpaceSettingsMenuItem = {
   page: SpaceSettingsPage;
@@ -52,6 +53,11 @@ const useSpaceSettingsMenuItems = (): SpaceSettingsMenuItem[] =>
         page: SpaceSettingsPage.AVSettingsPage,
         name: 'Voice & Video',
         icon: Icons.Mic,
+      },
+      {
+        page: SpaceSettingsPage.UploadSettingsPage,
+        name: 'Datei-Upload',
+        icon: Icons.Attachment,
       },
       {
         page: SpaceSettingsPage.DeveloperToolsPage,
@@ -173,6 +179,9 @@ export function SpaceSettings({ initialPage, requestClose }: SpaceSettingsProps)
       )}
       {activePage === SpaceSettingsPage.AVSettingsPage && (
         <SpaceAVSettings requestClose={handlePageRequestClose} />
+      )}
+      {activePage === SpaceSettingsPage.UploadSettingsPage && (
+        <SpaceUploadSettings requestClose={handlePageRequestClose} />
       )}
       {activePage === SpaceSettingsPage.DeveloperToolsPage && (
         <DeveloperTools requestClose={handlePageRequestClose} />

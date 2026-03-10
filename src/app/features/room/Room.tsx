@@ -151,6 +151,56 @@ export function Room() {
   const splitRatioRef = useRef(0.5);
   const [splitRatio, setSplitRatio] = useState(0.5);
 
+  // Swipe-down-to-close state for mobile chat sheet
+  const [isSheetClosing, setIsSheetClosing] = useState(false);
+  const swipeTouchStartY = useRef<number | null>(null);
+  const swipeCurrentTranslate = useRef(0);
+  const sheetRef = useRef<HTMLDivElement>(null);
+  const SWIPE_CLOSE_THRESHOLD = 80; // px
+
+  const handleSheetTouchStart = useCallback((e: React.TouchEvent<HTMLDivElement>) => {
+    swipeTouchStartY.current = e.touches[0].clientY;
+    swipeCurrentTranslate.current = 0;
+    if (sheetRef.current) {
+      sheetRef.current.style.transition = 'none';
+    }
+  }, []);
+
+  const handleSheetTouchMove = useCallback((e: React.TouchEvent<HTMLDivElement>) => {
+    if (swipeTouchStartY.current === null) return;
+    const delta = e.touches[0].clientY - swipeTouchStartY.current;
+    if (delta < 0) return; // prevent swiping up
+    swipeCurrentTranslate.current = delta;
+    if (sheetRef.current) {
+      sheetRef.current.style.transform = `translateY(${delta}px)`;
+    }
+  }, []);
+
+  const handleSheetTouchEnd = useCallback(() => {
+    if (swipeTouchStartY.current === null) return;
+    swipeTouchStartY.current = null;
+
+    if (swipeCurrentTranslate.current >= SWIPE_CLOSE_THRESHOLD) {
+      // Reset inline transform so CSS animation takes over
+      if (sheetRef.current) {
+        sheetRef.current.style.transform = '';
+        sheetRef.current.style.transition = '';
+      }
+      setIsSheetClosing(true);
+      setTimeout(() => {
+        setIsSheetClosing(false);
+        toggleChat();
+      }, 220);
+    } else {
+      // Snap back
+      if (sheetRef.current) {
+        sheetRef.current.style.transform = '';
+        sheetRef.current.style.transition = 'transform 200ms cubic-bezier(0.22, 1, 0.36, 1)';
+      }
+      swipeCurrentTranslate.current = 0;
+    }
+  }, [toggleChat]);
+
   const handleDividerPointerDown = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
     e.preventDefault();
     (e.target as HTMLElement).setPointerCapture(e.pointerId);
@@ -189,6 +239,7 @@ export function Room() {
   );
 
   const anyRightPanel = isDrawer || isWidgetsDrawer || isThreadsDrawer;
+  const showRoomHeader = !(isMobile && showCallPanel);
 
   return (
     <PowerLevelsContextProvider value={powerLevels}>
@@ -198,15 +249,17 @@ export function Room() {
           direction="Column"
           style={{ display: rightPanelFullWidth && anyRightPanel ? 'none' : 'flex' }}
         >
-          <RoomViewHeader
-            isIssueBoard={isIssueBoard}
-            onToggleIssueBoard={() => setIsIssueBoard((b) => !b)}
-            isThreadsDrawer={isThreadsDrawer}
-            onToggleThreadsDrawer={handleToggleThreadsDrawer}
-            isWidgetsDrawer={isWidgetsDrawer}
-            onToggleWidgetsDrawer={handleToggleWidgetsDrawer}
-            onTogglePeopleDrawer={handleTogglePeopleDrawer}
-          />
+          {showRoomHeader && (
+            <RoomViewHeader
+              isIssueBoard={isIssueBoard}
+              onToggleIssueBoard={() => setIsIssueBoard((b) => !b)}
+              isThreadsDrawer={isThreadsDrawer}
+              onToggleThreadsDrawer={handleToggleThreadsDrawer}
+              isWidgetsDrawer={isWidgetsDrawer}
+              onToggleWidgetsDrawer={handleToggleWidgetsDrawer}
+              onTogglePeopleDrawer={handleTogglePeopleDrawer}
+            />
+          )}
           <Box grow="Yes" ref={containerRef} className={isCallLayout && isMobile ? styles.callChatContainer : undefined}>
             {isIssueBoard ? (
               <IssueBoard room={room} />
@@ -250,7 +303,17 @@ export function Room() {
                       onClick={toggleChat}
                       aria-label="Close chat"
                     />
-                    <div className={styles.mobileChatSheet}>
+                    <div
+                      ref={sheetRef}
+                      className={
+                        isSheetClosing
+                          ? `${styles.mobileChatSheet} ${styles.mobileChatSheetClosing}`
+                          : styles.mobileChatSheet
+                      }
+                      onTouchStart={handleSheetTouchStart}
+                      onTouchMove={handleSheetTouchMove}
+                      onTouchEnd={handleSheetTouchEnd}
+                    >
                       <RoomView room={room} eventId={eventId} />
                     </div>
                   </>

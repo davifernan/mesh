@@ -10,6 +10,40 @@
   border: none !important;
 }
 
+.userContent {
+  width: 100%;
+}
+
+.userRow {
+  width: 100%;
+  min-width: 0;
+  border-radius: 10px;
+  padding-right: 4px;
+}
+
+.userRowSpeaking {
+  background: color-mix(in srgb, var(--voice-status-success, #23a55a) 12%, transparent);
+}
+
+.userName,
+.speakingName {
+  flex: 1;
+  min-width: 0;
+}
+
+.speakingName {
+  color: var(--voice-status-success, #23a55a);
+}
+
+.speakingDot {
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: var(--voice-status-success, #23a55a);
+  box-shadow: 0 0 10px color-mix(in srgb, var(--voice-status-success, #23a55a) 75%, transparent);
+  flex-shrink: 0;
+}
+
 .speakingAvatar {
   box-shadow:
     0 0 0 2px var(--voice-status-success, #23a55a),
@@ -23,6 +57,7 @@
   align-items: center;
   justify-content: center;
   opacity: 0.9;
+  flex-shrink: 0;
 }
 
 .cameraIcon {
@@ -46,6 +81,13 @@
   cursor: pointer;
   display: inline-flex;
   align-items: center;
+  flex-shrink: 0;
+}
+
+.badgeRow {
+  margin-left: auto;
+  min-width: max-content;
+  justify-content: flex-end;
 }
 
 .livePreview {

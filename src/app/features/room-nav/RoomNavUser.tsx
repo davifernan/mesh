@@ -6,8 +6,11 @@ import { Track } from 'livekit-client';
 import { NavButton, NavItem, NavItemContent } from '../../components/nav';
 import { UserAvatar } from '../../components/user-avatar';
 import { useMatrixClient } from '../../hooks/useMatrixClient';
+import { useCallMemberPresence } from '../../hooks/useCallMemberPresence';
 import { useCallState } from '../../pages/client/call/CallProvider';
+import { resolveParticipantUserId } from '../call/participantIdentity';
 import { getPresenceBadgeKinds, getPresenceSummary, PRESENCE_BADGE_LABEL } from '../call/presenceBadges';
+import type { CallPresenceState } from '../call/callPresenceState';
 import { getMxIdLocalPart } from '../../utils/matrix';
 import { getMemberAvatarMxc, getMemberDisplayName } from '../../utils/room';
 import { useMediaAuthentication } from '../../hooks/useMediaAuthentication';
@@ -18,23 +21,16 @@ import styles from './RoomNavUser.module.css';
 type RoomNavUserProps = {
   room: Room;
   userId: string;
+  /** Live presence from the server-side bridge (highest priority source). */
+  bridgePresence?: CallPresenceState;
 };
-
-function extractUserId(identity: string): string {
-  const normalizedIdentity = identity.startsWith('_@') ? identity.slice(1) : identity;
-  if (normalizedIdentity.startsWith('@')) {
-    const lastUnderscore = normalizedIdentity.lastIndexOf('_');
-    if (lastUnderscore > 1) return normalizedIdentity.slice(0, lastUnderscore);
-  }
-  return normalizedIdentity;
-}
 
 type AttachableVideoTrack = {
   attach: (element?: HTMLMediaElement) => HTMLMediaElement;
   detach: (element?: HTMLMediaElement) => HTMLMediaElement[];
 };
 
-export function RoomNavUser({ room, userId }: RoomNavUserProps) {
+export function RoomNavUser({ room, userId, bridgePresence }: RoomNavUserProps) {
   const mx = useMatrixClient();
   const useAuthentication = useMediaAuthentication();
   const openProfile = useOpenUserRoomProfile();
@@ -60,15 +56,70 @@ export function RoomNavUser({ room, userId }: RoomNavUserProps) {
     ? mx.mxcUrlToHttp(avatarMxcUrl, 32, 32, 'crop', undefined, false, useAuthentication)
     : undefined;
   const getName = getMemberDisplayName(room, userId) ?? getMxIdLocalPart(userId);
-  const isSpeaking = isActiveCall && speakingUsers.has(userId);
+  const persistedPresence = useCallMemberPresence(mx, room.roomId, userId);
+  const participantSpeaking = useMemo(() => {
+    if (!isActiveCall || !livekitRoom) return false;
+    if (isLocalUser) return livekitRoom.localParticipant.isSpeaking;
 
-  const pState = isActiveCall ? remoteParticipantStates.get(userId) : undefined;
-  const hasPresenceState = isActiveCall && (isLocalUser || pState !== undefined);
-  const isAudioMuted = hasPresenceState && (isLocalUser ? !isAudioEnabled : !(pState?.audioEnabled ?? true));
-  const isCameraOn = hasPresenceState && (isLocalUser ? isVideoEnabled : pState?.videoEnabled ?? false);
-  const isDeafened = hasPresenceState && isLocalUser && isCallDeafened;
-  const isScreensharing =
-    hasPresenceState && (isLocalUser ? isScreenShareEnabled : pState?.isScreenSharing ?? false);
+    return Array.from(livekitRoom.remoteParticipants.values()).some(
+      (participant) =>
+        resolveParticipantUserId(participant, room) === userId && participant.isSpeaking
+    );
+  }, [isActiveCall, isLocalUser, livekitRoom, room, userId]);
+  const isSpeaking = isActiveCall && (speakingUsers.has(userId) || participantSpeaking);
+
+  // ── Presence resolution ────────────────────────────────────────────────────
+  //
+  // LOCAL USER  → always use live LiveKit state from useCallState().
+  //   We have perfect real-time data here. Bridge data is skipped entirely:
+  //   it can lag or be momentarily wrong (e.g. track_muted webhook during
+  //   mic-setup) and would override the correct local state, breaking the
+  //   speaking indicator and mute badge.
+  //
+  // REMOTE USER → priority: bridge > livekit-client state > Matrix state.
+  //   bridgePresence  — server-side SSE; works for ALL client versions.
+  //   pState          — livekit-client remote participant snapshot.
+  //   persistedPresence — Matrix io.bettercord.call.presence state event.
+
+  const pState = activeCallRoomId === room.roomId ? remoteParticipantStates.get(userId) : undefined;
+  const hasLivePresenceState = isLocalUser ? isActiveCall : pState !== undefined;
+
+  // Bridge is ONLY used for remote users — never for the local user.
+  const remoteBridge = isLocalUser ? undefined : bridgePresence;
+
+  const isAudioMuted = isLocalUser
+    ? (isActiveCall ? !isAudioEnabled : persistedPresence.isMicMuted)
+    : remoteBridge
+      ? remoteBridge.isMicMuted
+      : hasLivePresenceState
+        ? !(pState?.audioEnabled ?? true)
+        : persistedPresence.isMicMuted;
+
+  const isCameraOn = isLocalUser
+    ? (isActiveCall ? isVideoEnabled : persistedPresence.isCameraOn)
+    : remoteBridge
+      ? remoteBridge.isCameraOn
+      : hasLivePresenceState
+        ? (pState?.videoEnabled ?? false)
+        : persistedPresence.isCameraOn;
+
+  // Deafen: local user always reads from live call state (isCallDeafened).
+  // Remote users: bridge carries this via participant_attributes_changed webhook.
+  const isDeafened = isLocalUser
+    ? (isActiveCall ? isCallDeafened : persistedPresence.isDeafened)
+    : remoteBridge
+      ? remoteBridge.isDeafened
+      : persistedPresence.isDeafened;
+
+  const isScreensharing = isLocalUser
+    ? (isActiveCall
+        ? isScreenShareEnabled || persistedPresence.isScreenSharing
+        : persistedPresence.isScreenSharing)
+    : remoteBridge
+      ? remoteBridge.isScreenSharing
+      : hasLivePresenceState
+        ? (pState?.isScreenSharing ?? false) || persistedPresence.isScreenSharing
+        : persistedPresence.isScreenSharing;
 
   const presenceState = useMemo(
     () => ({
@@ -95,7 +146,7 @@ export function RoomNavUser({ room, userId }: RoomNavUserProps) {
     }
 
     const remoteParticipant = Array.from(livekitRoom.remoteParticipants.values()).find(
-      (participant) => extractUserId(participant.identity) === userId
+      (participant) => resolveParticipantUserId(participant, room) === userId
     );
     if (!remoteParticipant) return null;
 
@@ -108,6 +159,7 @@ export function RoomNavUser({ room, userId }: RoomNavUserProps) {
     livekitRoom,
     activeCallRoomId,
     room.roomId,
+    room,
     callStatus,
     isLocalUser,
     userId,
@@ -146,11 +198,15 @@ export function RoomNavUser({ room, userId }: RoomNavUserProps) {
   const ariaLabel = `${getName}${isSpeaking ? ', speaking' : ''}. ${presenceSummary}.`;
 
   return (
-    <NavItem variant="Background" radii="400">
+    <NavItem variant="Background" radii="400" data-speaking={isSpeaking}>
       <NavButton onClick={handleNavUserClick} aria-label={ariaLabel}>
         <NavItemContent as="div">
-          <Box direction="Column" grow="Yes" gap="200" justifyContent="Stretch">
-            <Box alignItems="Center" gap="200">
+          <Box direction="Column" grow="Yes" gap="200" justifyContent="Stretch" className={styles.userContent}>
+            <Box
+              alignItems="Center"
+              gap="200"
+              className={`${styles.userRow}${isSpeaking ? ` ${styles.userRowSpeaking}` : ''}`}
+            >
               <Avatar
                 size="200"
                 className={isSpeaking ? styles.speakingAvatar : undefined}
@@ -162,10 +218,17 @@ export function RoomNavUser({ room, userId }: RoomNavUserProps) {
                   renderFallback={() => <Icon size="50" src={Icons.User} filled />}
                 />
               </Avatar>
-              <Text as="span" size="B400" priority="300" truncate>
+              <Text
+                as="span"
+                size="B400"
+                priority="300"
+                truncate
+                className={isSpeaking ? styles.speakingName : styles.userName}
+              >
                 {getName}
               </Text>
-              <Box alignItems="Center" gap="100" shrink="No">
+              {isSpeaking && <span className={styles.speakingDot} aria-hidden="true" />}
+              <Box alignItems="Center" gap="100" shrink="No" className={styles.badgeRow}>
                 {badgeKinds.includes('live') && (
                   <button
                     type="button"

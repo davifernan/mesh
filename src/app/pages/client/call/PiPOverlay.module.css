@@ -46,6 +46,10 @@
   border-radius: inherit;
 }
 
+.videoMirrored {
+  transform: scaleX(-1);
+}
+
 /* Avatar fallback */
 .avatarFallback {
   position: absolute;

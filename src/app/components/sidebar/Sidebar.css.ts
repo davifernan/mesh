@@ -49,6 +49,7 @@ export const SidebarStack = style([
 ]);
 
 const DropLineDist = createVar();
+const SidebarBadgeOffset = createVar();
 export const DropTarget = style({
   vars: {
     [DropLineDist]: toRem(-8),
@@ -151,17 +152,38 @@ export const SidebarItemBadge = recipe({
   variants: {
     hasCount: {
       true: {
-        top: toRem(-6),
-        left: toRem(-6),
+        vars: {
+          [SidebarBadgeOffset]: toRem(-6),
+        },
       },
       false: {
-        top: toRem(-2),
-        left: toRem(-2),
+        vars: {
+          [SidebarBadgeOffset]: toRem(-2),
+        },
+      },
+    },
+    position: {
+      TopLeft: {
+        top: SidebarBadgeOffset,
+        left: SidebarBadgeOffset,
+      },
+      TopRight: {
+        top: SidebarBadgeOffset,
+        right: SidebarBadgeOffset,
+      },
+      BottomLeft: {
+        bottom: SidebarBadgeOffset,
+        left: SidebarBadgeOffset,
+      },
+      BottomRight: {
+        bottom: SidebarBadgeOffset,
+        right: SidebarBadgeOffset,
       },
     },
   },
   defaultVariants: {
     hasCount: false,
+    position: 'TopLeft',
   },
 });
 export type SidebarItemBadgeVariants = RecipeVariants<typeof SidebarItemBadge>;

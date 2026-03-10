@@ -132,20 +132,53 @@
   z-index: 100;
 }
 
-/* ── Mobile: compact pill so all buttons fit on small screens ──────────────── */
+.mediaMenu {
+  position: absolute;
+  bottom: calc(100% + 8px);
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--voice-surface-1);
+  border: 1px solid var(--voice-surface-2);
+  border-radius: 10px;
+  padding: 4px;
+  min-width: 170px;
+  z-index: 100;
+}
+
+/* ── Mobile: full-width solid bottom navbar ────────────────────────────────── */
 @media (max-width: 768px) {
   .bar {
-    gap: 2px;
-    padding: 7px 9px;
+    display: flex;
+    width: 100%;
+    box-sizing: border-box;
+    border-radius: 0;
+    background: var(--background-tertiary, #2b2d31);
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+    box-shadow: 0 -1px 0 rgba(255, 255, 255, 0.08);
+    padding: 10px 8px;
+    padding-bottom: max(10px, env(safe-area-inset-bottom));
+    gap: 0;
+    justify-content: space-around;
+    align-items: center;
+  }
+  .leftSection {
+    display: none;
+  }
+  .controls {
+    display: contents; /* buttons become direct flex children of .bar */
   }
   .btn {
-    width: 40px;
-    height: 40px;
+    width: 52px;
+    height: 52px;
+    border-radius: 12px;
+    flex-shrink: 0;
   }
   .btnHangup {
-    width: 40px;
-    height: 40px;
-    margin-left: 6px;
+    width: 52px;
+    height: 52px;
+    border-radius: 12px;
+    margin-left: 0;
   }
   .caretBtn {
     width: 18px;
@@ -153,7 +186,16 @@
     top: -3px;
     right: -3px;
   }
-  .leftSection {
-    display: none; /* hide room name + timer on mobile — space is tight */
+
+  /* Dropdowns: keep them inside the viewport on mobile.
+     Override centered positioning — anchor to left edge of trigger instead. */
+  .deviceMenu,
+  .ssMenu,
+  .mediaMenu {
+    left: 0;
+    right: auto;
+    transform: none;
+    min-width: 180px;
+    max-width: calc(100vw - 32px);
   }
 }

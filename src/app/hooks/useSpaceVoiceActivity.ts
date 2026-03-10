@@ -1,5 +1,5 @@
-import { useEffect } from 'react';
-import { ClientEvent, MatrixEvent, Room } from 'matrix-js-sdk';
+import { useEffect, useMemo } from 'react';
+import { ClientEvent, MatrixEvent, Room, RoomStateEvent } from 'matrix-js-sdk';
 import { useSetAtom } from 'jotai';
 import { useMatrixClient } from './useMatrixClient';
 import { spaceVoiceActivityAtom } from '../state/voiceActivity';
@@ -40,13 +40,15 @@ function getSpaceChildRooms(space: Room, allRooms: Room[]): Room[] {
 export function useSpaceVoiceActivity(spaceIds: string[]): void {
   const mx = useMatrixClient();
   const setActivity = useSetAtom(spaceVoiceActivityAtom);
+  const stableSpaceIds = useMemo(() => [...spaceIds].sort(), [spaceIds]);
+  const stableSpaceIdsKey = stableSpaceIds.join('|');
 
   useEffect(() => {
     const compute = () => {
       const allRooms = mx.getRooms();
       const map = new Map<string, boolean>();
 
-      for (const spaceId of spaceIds) {
+      for (const spaceId of stableSpaceIds) {
         const space = mx.getRoom(spaceId);
         if (!space) {
           map.set(spaceId, false);
@@ -68,9 +70,18 @@ export function useSpaceVoiceActivity(spaceIds: string[]): void {
       }
     };
 
+    // ClientEvent.Event fires for timeline events (live joins while page is open).
+    // RoomStateEvent.Events fires for BOTH timeline AND state-section events —
+    // this catches call.member that was already present when the client first synced
+    // (those arrive in the state section, not the timeline, so ClientEvent.Event
+    // never fires for them and the badge only appears after a page reload without this).
     mx.on(ClientEvent.Event, handleEvent);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    mx.on(RoomStateEvent.Events as any, handleEvent);
     return () => {
       mx.off(ClientEvent.Event, handleEvent);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      mx.off(RoomStateEvent.Events as any, handleEvent);
     };
-  }, [spaceIds, mx, setActivity]);
+  }, [stableSpaceIdsKey, mx, setActivity]);
 }

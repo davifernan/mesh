@@ -15,7 +15,10 @@ type ChipRowProps<T extends string | number> = {
   value: T;
   onChange: (v: T) => void;
   labels?: Record<string | number, string>;
-  serverMax?: T | string | number;
+  /** Display-only cap label, e.g. "128 kbps" or "1080p" */
+  serverMax?: string | number;
+  /** Options that should be disabled (above server cap). Computed by the parent. */
+  disabledOptions?: T[];
 };
 function ChipRow<T extends string | number>({
   options,
@@ -23,11 +26,13 @@ function ChipRow<T extends string | number>({
   onChange,
   labels,
   serverMax,
+  disabledOptions,
 }: ChipRowProps<T>) {
   return (
     <Box gap="200" wrap="Wrap">
       {options.map((opt) => {
         const isSelected = opt === value;
+        const isDisabled = disabledOptions?.includes(opt) ?? false;
         const label = labels ? labels[opt] ?? String(opt) : String(opt);
         return (
           <Chip
@@ -35,8 +40,10 @@ function ChipRow<T extends string | number>({
             as="button"
             variant={isSelected ? 'Primary' : 'Surface'}
             radii="Pill"
-            onClick={() => onChange(opt)}
+            onClick={() => !isDisabled && onChange(opt)}
             aria-pressed={isSelected}
+            disabled={isDisabled}
+            style={isDisabled ? { opacity: 0.35, cursor: 'not-allowed' } : undefined}
           >
             <Text size="T200">{label}</Text>
           </Chip>
@@ -44,7 +51,7 @@ function ChipRow<T extends string | number>({
       })}
       {serverMax !== undefined && (
         <Text size="T200" priority="300" style={{ alignSelf: 'center' }}>
-          (Server-Max: {String(serverMax)})
+          (max: {String(serverMax)})
         </Text>
       )}
     </Box>
@@ -267,6 +274,11 @@ function MicTestButton({ micDeviceId, speakerDeviceId }: MicTestProps) {
   );
 }
 
+// ─── Resolution/FPS order for cap comparisons ────────────────────────────────
+
+const VIDEO_RES_ORDER = ['360p', '480p', '720p', '1080p', '1440p', '2160p'] as const;
+const SS_RES_ORDER = ['720p', '1080p', '1440p', '4k', 'source'] as const;
+
 // ─────────────────────────────────────────────────────────────────────────────
 
 type VoiceVideoProps = {
@@ -380,6 +392,14 @@ export function VoiceVideo({ requestClose }: VoiceVideoProps) {
                   value={audioBitrate}
                   onChange={setAudioBitrate}
                   labels={{ 32: '32k', 64: '64k', 128: '128k', 256: '256k', 510: '510k' }}
+                  serverMax={serverLimitsAudio ? `${effective.serverMaxAudioBitrate} kbps` : undefined}
+                  disabledOptions={
+                    serverLimitsAudio
+                      ? ([32, 64, 128, 256, 510] as const).filter(
+                          (b) => b > effective.serverMaxAudioBitrate,
+                        )
+                      : undefined
+                  }
                 />
               }
             />
@@ -491,6 +511,17 @@ export function VoiceVideo({ requestClose }: VoiceVideoProps) {
                   onChange={setVideoResolution}
                   labels={{ '2160p': '4K' }}
                   serverMax={serverLimitsVideo ? effective.serverMaxVideoResolution : undefined}
+                  disabledOptions={
+                    serverLimitsVideo
+                      ? (['360p', '480p', '720p', '1080p', '1440p', '2160p'] as const).filter(
+                          (r) =>
+                            VIDEO_RES_ORDER.indexOf(r) >
+                            VIDEO_RES_ORDER.indexOf(
+                              effective.serverMaxVideoResolution as (typeof VIDEO_RES_ORDER)[number],
+                            ),
+                        )
+                      : undefined
+                  }
                 />
               }
             />
@@ -506,6 +537,13 @@ export function VoiceVideo({ requestClose }: VoiceVideoProps) {
                   onChange={setVideoFps}
                   labels={{ 15: '15 fps', 24: '24 fps', 30: '30 fps', 60: '60 fps', 120: '120 fps' }}
                   serverMax={serverLimitsVideo ? `${effective.serverMaxVideoFps} fps` : undefined}
+                  disabledOptions={
+                    serverLimitsVideo
+                      ? ([15, 24, 30, 60, 120] as const).filter(
+                          (f) => f > effective.serverMaxVideoFps,
+                        )
+                      : undefined
+                  }
                 />
               }
             />
@@ -548,6 +586,17 @@ export function VoiceVideo({ requestClose }: VoiceVideoProps) {
                   onChange={setSSResolution}
                   labels={{ '4k': '4K', source: 'Source' }}
                   serverMax={serverLimitsSS ? effective.serverMaxSSResolution : undefined}
+                  disabledOptions={
+                    serverLimitsSS
+                      ? (['720p', '1080p', '1440p', '4k', 'source'] as const).filter(
+                          (r) =>
+                            SS_RES_ORDER.indexOf(r) >
+                            SS_RES_ORDER.indexOf(
+                              effective.serverMaxSSResolution as (typeof SS_RES_ORDER)[number],
+                            ),
+                        )
+                      : undefined
+                  }
                 />
               }
             />
@@ -567,6 +616,13 @@ export function VoiceVideo({ requestClose }: VoiceVideoProps) {
                   onChange={setSSFps}
                   labels={{ 5: '5', 15: '15', 30: '30', 60: '60', 120: '120 fps' }}
                   serverMax={serverLimitsSS ? `${effective.serverMaxSSFps} fps` : undefined}
+                  disabledOptions={
+                    serverLimitsSS
+                      ? ([5, 15, 30, 60, 120] as const).filter(
+                          (f) => f > effective.serverMaxSSFps,
+                        )
+                      : undefined
+                  }
                 />
               }
             />

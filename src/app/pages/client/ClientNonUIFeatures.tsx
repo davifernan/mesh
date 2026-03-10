@@ -7,8 +7,7 @@ import { roomToUnreadAtom, unreadEqual, unreadInfoToUnread } from '../../state/r
 import LogoSVG from '../../../../public/res/svg/cinny.svg';
 import LogoUnreadSVG from '../../../../public/res/svg/cinny-unread.svg';
 import LogoHighlightSVG from '../../../../public/res/svg/cinny-highlight.svg';
-import NotificationSound from '../../../../public/sound/notification.ogg';
-import InviteSound from '../../../../public/sound/invite.ogg';
+import { playCallSound, CallSoundType } from '../../utils/callSounds';
 import { notificationPermission, setFavicon } from '../../utils/dom';
 import { useSetting } from '../../state/hooks/settings';
 import { EmojiFont, getSettings, settingsAtom } from '../../state/settings';
@@ -101,7 +100,6 @@ function FaviconUpdater() {
 }
 
 function InviteNotifications() {
-  const audioRef = useRef<HTMLAudioElement>(null);
   const invites = useAtomValue(allInvitesAtom);
   const perviousInviteLen = usePreviousValue(invites.length, 0);
   const mx = useMatrixClient();
@@ -127,11 +125,6 @@ function InviteNotifications() {
     [navigate]
   );
 
-  const playSound = useCallback(() => {
-    const audioElement = audioRef.current;
-    audioElement?.play();
-  }, []);
-
   useEffect(() => {
     if (invites.length > perviousInviteLen && mx.getSyncState() === 'SYNCING') {
       if (showNotifications && notificationPermission('granted')) {
@@ -139,21 +132,15 @@ function InviteNotifications() {
       }
 
       if (notificationSound) {
-        playSound();
+        playCallSound(CallSoundType.Message);
       }
     }
-  }, [mx, invites, perviousInviteLen, showNotifications, notificationSound, notify, playSound]);
+  }, [mx, invites, perviousInviteLen, showNotifications, notificationSound, notify]);
 
-  return (
-    // eslint-disable-next-line jsx-a11y/media-has-caption
-    <audio ref={audioRef} style={{ display: 'none' }}>
-      <source src={InviteSound} type="audio/ogg" />
-    </audio>
-  );
+  return null;
 }
 
 function MessageNotifications() {
-  const audioRef = useRef<HTMLAudioElement>(null);
   const notifRef = useRef<Notification>();
   const unreadCacheRef = useRef<Map<string, UnreadInfo>>(new Map());
   const prevTypingCountRef = useRef(0);
@@ -203,10 +190,7 @@ function MessageNotifications() {
     [navigate]
   );
 
-  const playSound = useCallback(() => {
-    const audioElement = audioRef.current;
-    audioElement?.play();
-  }, []);
+
 
   useEffect(() => {
     const handleTimelineEvent: RoomEventHandlerMap[RoomEvent.Timeline] = (
@@ -276,12 +260,12 @@ function MessageNotifications() {
       // Differentiated sounds: OGG for mentions/other-room, generated soft beep for current room
       const isHighlight = unreadInfo.highlight > (cachedUnreadInfo?.highlight ?? 0);
       if (isHighlight && notificationSound) {
-        playSound();
+        playCallSound(CallSoundType.Message);
         announce(`Mention in ${room.name}`);
       } else if (isCurrentRoom && isFocused && inRoomActivitySound) {
         playCurrentRoomSound();
       } else if (!isCurrentRoom && notificationSound) {
-        playSound();
+        playCallSound(CallSoundType.Message, { volume: 0.6 });
       }
     };
     mx.on(RoomEvent.Timeline, handleTimelineEvent);
@@ -337,7 +321,6 @@ function MessageNotifications() {
     inRoomActivitySound,
     notificationSelected,
     showNotifications,
-    playSound,
     notify,
     selectedRoomId,
     useAuthentication,
@@ -345,12 +328,7 @@ function MessageNotifications() {
     roomToParents,
   ]);
 
-  return (
-    // eslint-disable-next-line jsx-a11y/media-has-caption
-    <audio ref={audioRef} style={{ display: 'none' }}>
-      <source src={NotificationSound} type="audio/ogg" />
-    </audio>
-  );
+  return null;
 }
 
 function InboxUnreadNotifications() {

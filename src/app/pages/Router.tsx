@@ -135,7 +135,7 @@ export const createRouter = (clientConfig: ClientConfig, screenSize: ScreenSize,
                     <ClientNonUIFeatures>
                       <MobileDrawerProvider>
                       <CallProvider>
-                        <ClientLayout
+                      <ClientLayout
                           nav={
                             <SidebarDrawerWrapper>
                               <SidebarNav />
@@ -146,6 +146,7 @@ export const createRouter = (clientConfig: ClientConfig, screenSize: ScreenSize,
                             <Outlet />
                           </PersistentCallContainer>
                         </ClientLayout>
+                        <MobileBottomNav />
                         <IncomingCallNotification />
                         <GlobalKeyboardShortcuts />
                         <div
@@ -163,7 +164,6 @@ export const createRouter = (clientConfig: ClientConfig, screenSize: ScreenSize,
                           }}
                         />
                       </CallProvider>
-                      <MobileBottomNav />
                       <SearchModalRenderer />
                       <UserRoomProfileRenderer />
                       <CreateRoomModalRenderer />

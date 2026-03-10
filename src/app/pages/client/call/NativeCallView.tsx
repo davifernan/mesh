@@ -4,6 +4,7 @@ import { RoomContext, RoomAudioRenderer, useAudioPlayback } from '@livekit/compo
 import { useAtomValue, useSetAtom } from 'jotai';
 import { useCallState } from './CallProvider';
 import { useMatrixClient } from '../../../hooks/useMatrixClient';
+import { ScreenSize, useScreenSizeContext } from '../../../hooks/useScreenSize';
 import { NativeCallParticipantGrid } from './NativeCallParticipantGrid';
 import { NativeCallControlBar } from './NativeCallControlBar';
 import { BCStatsPanel } from './BCStatsPanel';
@@ -69,6 +70,8 @@ function AudioUnblockButton() {
 export function NativeCallView() {
   const { livekitRoom, callStatus, callError, activeCallRoomId, toggleCallView } = useCallState();
   const mx = useMatrixClient();
+  const screenSize = useScreenSizeContext();
+  const isMobileLike = screenSize !== ScreenSize.Desktop;
   const { isActive, activate } = useVoiceHUDIdle(3000);
   const showStats = useAtomValue(showStatsAtom);
   const setShowStats = useSetAtom(showStatsAtom);
@@ -110,7 +113,7 @@ export function NativeCallView() {
 
   return (
     <div
-      className={`${styles.voiceRoot}${isActive ? ` ${styles.pointerActive}` : ''}`}
+      className={`${styles.voiceRoot}${(isActive || isMobileLike) ? ` ${styles.pointerActive}` : ''}`}
       onPointerMove={activate}
       onPointerDown={activate}
       onTouchStart={activate}

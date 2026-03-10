@@ -38,6 +38,7 @@ import {
   parseMatrixToUser,
   testMatrixTo,
 } from './matrix-to';
+import { parseBetterCordPermalink, testBetterCordPermalink } from './permalink';
 import { onEnterOrSpace } from '../utils/keyboard';
 import { copyToClipboard, tryDecodeURIComponent } from '../utils/dom';
 import { useTimeoutToggle } from '../hooks/useTimeoutToggle';
@@ -77,6 +78,41 @@ export const renderMatrixMention = (
   href: string,
   customProps: ComponentPropsWithoutRef<'a'>
 ) => {
+  const renderRoomMention = (
+    roomIdOrAlias: string,
+    options?: {
+      eventId?: string;
+      viaServers?: string[];
+      spaceIdOrAlias?: string;
+      direct?: boolean;
+      kind?: 'room' | 'space';
+      fallbackContent?: string;
+    }
+  ) => {
+    const mentionRoom = mx.getRoom(
+      isRoomAlias(roomIdOrAlias) ? getCanonicalAliasRoomId(mx, roomIdOrAlias) : roomIdOrAlias
+    );
+    const mentionKind = options?.kind ?? (mentionRoom?.isSpaceRoom() ? 'space' : 'room');
+
+    return (
+      <a
+        href={href}
+        {...customProps}
+        className={css.Mention({
+          highlight: currentRoomId === (mentionRoom?.roomId ?? roomIdOrAlias),
+        })}
+        data-mention-id={mentionRoom?.roomId ?? roomIdOrAlias}
+        data-mention-kind={mentionKind}
+        data-mention-event-id={options?.eventId}
+        data-mention-via={options?.viaServers?.join(',')}
+        data-mention-space-id={options?.spaceIdOrAlias}
+        data-mention-direct={options?.direct ? 'true' : undefined}
+      >
+        {customProps.children ? customProps.children : options?.fallbackContent}
+      </a>
+    );
+  };
+
   const userId = parseMatrixToUser(href);
   if (userId) {
     const currentRoom = mx.getRoom(currentRoomId);
@@ -102,21 +138,11 @@ export const renderMatrixMention = (
       isRoomAlias(roomIdOrAlias) ? getCanonicalAliasRoomId(mx, roomIdOrAlias) : roomIdOrAlias
     );
 
-    const fallbackContent = mentionRoom ? `#${mentionRoom.name}` : roomIdOrAlias;
-
-    return (
-      <a
-        href={href}
-        {...customProps}
-        className={css.Mention({
-          highlight: currentRoomId === (mentionRoom?.roomId ?? roomIdOrAlias),
-        })}
-        data-mention-id={mentionRoom?.roomId ?? roomIdOrAlias}
-        data-mention-via={viaServers?.join(',')}
-      >
-        {customProps.children ? customProps.children : fallbackContent}
-      </a>
-    );
+    return renderRoomMention(roomIdOrAlias, {
+      viaServers,
+      kind: mentionRoom?.isSpaceRoom() ? 'space' : 'room',
+      fallbackContent: mentionRoom ? `#${mentionRoom.name}` : roomIdOrAlias,
+    });
   }
 
   const matrixToRoomEvent = parseMatrixToRoomEvent(href);
@@ -126,22 +152,46 @@ export const renderMatrixMention = (
       isRoomAlias(roomIdOrAlias) ? getCanonicalAliasRoomId(mx, roomIdOrAlias) : roomIdOrAlias
     );
 
-    return (
-      <a
-        href={href}
-        {...customProps}
-        className={css.Mention({
-          highlight: currentRoomId === (mentionRoom?.roomId ?? roomIdOrAlias),
-        })}
-        data-mention-id={mentionRoom?.roomId ?? roomIdOrAlias}
-        data-mention-event-id={eventId}
-        data-mention-via={viaServers?.join(',')}
-      >
-        {customProps.children
-          ? customProps.children
-          : `Message: ${mentionRoom ? `#${mentionRoom.name}` : roomIdOrAlias}`}
-      </a>
+    return renderRoomMention(roomIdOrAlias, {
+      eventId,
+      viaServers,
+      fallbackContent: `Message: ${mentionRoom ? `#${mentionRoom.name}` : roomIdOrAlias}`,
+    });
+  }
+
+  const permalink = parseBetterCordPermalink(href);
+  if (permalink?.kind === 'space') {
+    const mentionRoom = mx.getRoom(
+      isRoomAlias(permalink.spaceIdOrAlias)
+        ? getCanonicalAliasRoomId(mx, permalink.spaceIdOrAlias)
+        : permalink.spaceIdOrAlias
     );
+
+    return renderRoomMention(permalink.spaceIdOrAlias, {
+      kind: 'space',
+      viaServers: permalink.viaServers,
+      fallbackContent: mentionRoom ? `#${mentionRoom.name}` : permalink.spaceIdOrAlias,
+    });
+  }
+
+  if (permalink?.kind === 'room') {
+    const mentionRoom = mx.getRoom(
+      isRoomAlias(permalink.roomIdOrAlias)
+        ? getCanonicalAliasRoomId(mx, permalink.roomIdOrAlias)
+        : permalink.roomIdOrAlias
+    );
+    let fallbackContent = mentionRoom ? `#${mentionRoom.name}` : permalink.roomIdOrAlias;
+    if (permalink.eventId) {
+      fallbackContent = `Message: ${mentionRoom ? `#${mentionRoom.name}` : permalink.roomIdOrAlias}`;
+    }
+
+    return renderRoomMention(permalink.roomIdOrAlias, {
+      eventId: permalink.eventId,
+      viaServers: permalink.viaServers,
+      spaceIdOrAlias: permalink.spaceIdOrAlias,
+      direct: permalink.direct,
+      fallbackContent,
+    });
   }
 
   return undefined;
@@ -155,7 +205,11 @@ export const factoryRenderLinkifyWithMention = (
     attributes,
     content,
   }) => {
-    if (tagName === 'a' && testMatrixTo(tryDecodeURIComponent(attributes.href))) {
+    if (
+      tagName === 'a' &&
+      (testMatrixTo(tryDecodeURIComponent(attributes.href)) ||
+        testBetterCordPermalink(tryDecodeURIComponent(attributes.href)))
+    ) {
       const mention = mentionRender(tryDecodeURIComponent(attributes.href));
       if (mention) return mention;
     }
@@ -440,7 +494,11 @@ export const getReactCustomHtmlParser = (
           }
         }
 
-        if (name === 'a' && testMatrixTo(tryDecodeURIComponent(props.href))) {
+        if (
+          name === 'a' &&
+          (testMatrixTo(tryDecodeURIComponent(props.href)) ||
+            testBetterCordPermalink(tryDecodeURIComponent(props.href)))
+        ) {
           const content = children.find((child) => !(child instanceof DOMText))
             ? undefined
             : children.map((c) => (c instanceof DOMText ? c.data : '')).join();

@@ -93,7 +93,7 @@ export function BCStatsPanel({ onClose }: BCStatsPanelProps) {
       }
     };
     update();
-    const interval = setInterval(update, 1000);
+    const interval = setInterval(update, 3000);
     return () => clearInterval(interval);
   }, [room]);
 

@@ -159,13 +159,19 @@ export const createMentionElement = (
   id: string,
   name: string,
   highlight: boolean,
+  linkKind?: 'room' | 'space',
   eventId?: string,
-  viaServers?: string[]
+  viaServers?: string[],
+  spaceIdOrAlias?: string,
+  direct?: boolean
 ): MentionElement => ({
   type: BlockType.Mention,
   id,
+  linkKind,
   eventId,
   viaServers,
+  spaceIdOrAlias,
+  direct,
   highlight,
   name,
   children: [{ text: '' }],

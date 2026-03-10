@@ -13,6 +13,8 @@ import { MatrixRTCSession } from 'matrix-js-sdk/lib/matrixrtc/MatrixRTCSession';
 import { RoomEvent } from 'livekit-client';
 import type { Room } from 'livekit-client';
 import { useNativeCall, type CallStatus } from '../../../features/call/nativeCallEngine';
+import { resolveParticipantUserId } from '../../../features/call/participantIdentity';
+import { playCallSound as playCallSoundMP3, CallSoundType } from '../../../utils/callSounds';
 import { useMatrixClient } from '../../../hooks/useMatrixClient';
 import { useChannelAVOverride } from '../../../hooks/useChannelAVOverride';
 
@@ -35,7 +37,8 @@ interface CallContextState {
   isVideoEnabled: boolean;
   isScreenShareEnabled: boolean;
   isDeafened: boolean;
-  toggleDeafen: () => void;
+  isFrontCamera: boolean;
+  toggleDeafen: () => Promise<void>;
   speakingUsers: Set<string>;
   remoteParticipantStates: Map<string, { audioEnabled: boolean; videoEnabled: boolean; isScreenSharing: boolean }>;
   livekitRoom: Room | null;
@@ -50,38 +53,7 @@ interface CallProviderProps {
   children: ReactNode;
 }
 
-// Play a short two-note ascending/descending tone (Web Audio API).
-function playCallSound(ascending: boolean) {
-  try {
-    const ctx = new AudioContext();
-    const now = ctx.currentTime;
-    const freqs = ascending ? [523, 659] : [659, 523]; // C5→E5 join, E5→C5 leave
-    freqs.forEach((freq, i) => {
-      const osc = ctx.createOscillator();
-      const gain = ctx.createGain();
-      osc.type = 'sine';
-      osc.frequency.value = freq;
-      gain.gain.setValueAtTime(0, now + i * 0.12);
-      gain.gain.linearRampToValueAtTime(0.18, now + i * 0.12 + 0.01);
-      gain.gain.linearRampToValueAtTime(0, now + i * 0.12 + 0.14);
-      osc.connect(gain);
-      gain.connect(ctx.destination);
-      osc.start(now + i * 0.12);
-      osc.stop(now + i * 0.12 + 0.14);
-    });
-    setTimeout(() => ctx.close().catch(() => {}), 600);
-  } catch {
-    // Audio blocked or not supported
-  }
-}
 
-function extractUserId(identity: string): string {
-  if (identity.startsWith('@')) {
-    const lastUnderscore = identity.lastIndexOf('_');
-    if (lastUnderscore > 1) return identity.slice(0, lastUnderscore);
-  }
-  return identity;
-}
 
 export function CallProvider({ children }: CallProviderProps) {
   const mx = useMatrixClient();
@@ -201,10 +173,10 @@ export function CallProvider({ children }: CallProviderProps) {
 
       if (useMatrixMembershipSounds) {
         for (const sender of currentSenders) {
-          if (!known.has(sender) && sender !== myUserId) playCallSound(true);
+          if (!known.has(sender) && sender !== myUserId) playCallSoundMP3(CallSoundType.UserJoin);
         }
         for (const sender of known) {
-          if (!currentSenders.has(sender) && sender !== myUserId) playCallSound(false);
+          if (!currentSenders.has(sender) && sender !== myUserId) playCallSoundMP3(CallSoundType.UserLeave);
         }
       }
 
@@ -228,14 +200,25 @@ export function CallProvider({ children }: CallProviderProps) {
     if (!engine.livekitRoom || engine.status !== 'connected') return;
 
     const myUserId = mx.getUserId() ?? '';
+    const activeRoom = activeCallRoomId ? mx.getRoom(activeCallRoomId) : null;
 
-    const onParticipantConnected = (participant: { identity: string }) => {
-      const uid = extractUserId(participant.identity);
+    const onParticipantConnected = (participant: {
+      identity: string;
+      name?: string;
+      metadata?: string;
+      attributes?: Record<string, string>;
+    }) => {
+      const uid = resolveParticipantUserId(participant, activeRoom);
       if (uid !== myUserId) playCallSound(true);
     };
 
-    const onParticipantDisconnected = (participant: { identity: string }) => {
-      const uid = extractUserId(participant.identity);
+    const onParticipantDisconnected = (participant: {
+      identity: string;
+      name?: string;
+      metadata?: string;
+      attributes?: Record<string, string>;
+    }) => {
+      const uid = resolveParticipantUserId(participant, activeRoom);
       if (uid !== myUserId) playCallSound(false);
     };
 
@@ -246,7 +229,7 @@ export function CallProvider({ children }: CallProviderProps) {
       engine.livekitRoom?.off(RoomEvent.ParticipantConnected, onParticipantConnected as any);
       engine.livekitRoom?.off(RoomEvent.ParticipantDisconnected, onParticipantDisconnected as any);
     };
-  }, [engine.livekitRoom, engine.status, mx]);
+  }, [activeCallRoomId, engine.livekitRoom, engine.status, mx]);
 
   const setViewedCallRoomId = useCallback(
     (roomId: string | null) => {
@@ -257,7 +240,6 @@ export function CallProvider({ children }: CallProviderProps) {
 
   const hangUp = useCallback(() => {
     engine.hangUp();
-    playCallSound(false);
     setActiveCallRoomIdState(null);
     setIsCallViewOpenState(false);
   }, [engine]);
@@ -289,6 +271,7 @@ export function CallProvider({ children }: CallProviderProps) {
     isVideoEnabled: engine.isVideoEnabled,
     isScreenShareEnabled: engine.isScreenShareEnabled,
     isDeafened: engine.isDeafened,
+    isFrontCamera: engine.isFrontCamera,
     toggleDeafen: engine.toggleDeafen,
     speakingUsers: engine.speakingUsers,
     remoteParticipantStates: engine.remoteParticipantStates,

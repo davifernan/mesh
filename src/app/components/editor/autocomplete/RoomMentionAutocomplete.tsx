@@ -5,19 +5,21 @@ import { JoinRule, MatrixClient } from 'matrix-js-sdk';
 import { useAtomValue } from 'jotai';
 
 import { createMentionElement, moveCursor, replaceWithElement } from '../utils';
-import { getDirectRoomAvatarUrl } from '../../../utils/room';
+import { getAllParents, getDirectRoomAvatarUrl } from '../../../utils/room';
 import { useMatrixClient } from '../../../hooks/useMatrixClient';
 import { AutocompleteQuery } from './autocompleteQuery';
 import { AutocompleteMenu } from './AutocompleteMenu';
-import { getMxIdServer, isRoomAlias } from '../../../utils/matrix';
+import { getCanonicalAliasOrRoomId, getMxIdServer, isRoomAlias } from '../../../utils/matrix';
 import { UseAsyncSearchOptions, useAsyncSearch } from '../../../hooks/useAsyncSearch';
 import { onTabPress } from '../../../utils/keyboard';
 import { useKeyDown } from '../../../hooks/useKeyDown';
 import { mDirectAtom } from '../../../state/mDirectList';
 import { allRoomsAtom } from '../../../state/room-list/roomList';
+import { roomToParentsAtom } from '../../../state/room/roomToParents';
 import { factoryRoomIdByActivity } from '../../../utils/sort';
 import { RoomAvatar, RoomIcon } from '../../room-avatar';
 import { getViaServers } from '../../../plugins/via-servers';
+import { useSpaceOptionally } from '../../../hooks/useSpace';
 
 type MentionAutoCompleteHandler = (roomAliasOrId: string, name: string) => void;
 
@@ -78,6 +80,8 @@ export function RoomMentionAutocomplete({
 }: RoomMentionAutocompleteProps) {
   const mx = useMatrixClient();
   const mDirects = useAtomValue(mDirectAtom);
+  const roomToParents = useAtomValue(roomToParentsAtom);
+  const space = useSpaceOptionally();
 
   const allRooms = useAtomValue(allRoomsAtom).sort(factoryRoomIdByActivity(mx));
 
@@ -106,12 +110,20 @@ export function RoomMentionAutocomplete({
   const handleAutocomplete: MentionAutoCompleteHandler = (roomAliasOrId, name) => {
     const mentionRoom = mx.getRoom(roomAliasOrId);
     const viaServers = mentionRoom ? getViaServers(mentionRoom) : undefined;
+    const mentionRoomInCurrentSpace =
+      space && mentionRoom
+        ? mentionRoom.roomId === space.roomId || getAllParents(roomToParents, mentionRoom.roomId).has(space.roomId)
+        : false;
+    const spaceIdOrAlias =
+      space && mentionRoomInCurrentSpace ? getCanonicalAliasOrRoomId(mx, space.roomId) : undefined;
     const mentionEl = createMentionElement(
       roomAliasOrId,
       name.startsWith('#') ? name : `#${name}`,
       roomId === roomAliasOrId || mx.getRoom(roomId)?.getCanonicalAlias() === roomAliasOrId,
+      'room',
       undefined,
-      viaServers
+      viaServers,
+      spaceIdOrAlias
     );
     replaceWithElement(editor, query.range, mentionEl);
     moveCursor(editor, true);

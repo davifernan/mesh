@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useRef, useState, useEffect } from 'react';
 import { type Participant, LocalParticipant, Track } from 'livekit-client';
 import { VideoTrack, useTracks, type TrackReference } from '@livekit/components-react';
 import {
@@ -6,10 +6,11 @@ import {
   MonitorPlay,
   CornersOut,
   SpeakerSlash,
-  VideoCamera,
+  User,
 } from '@phosphor-icons/react';
 import { useMatrixClient } from '../../../hooks/useMatrixClient';
 import { useMediaAuthentication } from '../../../hooks/useMediaAuthentication';
+import { resolveParticipantUserId } from '../../../features/call/participantIdentity';
 import { useCallState } from './CallProvider';
 import { getPresenceBadgeKinds, getPresenceSummary, PRESENCE_BADGE_LABEL } from '../../../features/call/presenceBadges';
 import { getMemberAvatarMxc } from '../../../utils/room';
@@ -24,19 +25,6 @@ function getColorFromIdentity(identity: string): string {
     0
   );
   return AVATAR_COLORS[Math.abs(hash) % AVATAR_COLORS.length];
-}
-
-/**
- * Extracts Matrix userId from a LiveKit participant identity.
- * Legacy: "@user:server_DEVICEID" → "@user:server"
- * Otherwise returns identity as-is.
- */
-function extractUserId(identity: string): string {
-  if (identity.startsWith('@')) {
-    const lastUnderscore = identity.lastIndexOf('_');
-    if (lastUnderscore > 1) return identity.slice(0, lastUnderscore);
-  }
-  return identity;
 }
 
 // ── Props ──────────────────────────────────────────────────────────────────
@@ -61,7 +49,7 @@ export function NativeCallParticipantTile({
 }: NativeCallParticipantTileProps) {
   const mx = useMatrixClient();
   const useAuthentication = useMediaAuthentication();
-  const { activeCallRoomId, remoteParticipantStates, isAudioEnabled, isDeafened } = useCallState();
+  const { activeCallRoomId, remoteParticipantStates, isAudioEnabled, isDeafened, isFrontCamera } = useCallState();
 
   // ── Track resolution ──────────────────────────────────────────────────
   const allTracksUnfiltered = useTracks([
@@ -96,13 +84,16 @@ export function NativeCallParticipantTile({
   const fps = camPub?.track?.mediaStreamTrack.getSettings().frameRate;
 
   // ── Identity / display ───────────────────────────────────────────────
-  const displayName = participant.name ?? participant.identity;
+  const displayName = participant.name || participant.identity;
   const initial = displayName.charAt(0).toUpperCase();
   const isLocal = participant instanceof LocalParticipant;
-  const userId = useMemo(() => extractUserId(participant.identity), [participant.identity]);
+  const room = activeCallRoomId ? mx.getRoom(activeCallRoomId) : null;
+  const userId = useMemo(
+    () => resolveParticipantUserId(participant, room),
+    [participant, room]
+  );
 
   // ── Matrix avatar ─────────────────────────────────────────────────────
-  const room = activeCallRoomId ? mx.getRoom(activeCallRoomId) : null;
   const avatarMxcUrl = useMemo(
     () => (room ? getMemberAvatarMxc(room, userId) : undefined),
     [room, userId]
@@ -151,6 +142,24 @@ export function NativeCallParticipantTile({
     [participant.identity]
   );
 
+  // ── Responsive avatar size (32% of shortest tile dimension) ──────────
+  const tileRef = useRef<HTMLDivElement>(null);
+  const [avatarSize, setAvatarSize] = useState(64);
+
+  useEffect(() => {
+    const el = tileRef.current;
+    if (!el) return;
+    const observer = new ResizeObserver(([entry]) => {
+      const { width, height } = entry.contentRect;
+      const base = Math.min(width, height);
+      // 32% of shortest dimension, min 40px, max 160px, rounded to nearest even
+      const size = Math.round(Math.max(40, Math.min(base * 0.32, 160)) / 2) * 2;
+      setAvatarSize(size);
+    });
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
+
   // ── Camera visible? ───────────────────────────────────────────────────
   const hasCameraVideo = useMemo(() => {
     if (!cameraTrack) return false;
@@ -160,10 +169,14 @@ export function NativeCallParticipantTile({
 
   return (
     <div
+      ref={tileRef}
       className={[styles.tile, className].filter(Boolean).join(' ')}
       data-speaking={participant.isSpeaking ? 'true' : 'false'}
       data-pinned={isPinned ? 'true' : 'false'}
-      style={{ '--voice-tile-accent-color': tileAccentColor } as React.CSSProperties}
+      style={{
+        '--voice-tile-accent-color': tileAccentColor,
+        '--avatar-size': `${avatarSize}px`,
+      } as React.CSSProperties}
       role="group"
       aria-label={tileAriaLabel}
     >
@@ -174,7 +187,7 @@ export function NativeCallParticipantTile({
       >
         {hasCameraVideo && cameraTrack && 'publication' in cameraTrack && cameraTrack.publication && (
           <VideoTrack
-            className={styles.video}
+            className={[styles.video, isLocal && isFrontCamera ? styles.videoMirrored : ''].filter(Boolean).join(' ')}
             trackRef={cameraTrack as TrackReference}
           />
         )}
@@ -196,7 +209,7 @@ export function NativeCallParticipantTile({
             className={styles.initial}
             style={{ backgroundColor: tileAccentColor }}
           >
-            {initial}
+            <User size={Math.round(avatarSize * 0.6)} weight="fill" />
           </div>
         )}
       </div>
@@ -233,24 +246,17 @@ export function NativeCallParticipantTile({
         </div>
       )}
 
-      {/* ── Metadata bar (hover-revealed, bottom; always shown on mobile) ── */}
+      {/* ── Metadata bar (always visible) ── */}
       <div className={styles.metadata}>
-        <span className={styles.metaName}>{displayName}</span>
-        {badgeKinds.includes('camera') && (
-          <span className={`${styles.badgeIcon} ${styles.cameraIcon}`} title={PRESENCE_BADGE_LABEL.camera}>
-            <VideoCamera size={14} weight="fill" aria-hidden="true" />
-          </span>
-        )}
-        {badgeKinds.includes('deafened') && (
-          <span className={`${styles.badgeIcon} ${styles.deafenedIcon}`} title={PRESENCE_BADGE_LABEL.deafened}>
-            <SpeakerSlash size={14} weight="fill" aria-hidden="true" />
-          </span>
-        )}
-        {badgeKinds.includes('muted') && (
-          <span className={`${styles.badgeIcon} ${styles.mutedIcon}`} title={PRESENCE_BADGE_LABEL.muted}>
-            <MicrophoneSlash size={14} weight="fill" aria-hidden="true" />
-          </span>
-        )}
+        <div className={styles.metaChip}>
+          {badgeKinds.includes('muted') && (
+            <MicrophoneSlash size={12} weight="fill" className={styles.metaIconMuted} aria-hidden="true" />
+          )}
+          {badgeKinds.includes('deafened') && (
+            <SpeakerSlash size={12} weight="fill" className={styles.metaIconDeafened} aria-hidden="true" />
+          )}
+          <span className={styles.metaName}>{displayName}</span>
+        </div>
       </div>
     </div>
   );

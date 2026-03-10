@@ -1,27 +1,11 @@
-import React, { useEffect, useRef, useState } from 'react';
-import { useAtomValue, useSetAtom } from 'jotai';
-import { settingsAtom, Settings } from '../../state/settings';
-import { effectiveAVSettingsAtom } from '../../state/avQuality';
+import React, { useEffect, useState } from 'react';
 import type { DesktopSource, DisplayMediaRequestInfo } from '../../../types/electron';
 
 type Tab = 'screen' | 'window';
-type SSResolution = Settings['ssResolution'];
-type SSFps = Settings['ssFps'];
 
 interface PendingRequest {
   requestId: string;
   info: DisplayMediaRequestInfo;
-}
-
-const SS_RESOLUTIONS: SSResolution[] = ['720p', '1080p', '1440p', '4k', 'source'];
-const SS_FPS: SSFps[] = [5, 15, 30, 60, 120];
-const SS_RESOLUTION_ORDER = ['720p', '1080p', '1440p', '4k', 'source'];
-
-function isResolutionAllowed(res: SSResolution, maxRes: string): boolean {
-  const resIdx = SS_RESOLUTION_ORDER.indexOf(res);
-  const maxIdx = SS_RESOLUTION_ORDER.indexOf(maxRes);
-  if (resIdx === -1 || maxIdx === -1) return true;
-  return resIdx <= maxIdx;
 }
 
 // ─── Shared inline styles ────────────────────────────────────────────────────
@@ -173,95 +157,6 @@ const S = {
     cursor: 'not-allowed',
     opacity: 0.35,
   },
-  audioToggle: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '8px',
-    fontSize: '13px',
-    fontWeight: 500,
-    color: '#b5bac1',
-    marginRight: 'auto',
-    cursor: 'pointer',
-    userSelect: 'none' as const,
-  },
-  // Quality step
-  qualityBody: {
-    padding: '20px 24px',
-    overflowY: 'auto' as const,
-    flex: 1,
-    background: '#2b2d31',
-    display: 'flex',
-    flexDirection: 'column' as const,
-    gap: '20px',
-  },
-  section: {
-    display: 'flex',
-    flexDirection: 'column' as const,
-    gap: '10px',
-  },
-  sectionLabel: {
-    fontSize: '11px',
-    fontWeight: 700,
-    color: '#b5bac1',
-    textTransform: 'uppercase' as const,
-    letterSpacing: '0.08em',
-  },
-  chipRow: {
-    display: 'flex',
-    gap: '8px',
-    flexWrap: 'wrap' as const,
-  },
-  chipActive: {
-    padding: '6px 16px',
-    borderRadius: '6px',
-    border: '2px solid #5865f2',
-    background: 'rgba(88,101,242,0.2)',
-    color: '#f2f3f5',
-    fontSize: '13px',
-    fontWeight: 600,
-    cursor: 'pointer',
-  },
-  chipInactive: {
-    padding: '6px 16px',
-    borderRadius: '6px',
-    border: '2px solid rgba(255,255,255,0.1)',
-    background: 'transparent',
-    color: '#b5bac1',
-    fontSize: '13px',
-    fontWeight: 500,
-    cursor: 'pointer',
-  },
-  chipDisabled: {
-    padding: '6px 16px',
-    borderRadius: '6px',
-    border: '2px solid rgba(255,255,255,0.05)',
-    background: 'transparent',
-    color: '#4e5058',
-    fontSize: '13px',
-    fontWeight: 500,
-    cursor: 'not-allowed',
-    opacity: 0.5,
-  },
-  toggleRow: {
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    padding: '12px 16px',
-    borderRadius: '8px',
-    background: '#1e1f22',
-  },
-  toggleLabel: {
-    fontSize: '14px',
-    fontWeight: 500,
-    color: '#dbdee1',
-  },
-  infoRow: {
-    fontSize: '12px',
-    color: '#b5bac1',
-    background: 'rgba(255,255,255,0.04)',
-    borderRadius: '6px',
-    padding: '8px 12px',
-  },
 };
 
 // ─── Step 1: Source Picker ───────────────────────────────────────────────────
@@ -274,7 +169,7 @@ interface SourcePickerProps {
   onTabChange: (t: Tab) => void;
   onSelect: (id: string) => void;
   onCancel: () => void;
-  onNext: () => void;
+  onNext: (sourceId?: string) => void;
 }
 
 function SourcePicker({ sources, loading, tab, selected, onTabChange, onSelect, onCancel, onNext }: SourcePickerProps) {
@@ -306,7 +201,7 @@ function SourcePicker({ sources, loading, tab, selected, onTabChange, onSelect, 
           <button key={source.id} type="button"
             style={selected === source.id ? S.cardSelected : S.cardNormal}
             onClick={() => onSelect(source.id)}
-            onDoubleClick={() => { onSelect(source.id); onNext(); }}
+            onDoubleClick={() => onNext(source.id)}
           >
             <img style={S.thumbnail} src={source.thumbnailDataUrl} alt={source.name} draggable={false} />
             <span style={S.sourceName} title={source.name}>{source.name}</span>
@@ -318,103 +213,9 @@ function SourcePicker({ sources, loading, tab, selected, onTabChange, onSelect, 
         <button type="button" style={S.cancelBtn} onClick={onCancel}>Cancel</button>
         <button type="button"
           style={selected ? S.primaryBtn : S.primaryBtnDisabled}
-          onClick={onNext} disabled={!selected}>
-          Next →
+          onClick={() => onNext()} disabled={!selected}>
+          Share now
         </button>
-      </div>
-    </div>
-  );
-}
-
-// ─── Step 2: Quality Picker ──────────────────────────────────────────────────
-
-interface QualityPickerProps {
-  supportsAudio: boolean;
-  onBack: () => void;
-  onCancel: () => void;
-  onShare: (res: SSResolution, fps: SSFps, audio: boolean) => void;
-}
-
-function QualityPicker({ supportsAudio, onBack, onCancel, onShare }: QualityPickerProps) {
-  const settings = useAtomValue(settingsAtom);
-  const setSettings = useSetAtom(settingsAtom);
-  const effective = useAtomValue(effectiveAVSettingsAtom);
-
-  const [ssResolution, setSsResolution] = useState<SSResolution>(effective.ssResolution);
-  const [ssFps, setSsFps] = useState<SSFps>(effective.ssFps as SSFps);
-  const [ssAudio, setSsAudio] = useState<boolean>(settings.ssAudio);
-
-  const serverMaxRes = effective.serverMaxSSResolution;
-  const serverMaxFps = effective.serverMaxSSFps;
-
-  const handleShare = () => {
-    setSettings({ ...settings, ssResolution, ssFps, ssAudio });
-    onShare(ssResolution, ssFps, ssAudio);
-  };
-
-  return (
-    <div style={S.modal} role="dialog" aria-modal="true">
-      <div style={S.header}>Quality settings</div>
-
-      <div style={S.qualityBody}>
-        <div style={S.section}>
-          <div style={S.sectionLabel}>Resolution</div>
-          <div style={S.chipRow}>
-            {SS_RESOLUTIONS.map((res) => {
-              const allowed = isResolutionAllowed(res, serverMaxRes);
-              const active = ssResolution === res;
-              return (
-                <button key={res} type="button"
-                  style={!allowed ? S.chipDisabled : active ? S.chipActive : S.chipInactive}
-                  onClick={() => allowed && setSsResolution(res)}
-                  disabled={!allowed}>
-                  {res === 'source' ? 'Source' : res}
-                </button>
-              );
-            })}
-          </div>
-        </div>
-
-        <div style={S.section}>
-          <div style={S.sectionLabel}>Framerate</div>
-          <div style={S.chipRow}>
-            {SS_FPS.map((fps) => {
-              const allowed = fps <= serverMaxFps;
-              const active = ssFps === fps;
-              return (
-                <button key={fps} type="button"
-                  style={!allowed ? S.chipDisabled : active ? S.chipActive : S.chipInactive}
-                  onClick={() => allowed && setSsFps(fps)}
-                  disabled={!allowed}>
-                  {fps} fps
-                </button>
-              );
-            })}
-          </div>
-        </div>
-
-        {supportsAudio && (
-          <div style={S.section}>
-            <div style={S.toggleRow}>
-              <span style={S.toggleLabel}>Share system audio</span>
-              <input type="checkbox" checked={ssAudio}
-                onChange={(e) => setSsAudio(e.target.checked)}
-                style={{ width: 18, height: 18, cursor: 'pointer' }} />
-            </div>
-          </div>
-        )}
-
-        {(serverMaxRes !== 'source' || serverMaxFps < 120) && (
-          <div style={S.infoRow}>
-            ℹ Max allowed by space admin: {serverMaxRes === 'source' ? 'Source' : serverMaxRes} / {serverMaxFps} fps
-          </div>
-        )}
-      </div>
-
-      <div style={S.footer}>
-        <button type="button" style={{ ...S.cancelBtn, marginRight: 'auto' }} onClick={onBack}>← Back</button>
-        <button type="button" style={S.cancelBtn} onClick={onCancel}>Cancel</button>
-        <button type="button" style={S.primaryBtn} onClick={handleShare}>Share now</button>
       </div>
     </div>
   );
@@ -427,20 +228,16 @@ export function ElectronScreensharePicker() {
   const [sources, setSources] = useState<DesktopSource[]>([]);
   const [tab, setTab] = useState<Tab>('screen');
   const [selected, setSelected] = useState<string | null>(null);
-  const [step, setStep] = useState<'source' | 'quality'>('source');
   const [loading, setLoading] = useState(false);
-  const requestIdRef = useRef<string | null>(null);
 
   useEffect(() => {
     const electron = window.electron;
     if (!electron?.onDisplayMediaRequested) return;
 
     const unsub = electron.onDisplayMediaRequested((requestId, info) => {
-      requestIdRef.current = requestId;
       setPending({ requestId, info });
       setSelected(null);
       setTab('screen');
-      setStep('source');
       setSources([]);
       setLoading(true);
 
@@ -461,35 +258,30 @@ export function ElectronScreensharePicker() {
     setPending(null);
   };
 
-  const handleShare = (_res: SSResolution, _fps: SSFps, audio: boolean) => {
-    if (!selected) return;
-    window.electron?.selectDisplayMediaSource(pending.requestId, selected, audio);
+  const handleShare = (sourceId?: string) => {
+    const resolvedSourceId = sourceId ?? selected;
+    if (!resolvedSourceId) return;
+
+    const withAudio = pending.info.audioRequested && (
+      pending.info.supportsLoopbackAudio || pending.info.supportsSystemAudioCapture
+    );
+
+    window.electron?.selectDisplayMediaSource(pending.requestId, resolvedSourceId, withAudio);
     setPending(null);
   };
 
-  const supportsAudio = pending.info.supportsLoopbackAudio || pending.info.supportsSystemAudioCapture;
-
   return (
     <div style={S.overlay} onClick={(e) => e.target === e.currentTarget && handleCancel()}>
-      {step === 'source' ? (
-        <SourcePicker
-          sources={sources}
-          loading={loading}
-          tab={tab}
-          selected={selected}
-          onTabChange={(t) => { setTab(t); setSelected(null); }}
-          onSelect={setSelected}
-          onCancel={handleCancel}
-          onNext={() => setStep('quality')}
-        />
-      ) : (
-        <QualityPicker
-          supportsAudio={supportsAudio}
-          onBack={() => setStep('source')}
-          onCancel={handleCancel}
-          onShare={handleShare}
-        />
-      )}
+      <SourcePicker
+        sources={sources}
+        loading={loading}
+        tab={tab}
+        selected={selected}
+        onTabChange={(t) => { setTab(t); setSelected(null); }}
+        onSelect={setSelected}
+        onCancel={handleCancel}
+        onNext={handleShare}
+      />
     </div>
   );
 }

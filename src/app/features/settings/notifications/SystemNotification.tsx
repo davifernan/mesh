@@ -247,7 +247,8 @@ export function SystemNotification() {
     'inboxUnreadNotifications'
   );
   const [callAutoJoin, setCallAutoJoin] = useSetting(settingsAtom, 'callAutoJoin');
-  const [autoJoinSpaceRooms, setAutoJoinSpaceRooms] = useSetting(settingsAtom, 'autoJoinSpaceRooms');
+  const [callSoundsEnabled, setCallSoundsEnabled] = useSetting(settingsAtom, 'callSoundsEnabled');
+  const [callSoundsVolume, setCallSoundsVolume] = useSetting(settingsAtom, 'callSoundsVolume');
 
   const requestNotificationPermission = () => {
     window.Notification.requestPermission();
@@ -342,11 +343,41 @@ export function SystemNotification() {
           description="Skip the call lobby and join immediately when opening a call."
           after={<Switch value={callAutoJoin} onChange={setCallAutoJoin} />}
         />
+      </SequenceCard>
+      <SequenceCard
+        className={SequenceCardStyle}
+        variant="SurfaceVariant"
+        direction="Column"
+        gap="400"
+      >
         <SettingTile
-          title="Auto-Join Space Rooms"
-          description="After joining a community, automatically join joinable text and voice rooms."
-          after={<Switch value={autoJoinSpaceRooms} onChange={setAutoJoinSpaceRooms} />}
+          title="Call Sounds"
+          description="Play sounds for join, leave, mute, screenshare, and other call events."
+          after={<Switch value={callSoundsEnabled ?? true} onChange={setCallSoundsEnabled} />}
         />
+        {(callSoundsEnabled ?? true) && (
+          <SettingTile
+            title="Call Sound Volume"
+            description="Adjust the volume of call event sounds."
+            after={
+              <Box direction="Row" gap="200" alignItems="Center">
+                <input
+                  type="range"
+                  min={0}
+                  max={1}
+                  step={0.05}
+                  value={callSoundsVolume ?? 1}
+                  onChange={(e) => setCallSoundsVolume(Number(e.target.value))}
+                  aria-label="Call sound volume"
+                  style={{ width: '120px', accentColor: 'var(--brand-primary, #5865f2)' }}
+                />
+                <Text size="T200" style={{ minWidth: '2.5em', textAlign: 'right' }}>
+                  {Math.round((callSoundsVolume ?? 1) * 100)}%
+                </Text>
+              </Box>
+            }
+          />
+        )}
       </SequenceCard>
       <SequenceCard
         className={SequenceCardStyle}

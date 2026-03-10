@@ -8,6 +8,7 @@ import React, {
   useState,
 } from 'react';
 import { useAtom, useAtomValue } from 'jotai';
+import { spaceUploadSettingsAtom } from '../../state/uploadSettings';
 import { isKeyHotkey } from 'is-hotkey';
 import { EventType, IContent, MsgType, RelationType, Room } from 'matrix-js-sdk';
 import { ReactEditor } from 'slate-react';
@@ -118,6 +119,7 @@ import { useTheme } from '../../hooks/useTheme';
 import { useRoomCreatorsTag } from '../../hooks/useRoomCreatorsTag';
 import { usePowerLevelTags } from '../../hooks/usePowerLevelTags';
 import { useComposingCheck } from '../../hooks/useComposingCheck';
+import { useClientConfig } from '../../hooks/useClientConfig';
 
 interface RoomInputProps {
   editor: Editor;
@@ -137,6 +139,7 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
     const [hideActivity] = useSetting(settingsAtom, 'hideActivity');
     const [legacyUsernameColor] = useSetting(settingsAtom, 'legacyUsernameColor');
     const direct = useIsDirectRoom();
+    const { hashRouter } = useClientConfig();
     const commands = useCommands(mx, room);
     const emojiBtnRef = useRef<HTMLButtonElement>(null);
     const roomToParents = useAtomValue(roomToParentsAtom);
@@ -165,6 +168,9 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
     const replyUsernameColor =
       legacyUsernameColor || direct ? colorMXID(replyUserID ?? '') : replyPowerColor;
 
+    const spaceUploadSettings = useAtomValue(spaceUploadSettingsAtom);
+    const [uploadSizeError, setUploadSizeError] = useState<string | null>(null);
+
     const [uploadBoard, setUploadBoard] = useState(true);
     const [selectedFiles, setSelectedFiles] = useAtom(roomIdToUploadItemsAtomFamily(roomId));
     const uploadFamilyObserverAtom = createUploadFamilyObserverAtom(
@@ -184,7 +190,25 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
     const handleFiles = useCallback(
       async (files: File[]) => {
         setUploadBoard(true);
-        const safeFiles = files.map(safeFile);
+        setUploadSizeError(null);
+
+        // Enforce space upload size limit
+        const maxBytes = spaceUploadSettings?.maxFileSizeBytes ?? 0;
+        let filesToProcess = files;
+        if (maxBytes > 0) {
+          const rejected = files.filter((f) => f.size > maxBytes);
+          filesToProcess = files.filter((f) => f.size <= maxBytes);
+          if (rejected.length > 0) {
+            const maxMb = Math.round(maxBytes / (1024 * 1024));
+            const names = rejected.map((f) => f.name).join(', ');
+            setUploadSizeError(
+              `${rejected.length} Datei${rejected.length > 1 ? 'en' : ''} abgelehnt (>${maxMb} MB): ${names}`
+            );
+          }
+          if (filesToProcess.length === 0) return;
+        }
+
+        const safeFiles = filesToProcess.map(safeFile);
         const fileItems: TUploadItem[] = [];
 
         if (room.hasEncryptionStateEvent()) {
@@ -216,7 +240,7 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
           item: fileItems,
         });
       },
-      [setSelectedFiles, room]
+      [setSelectedFiles, room, spaceUploadSettings]
     );
     const pickFile = useFilePicker(handleFiles, true);
     const handlePaste = useFilePasteHandler(handleFiles);
@@ -311,6 +335,7 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
           allowTextFormatting: true,
           allowBlockMarkdown: isMarkdown,
           allowInlineMarkdown: isMarkdown,
+          hashRouter,
         })
       );
       let msgType = MsgType.Text;
@@ -394,7 +419,18 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
       resetEditorHistory(editor);
       setReplyDraft(undefined);
       sendTypingStatus(false);
-    }, [mx, roomId, threadId, editor, replyDraft, sendTypingStatus, setReplyDraft, isMarkdown, commands]);
+    }, [
+      mx,
+      roomId,
+      threadId,
+      editor,
+      replyDraft,
+      sendTypingStatus,
+      setReplyDraft,
+      isMarkdown,
+      commands,
+      hashRouter,
+    ]);
 
     const handleKeyDown: KeyboardEventHandler = useCallback(
       (evt) => {
@@ -483,6 +519,29 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
 
     return (
       <div ref={ref}>
+        {uploadSizeError && (
+          <Box
+            alignItems="Center"
+            gap="200"
+            style={{
+              padding: `${config.space.S100} ${config.space.S300}`,
+              background: 'var(--bg-caution, rgba(242, 63, 66, 0.12))',
+              borderBottom: '1px solid var(--status-danger, #f23f42)',
+            }}
+          >
+            <Icon size="100" src={Icons.Warning} />
+            <Text size="T200" style={{ color: 'var(--status-danger, #f23f42)', flexGrow: 1 }}>
+              {uploadSizeError}
+            </Text>
+            <IconButton
+              variant="SurfaceVariant"
+              onClick={() => setUploadSizeError(null)}
+              aria-label="Schließen"
+            >
+              <Icon size="100" src={Icons.Cross} />
+            </IconButton>
+          </Box>
+        )}
         {selectedFiles.length > 0 && (
           <UploadBoard
             header={

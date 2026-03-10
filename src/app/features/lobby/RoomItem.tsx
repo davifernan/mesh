@@ -181,6 +181,7 @@ type RoomProfileProps = {
   suggested?: boolean;
   memberCount?: number;
   joinRule?: JoinRule;
+  isEncrypted?: boolean;
   options?: ReactNode;
 };
 function RoomProfile({
@@ -191,6 +192,7 @@ function RoomProfile({
   suggested,
   memberCount,
   joinRule,
+  isEncrypted,
   options,
 }: RoomProfileProps) {
   return (
@@ -210,6 +212,13 @@ function RoomProfile({
           <Text size="H5" as="h3" truncate>
             {name}
           </Text>
+          {isEncrypted && (
+            <Icon
+              src={Icons.Lock}
+              size="50"
+              style={{ flexShrink: 0, opacity: 0.5 }}
+            />
+          )}
           {suggested && (
             <Box shrink="No" alignItems="Center">
               <Badge variant="Success" fill="Soft" radii="Pill" outlined>
@@ -320,6 +329,7 @@ export const RoomItemCard = as<'div', RoomItemCardProps>(
     useDraggableItem(item, targetRef, onDragging, targetHandleRef);
 
     const joined = room?.getMyMembership() === Membership.Join;
+    const isEncrypted = !!room?.currentState.getStateEvents('m.room.encryption', '');
 
     return (
       <SequenceCard
@@ -348,6 +358,7 @@ export const RoomItemCard = as<'div', RoomItemCardProps>(
                   memberCount={localSummary.memberCount}
                   suggested={content.suggested}
                   joinRule={localSummary.joinRule}
+                  isEncrypted={isEncrypted}
                   options={
                     joined ? (
                       <Box shrink="No" gap="100" alignItems="Center">

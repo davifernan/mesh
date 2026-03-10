@@ -14,11 +14,11 @@ import {
   SpeakerHigh,
   SpeakerSlash,
   CaretDown,
-  CameraRotate,
+  SlidersHorizontal,
 } from '@phosphor-icons/react';
 import { ScreenSize, useScreenSizeContext } from '../../../hooks/useScreenSize';
 import { useLocalParticipant } from '@livekit/components-react';
-import { LocalAudioTrack, Track } from 'livekit-client';
+import { Track } from 'livekit-client';
 import { useAtom } from 'jotai';
 import { useCallState } from './CallProvider';
 import { settingsAtom } from '../../../state/settings';
@@ -57,7 +57,6 @@ export function NativeCallControlBar() {
     livekitRoom,
     callJoinTime,
   } = useCallState();
-  const isElectron = typeof window !== 'undefined' && Boolean(window.electron);
 
   // Screen share state comes from the LiveKit RoomContext — no polling needed.
   const { localParticipant } = useLocalParticipant();
@@ -81,7 +80,6 @@ export function NativeCallControlBar() {
 
   const [showQualityModal, setShowQualityModal] = useState(false);
   const [showStats, setShowStats] = useAtom(showStatsAtom);
-  const [noiseSupEnabled, setNoiseSupEnabled] = useState(() => userSettings.noiseSuppression ?? true);
 
   // ── Call duration timer ────────────────────────────────────────────────────
   const [duration, setDuration] = useState(0);
@@ -99,6 +97,7 @@ export function NativeCallControlBar() {
   const [camDevices, setCamDevices] = useState<MediaDeviceInfo[]>([]);
   const [showMicMenu, setShowMicMenu] = useState(false);
   const [showCamMenu, setShowCamMenu] = useState(false);
+  const [showMediaMenu, setShowMediaMenu] = useState(false);
 
   // ── Screen share context menu ──────────────────────────────────────────────
   const [showSSMenu, setShowSSMenu] = useState(false);
@@ -107,9 +106,10 @@ export function NativeCallControlBar() {
   const micMenuRef = useRef<HTMLDivElement>(null);
   const camMenuRef = useRef<HTMLDivElement>(null);
   const ssMenuRef = useRef<HTMLDivElement>(null);
+  const mediaMenuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    if (!showMicMenu && !showCamMenu && !showSSMenu) return;
+    if (!showMicMenu && !showCamMenu && !showSSMenu && !showMediaMenu) return;
     const handler = (e: MouseEvent) => {
       if (showMicMenu && micMenuRef.current && !micMenuRef.current.contains(e.target as Node)) {
         setShowMicMenu(false);
@@ -120,10 +120,13 @@ export function NativeCallControlBar() {
       if (showSSMenu && ssMenuRef.current && !ssMenuRef.current.contains(e.target as Node)) {
         setShowSSMenu(false);
       }
+      if (showMediaMenu && mediaMenuRef.current && !mediaMenuRef.current.contains(e.target as Node)) {
+        setShowMediaMenu(false);
+      }
     };
     document.addEventListener('mousedown', handler);
     return () => document.removeEventListener('mousedown', handler);
-  }, [showMicMenu, showCamMenu, showSSMenu]);
+  }, [showMicMenu, showCamMenu, showSSMenu, showMediaMenu]);
 
   const openMicMenu = useCallback(async (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -132,6 +135,7 @@ export function NativeCallControlBar() {
     setShowMicMenu((v) => !v);
     setShowCamMenu(false);
     setShowSSMenu(false);
+    setShowMediaMenu(false);
   }, []);
 
   const openCamMenu = useCallback(async (e: React.MouseEvent) => {
@@ -141,6 +145,7 @@ export function NativeCallControlBar() {
     setShowCamMenu((v) => !v);
     setShowMicMenu(false);
     setShowSSMenu(false);
+    setShowMediaMenu(false);
   }, []);
 
   const selectMicDevice = useCallback(
@@ -173,8 +178,7 @@ export function NativeCallControlBar() {
       setShowSSMenu((v) => !v);
       setShowMicMenu(false);
       setShowCamMenu(false);
-    } else if (isElectron) {
-      void startScreenShare(userSettings.ssResolution, userSettings.ssFps, userSettings.ssAudio);
+      setShowMediaMenu(false);
     } else {
       setShowQualityModal(true);
     }
@@ -187,37 +191,41 @@ export function NativeCallControlBar() {
 
   const handleShareSettings = useCallback(() => {
     setShowSSMenu(false);
-    if (isElectron) {
-      void startScreenShare(userSettings.ssResolution, userSettings.ssFps, userSettings.ssAudio);
-      return;
-    }
+    setShowMediaMenu(false);
     setShowQualityModal(true);
-  }, [isElectron, startScreenShare, userSettings.ssAudio, userSettings.ssFps, userSettings.ssResolution]);
+  }, []);
 
   const handleConfirmScreenShare = useCallback(
     (ssRes: string, ssFps: number, ssAudio: boolean) => {
+      setUserSettings({
+        ...userSettings,
+        ssResolution: ssRes as typeof userSettings.ssResolution,
+        ssFps: ssFps as typeof userSettings.ssFps,
+        ssAudio,
+      });
       void startScreenShare(ssRes, ssFps, ssAudio);
       setShowQualityModal(false);
     },
-    [startScreenShare],
+    [setUserSettings, startScreenShare, userSettings],
   );
 
-  const handleToggleNoiseSup = useCallback(async () => {
-    const next = !noiseSupEnabled;
-    setNoiseSupEnabled(next);
+  const toggleMediaMenu = useCallback(() => {
+    setShowMediaMenu((v) => !v);
+    setShowMicMenu(false);
+    setShowCamMenu(false);
+    setShowSSMenu(false);
+  }, []);
+
+  const mediaButtonIcon = isScreenShareEnabled
+    ? <Monitor size={20} />
+    : isVideoEnabled
+      ? <VideoCamera size={20} />
+      : <SlidersHorizontal size={20} />;
+
+  const handleToggleNoiseSup = useCallback(() => {
+    const next = !userSettings.noiseSuppression;
     setUserSettings({ ...userSettings, noiseSuppression: next });
-    const pub = localParticipant.getTrackPublication(Track.Source.Microphone);
-    if (pub?.track) {
-      // Pass ALL audio constraints — restartTrack replaces the track entirely,
-      // so omitting any constraint would reset it to browser defaults.
-      await (pub.track as LocalAudioTrack).restartTrack({
-        noiseSuppression: next,
-        echoCancellation: userSettings.echoCancellation,
-        autoGainControl: userSettings.autoGainControl,
-        deviceId: userSettings.micDeviceId,
-      });
-    }
-  }, [noiseSupEnabled, localParticipant, userSettings, setUserSettings]);
+  }, [setUserSettings, userSettings]);
 
   // Derive a human-readable room display name from the Matrix room ID.
   const roomDisplayName = activeCallRoomId
@@ -300,127 +308,179 @@ export function NativeCallControlBar() {
             {isDeafened ? <SpeakerSlash size={20} /> : <SpeakerHigh size={20} />}
           </button>
 
-          {/* Camera + device caret (desktop) / flip button (mobile) */}
-          <div className={styles.btnWrap} ref={camMenuRef}>
-            <button
-              className={`${styles.btn} ${!isVideoEnabled ? styles.btnMuted : ''}`}
-              onClick={() => void toggleVideo()}
-              title={isVideoEnabled ? 'Disable camera' : 'Enable camera'}
-              aria-label={isVideoEnabled ? 'Disable camera' : 'Enable camera'}
-              aria-pressed={!isVideoEnabled}
-            >
-              {isVideoEnabled ? <VideoCamera size={20} /> : <VideoCameraSlash size={20} />}
-            </button>
-            {isMobile ? (
-              /* Mobile: flip front/back camera button (replaces device caret) */
-              isVideoEnabled && (
-                <button
-                  className={styles.caretBtn}
-                  onClick={() => void flipCamera()}
-                  title="Flip camera"
-                  aria-label="Flip camera (front/back)"
-                >
-                  <CameraRotate size={12} />
-                </button>
-              )
-            ) : (
-              /* Desktop: device picker caret */
+          {isMobile ? (
+            <div className={styles.btnWrap} ref={mediaMenuRef}>
               <button
-                className={styles.caretBtn}
-                onClick={openCamMenu}
-                title="Switch camera"
-                aria-label="Switch camera device"
+                className={`${styles.btn} ${(isVideoEnabled || isScreenShareEnabled) ? styles.btnActive : ''}`}
+                onClick={toggleMediaMenu}
+                title="Media options"
+                aria-label="Open media options"
+                aria-pressed={showMediaMenu}
               >
-                <CaretDown size={12} />
+                {mediaButtonIcon}
               </button>
-            )}
-            {showCamMenu && (
-              <div className={styles.deviceMenu}>
-                {camDevices.length === 0 && (
-                  <div className={styles.deviceItem} style={{ color: 'var(--text-secondary)' }}>
-                    No cameras found
-                  </div>
-                )}
-                {camDevices.map((d) => (
+              {showMediaMenu && (
+                <div className={styles.mediaMenu}>
                   <div
-                    key={d.deviceId}
                     className={styles.deviceItem}
-                    onClick={() => selectCamDevice(d.deviceId)}
+                    onClick={() => {
+                      void toggleVideo();
+                      setShowMediaMenu(false);
+                    }}
                     role="button"
                     tabIndex={0}
-                    onKeyDown={(e) => e.key === 'Enter' && selectCamDevice(d.deviceId)}
-                    aria-pressed={userSettings.cameraDeviceId === d.deviceId}
-                    style={userSettings.cameraDeviceId === d.deviceId ? { color: 'var(--brand-primary)' } : undefined}
+                    onKeyDown={(e) => e.key === 'Enter' && (void toggleVideo())}
                   >
-                    {d.label || `Camera ${d.deviceId.slice(0, 8)}`}
+                    {isVideoEnabled ? 'Disable Camera' : 'Enable Camera'}
                   </div>
-                ))}
-              </div>
-            )}
-          </div>
-
-          {/* Screen Share + context menu when active */}
-          <div className={styles.btnWrap} ref={ssMenuRef}>
-            <button
-              className={`${styles.btn} ${isScreenShareEnabled ? styles.btnActive : ''}`}
-              onClick={handleScreenShare}
-              onContextMenu={(e) => {
-                if (isScreenShareEnabled) {
-                  e.preventDefault();
-                  setShowSSMenu(true);
-                }
-              }}
-              title={isScreenShareEnabled ? 'Screen share options' : 'Share screen'}
-              aria-label={isScreenShareEnabled ? 'Screen share options' : 'Share screen'}
-              aria-pressed={isScreenShareEnabled}
-            >
-              {isScreenShareEnabled ? <Monitor size={20} /> : <MonitorArrowUp size={20} />}
-            </button>
-            {showSSMenu && (
-              <div className={styles.ssMenu}>
-                <div
-                  className={styles.deviceItem}
-                  onClick={handleStopSharing}
-                  role="button"
-                  tabIndex={0}
-                  onKeyDown={(e) => e.key === 'Enter' && handleStopSharing()}
-                >
-                  Stop Sharing
+                  {isVideoEnabled && (
+                    <div
+                      className={styles.deviceItem}
+                      onClick={() => {
+                        void flipCamera();
+                        setShowMediaMenu(false);
+                      }}
+                      role="button"
+                      tabIndex={0}
+                      onKeyDown={(e) => e.key === 'Enter' && (void flipCamera())}
+                    >
+                      Flip Camera
+                    </div>
+                  )}
+                  <div
+                    className={styles.deviceItem}
+                    onClick={() => {
+                      if (isScreenShareEnabled) {
+                        handleStopSharing();
+                      } else {
+                        handleScreenShare();
+                      }
+                      setShowMediaMenu(false);
+                    }}
+                    role="button"
+                    tabIndex={0}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        if (isScreenShareEnabled) handleStopSharing();
+                        else handleScreenShare();
+                      }
+                    }}
+                  >
+                    {isScreenShareEnabled ? 'Stop Sharing' : 'Share Screen'}
+                  </div>
                 </div>
-                <div
-                  className={styles.deviceItem}
-                  onClick={handleShareSettings}
-                  role="button"
-                  tabIndex={0}
-                  onKeyDown={(e) => e.key === 'Enter' && handleShareSettings()}
+              )}
+            </div>
+          ) : (
+            <>
+              {/* Camera + device caret (desktop) */}
+              <div className={styles.btnWrap} ref={camMenuRef}>
+                <button
+                  className={`${styles.btn} ${!isVideoEnabled ? styles.btnMuted : ''}`}
+                  onClick={() => void toggleVideo()}
+                  title={isVideoEnabled ? 'Disable camera' : 'Enable camera'}
+                  aria-label={isVideoEnabled ? 'Disable camera' : 'Enable camera'}
+                  aria-pressed={!isVideoEnabled}
                 >
-                  Quality Settings
-                </div>
+                  {isVideoEnabled ? <VideoCamera size={20} /> : <VideoCameraSlash size={20} />}
+                </button>
+                <button
+                  className={styles.caretBtn}
+                  onClick={openCamMenu}
+                  title="Switch camera"
+                  aria-label="Switch camera device"
+                >
+                  <CaretDown size={12} />
+                </button>
+                {showCamMenu && (
+                  <div className={styles.deviceMenu}>
+                    {camDevices.length === 0 && (
+                      <div className={styles.deviceItem} style={{ color: 'var(--text-secondary)' }}>
+                        No cameras found
+                      </div>
+                    )}
+                    {camDevices.map((d) => (
+                      <div
+                        key={d.deviceId}
+                        className={styles.deviceItem}
+                        onClick={() => selectCamDevice(d.deviceId)}
+                        role="button"
+                        tabIndex={0}
+                        onKeyDown={(e) => e.key === 'Enter' && selectCamDevice(d.deviceId)}
+                        aria-pressed={userSettings.cameraDeviceId === d.deviceId}
+                        style={userSettings.cameraDeviceId === d.deviceId ? { color: 'var(--brand-primary)' } : undefined}
+                      >
+                        {d.label || `Camera ${d.deviceId.slice(0, 8)}`}
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
-            )}
-          </div>
 
-          {/* Noise Suppression */}
-          <button
-            className={`${styles.btn} ${noiseSupEnabled ? styles.btnActive : styles.btnMuted}`}
-            onClick={() => void handleToggleNoiseSup()}
-            title={noiseSupEnabled ? 'Noise suppression on' : 'Noise suppression off'}
-            aria-label={noiseSupEnabled ? 'Disable noise suppression' : 'Enable noise suppression'}
-            aria-pressed={noiseSupEnabled}
-          >
-            <Waveform size={20} />
-          </button>
+              {/* Screen Share + context menu when active */}
+              <div className={styles.btnWrap} ref={ssMenuRef}>
+                <button
+                  className={`${styles.btn} ${isScreenShareEnabled ? styles.btnActive : ''}`}
+                  onClick={handleScreenShare}
+                  onContextMenu={(e) => {
+                    if (isScreenShareEnabled) {
+                      e.preventDefault();
+                      setShowSSMenu(true);
+                    }
+                  }}
+                  title={isScreenShareEnabled ? 'Screen share options' : 'Share screen'}
+                  aria-label={isScreenShareEnabled ? 'Screen share options' : 'Share screen'}
+                  aria-pressed={isScreenShareEnabled}
+                >
+                  {isScreenShareEnabled ? <Monitor size={20} /> : <MonitorArrowUp size={20} />}
+                </button>
+                {showSSMenu && (
+                  <div className={styles.ssMenu}>
+                    <div
+                      className={styles.deviceItem}
+                      onClick={handleStopSharing}
+                      role="button"
+                      tabIndex={0}
+                      onKeyDown={(e) => e.key === 'Enter' && handleStopSharing()}
+                    >
+                      Stop Sharing
+                    </div>
+                    <div
+                      className={styles.deviceItem}
+                      onClick={handleShareSettings}
+                      role="button"
+                      tabIndex={0}
+                      onKeyDown={(e) => e.key === 'Enter' && handleShareSettings()}
+                    >
+                      Quality Settings
+                    </div>
+                  </div>
+                )}
+              </div>
 
-          {/* Stats */}
-          <button
-            className={`${styles.btn} ${showStats ? styles.btnActive : ''}`}
-            onClick={() => setShowStats((s) => !s)}
-            title="Call stats"
-            aria-label="Toggle call stats"
-            aria-pressed={showStats}
-          >
-            <ChartBar size={20} />
-          </button>
+              {/* Noise Suppression */}
+              <button
+                className={`${styles.btn} ${userSettings.noiseSuppression ? styles.btnActive : styles.btnMuted}`}
+                onClick={handleToggleNoiseSup}
+                title={userSettings.noiseSuppression ? 'Noise suppression on' : 'Noise suppression off'}
+                aria-label={userSettings.noiseSuppression ? 'Disable noise suppression' : 'Enable noise suppression'}
+                aria-pressed={userSettings.noiseSuppression}
+              >
+                <Waveform size={20} />
+              </button>
+
+              {/* Stats */}
+              <button
+                className={`${styles.btn} ${showStats ? styles.btnActive : ''}`}
+                onClick={() => setShowStats((s) => !s)}
+                title="Call stats"
+                aria-label="Toggle call stats"
+                aria-pressed={showStats}
+              >
+                <ChartBar size={20} />
+              </button>
+            </>
+          )}
 
           {/* Chat */}
           <button

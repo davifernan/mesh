@@ -31,13 +31,11 @@ import {
   NavLink,
 } from '../../../components/nav';
 import {
-  encodeSearchParamValueArray,
   getExplorePath,
   getHomeCreatePath,
   getHomeRoomPath,
   getHomeSearchPath,
   getSpacePath,
-  withSearchParam,
 } from '../../pathUtils';
 import { getCanonicalAliasOrRoomId } from '../../../utils/matrix';
 import { useSelectedRoom } from '../../../hooks/router/useSelectedRoom';
@@ -53,8 +51,8 @@ import { makeNavCategoryId } from '../../../state/closedNavCategories';
 import { roomToUnreadAtom } from '../../../state/room/roomToUnread';
 import { useCategoryHandler } from '../../../hooks/useCategoryHandler';
 import { useNavToActivePathMapper } from '../../../hooks/useNavToActivePathMapper';
-import { PageNav, PageNavHeader, PageNavContent, PageNavDock } from '../../../components/page';
-import { useRoomsUnread } from '../../../state/hooks/unread';
+import { PageNav, PageNavHeader, PageNavContent } from '../../../components/page';
+import { useRoomUnread, useRoomsUnread } from '../../../state/hooks/unread';
 import { markAsRead } from '../../../utils/notifications';
 import { useClosedNavCategoriesAtom } from '../../../state/hooks/closedNavCategories';
 import { stopPropagation } from '../../../utils/keyboard';
@@ -64,14 +62,12 @@ import {
   getRoomNotificationMode,
   useRoomsNotificationPreferencesContext,
 } from '../../../hooks/useRoomsNotificationPreferences';
-import { CallNavStatus } from '../../../features/room-nav/RoomCallNavStatus';
-import { UserArea } from '../../../components/user-area/UserArea';
 import { useRoomListKeyboard } from '../../../hooks/useRoomListKeyboard';
 import { searchModalAtom, searchModalInitialCharAtom } from '../../../state/searchModal';
 import { RoomListbox } from '../../../components/room-listbox/RoomListbox';
 import { UseStateProvider } from '../../../components/UseStateProvider';
 import { JoinAddressPrompt } from '../../../components/join-address-prompt';
-import { _RoomSearchParams } from '../../paths';
+import { getBetterCordPermalinkPath } from '../../../plugins/permalink';
 import { useOrphanSpaces } from '../../../state/hooks/roomList';
 import { allRoomsAtom } from '../../../state/room-list/roomList';
 import { roomToParentsAtom } from '../../../state/room/roomToParents';
@@ -79,7 +75,6 @@ import { useSidebarItems } from '../../../hooks/useSidebarItems';
 import { getRoomAvatarUrl } from '../../../utils/room';
 import { nameInitials } from '../../../utils/common';
 import { useMediaAuthentication } from '../../../hooks/useMediaAuthentication';
-import { useRoomUnread } from '../../../state/hooks/unread';
 import { ScreenSize, useScreenSizeContext } from '../../../hooks/useScreenSize';
 import homeStyles from './Home.module.css';
 
@@ -467,16 +462,9 @@ export function Home() {
                     {open && (
                       <JoinAddressPrompt
                         onCancel={() => setOpen(false)}
-                        onOpen={(roomIdOrAlias, viaServers, eventId) => {
+                        onOpen={(target) => {
                           setOpen(false);
-                          const path = getHomeRoomPath(roomIdOrAlias, eventId);
-                          navigate(
-                            viaServers
-                              ? withSearchParam<_RoomSearchParams>(path, {
-                                  viaServers: encodeSearchParamValueArray(viaServers),
-                                })
-                              : path
-                          );
+                          navigate(getBetterCordPermalinkPath(target));
                         }}
                       />
                     )}
@@ -557,12 +545,6 @@ export function Home() {
             </NavCategory>
           </Box>
         </PageNavContent>
-      )}
-      {screenSize === ScreenSize.Mobile && (
-        <PageNavDock>
-          <CallNavStatus />
-          <UserArea />
-        </PageNavDock>
       )}
     </PageNav>
   );

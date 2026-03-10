@@ -11,12 +11,15 @@ import {
 } from '../../plugins/markdown';
 import { findAndReplace } from '../../utils/findAndReplace';
 import { sanitizeForRegex } from '../../utils/regex';
-import { getCanonicalAliasOrRoomId, isUserId } from '../../utils/matrix';
+import { isUserId } from '../../utils/matrix';
+import { HashRouterConfig } from '../../hooks/useClientConfig';
+import { getBetterCordPermalink } from '../../plugins/permalink';
 
 export type OutputOptions = {
   allowTextFormatting?: boolean;
   allowInlineMarkdown?: boolean;
   allowBlockMarkdown?: boolean;
+  hashRouter?: HashRouterConfig;
 };
 
 const textToCustomHtml = (node: Text, opts: OutputOptions): string => {
@@ -37,7 +40,7 @@ const textToCustomHtml = (node: Text, opts: OutputOptions): string => {
   return string;
 };
 
-const elementToCustomHtml = (node: CustomElement, children: string): string => {
+const elementToCustomHtml = (node: CustomElement, children: string, opts: OutputOptions): string => {
   switch (node.type) {
     case BlockType.Paragraph:
       return `${children}<br/>`;
@@ -59,17 +62,33 @@ const elementToCustomHtml = (node: CustomElement, children: string): string => {
       return `<ul>${children}</ul>`;
 
     case BlockType.Mention: {
-      let fragment = node.id;
-
-      if (node.eventId) {
-        fragment += `/${node.eventId}`;
-      }
-      if (node.viaServers && node.viaServers.length > 0) {
-        fragment += `?${node.viaServers.map((server) => `via=${server}`).join('&')}`;
+      if (isUserId(node.id)) {
+        return `<a href="${encodeURI(`https://matrix.to/#/${node.id}`)}">${sanitizeText(node.name)}</a>`;
       }
 
-      const matrixTo = `https://matrix.to/#/${fragment}`;
-      return `<a href="${encodeURI(matrixTo)}">${sanitizeText(node.name)}</a>`;
+      const permalink =
+        node.linkKind === 'space'
+          ? getBetterCordPermalink(
+              {
+                kind: 'space',
+                spaceIdOrAlias: node.id,
+                viaServers: node.viaServers,
+              },
+              opts.hashRouter
+            )
+          : getBetterCordPermalink(
+              {
+                kind: 'room',
+                roomIdOrAlias: node.id,
+                eventId: node.eventId,
+                viaServers: node.viaServers,
+                spaceIdOrAlias: node.spaceIdOrAlias,
+                direct: node.direct,
+              },
+              opts.hashRouter
+            );
+
+      return `<a href="${encodeURI(permalink)}">${sanitizeText(node.name)}</a>`;
     }
     case BlockType.Emoticon:
       return node.key.startsWith('mxc://')
@@ -128,7 +147,7 @@ export const toMatrixCustomHTML = (
   if (Text.isText(node)) return textToCustomHtml(node, opts);
 
   const children = node.children.map(parseNode).join('');
-  return elementToCustomHtml(node, children);
+  return elementToCustomHtml(node, children, opts);
 };
 
 const elementToPlainText = (node: CustomElement, children: string): string => {

@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { atom, useAtom } from 'jotai';
 import { motion, animate, useMotionValue, type SpringOptions } from 'framer-motion';
 import { RoomContext, VideoTrack, useTracks, isTrackReference } from '@livekit/components-react';
-import { Track } from 'livekit-client';
+import { Track, LocalParticipant } from 'livekit-client';
 import { ArrowLeft, PhoneX } from '@phosphor-icons/react';
 import { useCallState } from './CallProvider';
 import { useMatrixClient } from '../../../hooks/useMatrixClient';
@@ -96,7 +96,7 @@ function PiPContent({
   onHangUp,
   onReturnToCall,
 }: PiPContentProps) {
-  const { speakingUsers } = useCallState();
+  const { speakingUsers, isFrontCamera } = useCallState();
   const [isHovered, setIsHovered] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
   const isDraggingRef = useRef(false);
@@ -223,7 +223,10 @@ function PiPContent({
       {/* ── Media: camera video or avatar fallback ───────────────────── */}
       {cameraTrackRef && isTrackReference(cameraTrackRef) ? (
         <VideoTrack
-          className={styles.video}
+          className={[
+            styles.video,
+            cameraTrackRef.participant instanceof LocalParticipant && isFrontCamera ? styles.videoMirrored : '',
+          ].filter(Boolean).join(' ')}
           trackRef={cameraTrackRef}
         />
       ) : (

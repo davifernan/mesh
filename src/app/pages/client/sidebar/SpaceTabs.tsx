@@ -25,9 +25,11 @@ import {
   toRem,
 } from 'folds';
 import { useAtom, useAtomValue } from 'jotai';
-import { Room } from 'matrix-js-sdk';
+import { ClientEvent, MatrixEvent, Room, RoomStateEvent } from 'matrix-js-sdk';
 import { Monitor, SpeakerHigh } from '@phosphor-icons/react';
 import { selectSpaceHasVoiceActivity } from '../../../state/voiceActivity';
+import { roomHasCallScreenShare } from '../../../hooks/useCallMemberPresence';
+import { BETTERCORD_CALL_PRESENCE_EVENT } from '../../../features/call/callPresenceState';
 import { useSpaceVoiceActivity } from '../../../hooks/useSpaceVoiceActivity';
 import {
   draggable,
@@ -86,7 +88,7 @@ import { roomToUnreadAtom } from '../../../state/room/roomToUnread';
 import { markAsRead } from '../../../utils/notifications';
 import { copyToClipboard } from '../../../utils/dom';
 import { stopPropagation } from '../../../utils/keyboard';
-import { getMatrixToRoom } from '../../../plugins/matrix-to';
+import { getBetterCordPermalink } from '../../../plugins/permalink';
 import { getViaServers } from '../../../plugins/via-servers';
 import { getRoomAvatarUrl } from '../../../utils/room';
 import { useMediaAuthentication } from '../../../hooks/useMediaAuthentication';
@@ -97,6 +99,7 @@ import { useRoomCreators } from '../../../hooks/useRoomCreators';
 import { useRoomPermissions } from '../../../hooks/useRoomPermissions';
 import { InviteUserPrompt } from '../../../components/invite-user-prompt';
 import { useCallState } from '../../../pages/client/call/CallProvider';
+import { useClientConfig } from '../../../hooks/useClientConfig';
 
 type SpaceMenuProps = {
   room: Room;
@@ -123,6 +126,7 @@ const SpaceMenu = forwardRef<HTMLDivElement, SpaceMenuProps>(
       useRecursiveChildScopeFactory(mx, roomToParents)
     );
     const unread = useRoomsUnread(allChild, roomToUnreadAtom);
+    const { hashRouter } = useClientConfig();
 
     const handleMarkAsRead = () => {
       allChild.forEach((childRoomId) => markAsRead(mx, childRoomId, hideActivity));
@@ -137,7 +141,16 @@ const SpaceMenu = forwardRef<HTMLDivElement, SpaceMenuProps>(
     const handleCopyLink = () => {
       const roomIdOrAlias = getCanonicalAliasOrRoomId(mx, room.roomId);
       const viaServers = isRoomAlias(roomIdOrAlias) ? undefined : getViaServers(room);
-      copyToClipboard(getMatrixToRoom(roomIdOrAlias, viaServers));
+      copyToClipboard(
+        getBetterCordPermalink(
+          {
+            kind: 'space',
+            spaceIdOrAlias: roomIdOrAlias,
+            viaServers,
+          },
+          hashRouter
+        )
+      );
       requestClose();
     };
 
@@ -425,11 +438,58 @@ function SpaceTab({
   const dropState = useDropTarget(spaceDraggable, targetRef);
   const dropType = dropState?.type;
 
-  const hasVoiceActivity = useAtomValue(selectSpaceHasVoiceActivity(space.roomId));
+  const spaceVoiceActivityAtom = useMemo(
+    () => selectSpaceHasVoiceActivity(space.roomId),
+    [space.roomId]
+  );
+  const hasVoiceActivity = useAtomValue(spaceVoiceActivityAtom);
   const roomToParents = useAtomValue(roomToParentsAtom);
   const { activeCallRoomId, isScreenShareEnabled, remoteParticipantStates } = useCallState();
+  const childRooms = useSpaceChildren(
+    allRoomsAtom,
+    space.roomId,
+    useRecursiveChildScopeFactory(mx, roomToParents)
+  );
+
+  // Reactive Matrix-derived screenshare state.
+  // hasLiveStreamActivity used to call roomHasCallScreenShare() inside a useMemo with no
+  // Matrix-state dependency — so it never recomputed when io.bettercord.call.presence or
+  // call.member changed in the room. This useState+useEffect pattern subscribes to
+  // RoomStateEvent.Events (fires for BOTH timeline AND state-section events) so the
+  // guild icon LIVE badge updates live without requiring a page reload.
+  const childRoomsKey = childRooms.join(',');
+  const [hasMatrixScreenShare, setHasMatrixScreenShare] = useState(() => {
+    const scopedRoomIds = [space.roomId, ...childRooms];
+    return scopedRoomIds.some((roomId) => roomHasCallScreenShare(mx, roomId));
+  });
+  useEffect(() => {
+    const scopedRoomIds = [space.roomId, ...childRoomsKey.split(',').filter(Boolean)];
+    const compute = () => {
+      setHasMatrixScreenShare(
+        [space.roomId, ...scopedRoomIds].some((roomId) => roomHasCallScreenShare(mx, roomId))
+      );
+    };
+    compute();
+    const handleStateEvent = (ev: MatrixEvent) => {
+      const type = ev.getType();
+      if (type.includes('call.member') || type === BETTERCORD_CALL_PRESENCE_EVENT) {
+        compute();
+      }
+    };
+    mx.on(ClientEvent.Event, handleStateEvent);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    mx.on(RoomStateEvent.Events as any, handleStateEvent);
+    return () => {
+      mx.off(ClientEvent.Event, handleStateEvent);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      mx.off(RoomStateEvent.Events as any, handleStateEvent);
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mx, space.roomId, childRoomsKey]);
 
   const hasLiveStreamActivity = useMemo(() => {
+    if (hasMatrixScreenShare) return true;
+
     if (!activeCallRoomId) return false;
 
     const parents = roomToParents.get(activeCallRoomId);
@@ -444,6 +504,7 @@ function SpaceTab({
     }
     return false;
   }, [
+    hasMatrixScreenShare,
     activeCallRoomId,
     isScreenShareEnabled,
     remoteParticipantStates,
@@ -474,63 +535,80 @@ function SpaceTab({
           data-drop-below={dropType === 'reorder-below'}
           data-inside-folder={!!folder}
         >
-          <SidebarItemTooltip tooltip={disabled ? undefined : space.name}>
-            {(triggerRef) => (
-              <SidebarAvatar
-                as="button"
-                aria-label={`${space.name} space`}
-                aria-keyshortcuts={keyShortcut}
-                data-id={space.roomId}
-                ref={triggerRef}
-                size={folder ? '300' : '400'}
-                onClick={onClick}
-                onContextMenu={handleContextMenu}
-              >
-                <RoomAvatar
-                  roomId={space.roomId}
-                  src={getRoomAvatarUrl(mx, space, 96, useAuthentication) ?? undefined}
-                  alt={space.name}
-                  renderFallback={() => (
-                    <Text size={folder ? 'H6' : 'H4'}>{nameInitials(space.name, 2)}</Text>
-                  )}
-                />
-              </SidebarAvatar>
+          <span style={{ position: 'relative', display: 'inline-flex' }}>
+            <SidebarItemTooltip tooltip={disabled ? undefined : space.name}>
+              {(triggerRef) => (
+                <SidebarAvatar
+                  as="button"
+                  aria-label={`${space.name} space`}
+                  aria-keyshortcuts={keyShortcut}
+                  data-id={space.roomId}
+                  ref={triggerRef}
+                  size={folder ? '300' : '400'}
+                  onClick={onClick}
+                  onContextMenu={handleContextMenu}
+                >
+                  <RoomAvatar
+                    roomId={space.roomId}
+                    src={getRoomAvatarUrl(mx, space, 96, useAuthentication) ?? undefined}
+                    alt={space.name}
+                    renderFallback={() => (
+                      <Text size={folder ? 'H6' : 'H4'}>{nameInitials(space.name, 2)}</Text>
+                    )}
+                  />
+                </SidebarAvatar>
+              )}
+            </SidebarItemTooltip>
+            {unread && (
+              <SidebarItemBadge hasCount={unread.total > 0} position="BottomRight">
+                <UnreadBadge highlight={unread.highlight > 0} count={unread.total} />
+              </SidebarItemBadge>
             )}
-          </SidebarItemTooltip>
-          {unread && (
-            <SidebarItemBadge hasCount={unread.total > 0}>
-              <UnreadBadge highlight={unread.highlight > 0} count={unread.total} />
-            </SidebarItemBadge>
-          )}
-          {!unread && hasVoiceActivity && (
-            <SidebarItemBadge hasCount={false} title="Voice activity">
-              <SpeakerHigh size={10} color="#23A55A" weight="fill" />
-            </SidebarItemBadge>
-          )}
-          {hasLiveStreamActivity && (
-            <SidebarItemBadge
-              hasCount={false}
-              title="Live stream"
-              style={{ top: 'auto', bottom: toRem(-2), left: toRem(-2) }}
-            >
-              <span
-                style={{
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  width: toRem(18),
-                  height: toRem(18),
-                  borderRadius: '999px',
-                  background: 'rgba(17, 18, 20, 0.95)',
-                  boxShadow: '0 0 0 2px var(--background-secondary)',
-                  color: '#fff',
-                  lineHeight: 1,
-                }}
+            {!unread && hasVoiceActivity && (
+              <SidebarItemBadge hasCount={false} position="BottomLeft" title="Voice activity">
+                <span
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    width: toRem(folder ? 14 : 18),
+                    height: toRem(folder ? 14 : 18),
+                    borderRadius: '999px',
+                    background: 'rgba(17, 18, 20, 0.95)',
+                    boxShadow: '0 0 0 2px var(--background-secondary)',
+                    color: '#23A55A',
+                    lineHeight: 1,
+                  }}
+                >
+                  <SpeakerHigh size={folder ? 8 : 10} weight="fill" />
+                </span>
+              </SidebarItemBadge>
+            )}
+            {hasLiveStreamActivity && (
+              <SidebarItemBadge
+                hasCount={false}
+                position="TopRight"
+                title="Live stream"
               >
-                <Monitor size={10} weight="fill" />
-              </span>
-            </SidebarItemBadge>
-          )}
+                <span
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    width: toRem(folder ? 14 : 18),
+                    height: toRem(folder ? 14 : 18),
+                    borderRadius: '999px',
+                    background: 'rgba(17, 18, 20, 0.95)',
+                    boxShadow: '0 0 0 2px var(--background-secondary)',
+                    color: '#fff',
+                    lineHeight: 1,
+                  }}
+                >
+                  <Monitor size={folder ? 8 : 10} weight="fill" />
+                </span>
+              </SidebarItemBadge>
+            )}
+          </span>
           {menuAnchor && (
             <PopOut
               anchor={menuAnchor}
@@ -664,7 +742,7 @@ function ClosedSpaceFolder({
             )}
           </SidebarItemTooltip>
           {unread && (
-            <SidebarItemBadge hasCount={unread.total > 0}>
+            <SidebarItemBadge hasCount={unread.total > 0} position="BottomRight">
               <UnreadBadge highlight={unread.highlight > 0} count={unread.total} />
             </SidebarItemBadge>
           )}

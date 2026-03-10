@@ -9,6 +9,8 @@
 }
 
 /* ── Tile base ─────────────────────────────────────────────────────────── */
+/* NOTE: container-type removed — it implies contain:layout which can silently
+   suppress absolutely-positioned children (the metadata pill). */
 .tile {
   position: relative;
   border-radius: 8px;
@@ -30,6 +32,12 @@
   transition: outline-width 0.2s ease-out 0s;
 }
 
+/* ── Speaking ring on avatar placeholder ──────────────────────────────── */
+.tile[data-speaking='true'] .initial,
+.tile[data-speaking='true'] .avatarImg {
+  box-shadow: 0 0 0 3px var(--voice-status-success);
+}
+
 /* ── Camera video (fades in when active) ───────────────────────────────── */
 .mediaWrapper {
   position: absolute;
@@ -44,6 +52,10 @@
   object-fit: cover;
 }
 
+.videoMirrored {
+  transform: scaleX(-1);
+}
+
 /* ── Avatar placeholder (fades out when camera is on) ─────────────────── */
 .avatar {
   position: absolute;
@@ -56,24 +68,26 @@
 }
 
 .avatarImg {
-  width: 80px;
-  height: 80px;
-  border-radius: 50%;
+  width: var(--avatar-size, 80px);
+  height: var(--avatar-size, 80px);
+  border-radius: 20%;
   object-fit: cover;
   flex-shrink: 0;
+  transition: box-shadow 0.2s ease;
 }
 
 .initial {
-  font-size: 32px;
+  font-size: calc(var(--avatar-size, 64px) * 0.45);
   font-weight: 600;
-  color: white;
-  width: 64px;
-  height: 64px;
-  border-radius: 50%;
+  color: rgba(255, 255, 255, 0.9);
+  width: var(--avatar-size, 64px);
+  height: var(--avatar-size, 64px);
+  border-radius: 20%;
   display: flex;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
+  transition: box-shadow 0.2s ease;
 }
 
 /* ── "You" self-view pill (top-left, always visible) ──────────────────── */
@@ -153,56 +167,52 @@
   z-index: 10;
 }
 
-/* ── Metadata bar (bottom, hover-revealed) ─────────────────────────────── */
+/* ── Metadata bar (always visible, bottom-left pill) ────────────────────── */
 .metadata {
   position: absolute;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  padding: 24px 8px 6px;
-  background: linear-gradient(transparent, var(--voice-overlay-strong));
+  bottom: 0.5rem;
+  left: 0.5rem;
+  right: 0.5rem;
   display: flex;
   align-items: center;
-  gap: 4px;
-  min-width: 0;
-  opacity: 1;
-  transition: opacity 0.2s ease;
-  z-index: 9;
+  z-index: 10;
   pointer-events: none;
+  min-width: 0;
 }
 
-/* Always show on mobile / small screens */
-@media (max-width: 600px) {
-  .metadata {
-    opacity: 1;
-  }
+/* Solid opaque chip — readable on any tile background color */
+.metaChip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 8px;
+  background: rgba(0, 0, 0, 0.68);
+  border-radius: 9999px;
+  min-width: 0;
+  max-width: 100%;
+  backdrop-filter: blur(4px);
 }
 
 .metaName {
-  flex: 1;
   font-size: 12px;
   font-weight: 500;
-  color: var(--text-primary);
+  color: #fff;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-}
-
-.badgeIcon {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-}
-
-.cameraIcon {
-  color: var(--voice-status-success, #23a55a);
-}
-
-.deafenedIcon {
-  color: var(--status-idle, #faa61a);
+  min-width: 0;
 }
 
 .mutedIcon {
   color: var(--voice-status-danger, #f23f43);
+}
+
+.metaIconMuted {
+  color: var(--voice-status-danger, #f23f43);
+  flex-shrink: 0;
+}
+
+.metaIconDeafened {
+  color: var(--status-idle, #faa61a);
+  flex-shrink: 0;
 }

@@ -35,6 +35,21 @@
   }
 }
 
+@keyframes sheetSlideDown {
+  from {
+    transform: translateY(0);
+  }
+  to {
+    transform: translateY(100%);
+  }
+}
+
+/* Applied when user swipes down past the threshold — plays slide-down then unmounts */
+.mobileChatSheetClosing {
+  animation: sheetSlideDown 220ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  pointer-events: none;
+}
+
 /* Drag handle at the top of the sheet */
 .mobileChatSheet::before {
   content: '';

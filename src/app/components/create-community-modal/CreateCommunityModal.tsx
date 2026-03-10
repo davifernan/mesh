@@ -21,13 +21,9 @@ import { useRoomNavigate } from '../../hooks/useRoomNavigate';
 import { stopPropagation } from '../../utils/keyboard';
 import { isRoomAlias, isRoomId } from '../../utils/matrix';
 import { parseMatrixToRoom, parseMatrixToRoomEvent, testMatrixTo } from '../../plugins/matrix-to';
+import { getBetterCordPermalinkPath, parseBetterCordPermalink } from '../../plugins/permalink';
 import { tryDecodeURIComponent } from '../../utils/dom';
-import {
-  encodeSearchParamValueArray,
-  getSpacePath,
-  withSearchParam,
-} from '../../pages/pathUtils';
-import { _RoomSearchParams } from '../../pages/paths';
+import { getSpacePath } from '../../pages/pathUtils';
 
 type Step = 'landing' | 'create' | 'join';
 
@@ -88,30 +84,30 @@ export function CreateCommunityModal({ onClose }: CreateCommunityModalProps) {
       const decoded = tryDecodeURIComponent(address);
       const toRoom = parseMatrixToRoom(decoded);
       if (toRoom) {
-        const path = getSpacePath(toRoom.roomIdOrAlias);
-        navigate(
-          toRoom.viaServers
-            ? withSearchParam<_RoomSearchParams>(path, {
-                viaServers: encodeSearchParamValueArray(toRoom.viaServers),
-              })
-            : path
-        );
+        navigate(getSpacePath(toRoom.roomIdOrAlias));
         onClose();
         return;
       }
       const toEvent = parseMatrixToRoomEvent(decoded);
       if (toEvent) {
-        const path = getSpacePath(toEvent.roomIdOrAlias);
         navigate(
-          toEvent.viaServers
-            ? withSearchParam<_RoomSearchParams>(path, {
-                viaServers: encodeSearchParamValueArray(toEvent.viaServers),
-              })
-            : path
+          getBetterCordPermalinkPath({
+            kind: 'room',
+            roomIdOrAlias: toEvent.roomIdOrAlias,
+            eventId: toEvent.eventId,
+            viaServers: toEvent.viaServers,
+          })
         );
         onClose();
         return;
       }
+    }
+
+    const permalink = parseBetterCordPermalink(address);
+    if (permalink) {
+      navigate(getBetterCordPermalinkPath(permalink));
+      onClose();
+      return;
     }
 
     setJoinInvalid(true);
@@ -362,7 +358,7 @@ export function CreateCommunityModal({ onClose }: CreateCommunityModalProps) {
                       style={{ color: 'var(--text-muted)', paddingLeft: '1.25rem' }}
                     >
                       <li>#community:server</li>
-                      <li>https://matrix.to/#/#community:server</li>
+                      <li>{`${window.location.origin}/#community:server/`}</li>
                     </Text>
                   </Box>
 

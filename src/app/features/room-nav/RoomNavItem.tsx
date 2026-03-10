@@ -1,5 +1,6 @@
-import React, { MouseEventHandler, forwardRef, useState, MouseEvent, useEffect, useMemo } from 'react';
+import React, { MouseEventHandler, forwardRef, useState, MouseEvent, useEffect } from 'react';
 import { EventType, JoinRule, Room } from 'matrix-js-sdk';
+import { Lock, MonitorPlay, SpeakerHigh } from '@phosphor-icons/react';
 import {
   Avatar,
   Box,
@@ -21,15 +22,24 @@ import {
 } from 'folds';
 import { useFocusWithin, useHover } from 'react-aria';
 import FocusTrap from 'focus-trap-react';
+import { useAtomValue } from 'jotai';
 import { useNavigate } from 'react-router-dom';
 import { NavButton, NavItem, NavItemContent, NavItemOptions } from '../../components/nav';
 import { UnreadBadge, UnreadBadgeCenter } from '../../components/unread-badge';
 import { RoomAvatar, RoomIcon } from '../../components/room-avatar';
-import { getDirectRoomAvatarUrl, getRoomAvatarUrl } from '../../utils/room';
+import {
+  getAccountData,
+  getDirectRoomAvatarUrl,
+  getMDirects,
+  getRoomAvatarUrl,
+  getOrphanParents,
+  guessPerfectParent,
+} from '../../utils/room';
 import { nameInitials } from '../../utils/common';
 import { useMatrixClient } from '../../hooks/useMatrixClient';
 import { useRoomUnread } from '../../state/hooks/unread';
 import { roomToUnreadAtom } from '../../state/room/roomToUnread';
+import { roomToParentsAtom } from '../../state/room/roomToParents';
 import { usePowerLevels } from '../../hooks/usePowerLevels';
 import { copyToClipboard } from '../../utils/dom';
 import { markAsRead } from '../../utils/notifications';
@@ -38,7 +48,7 @@ import { LeaveRoomPrompt } from '../../components/leave-room-prompt';
 import { useRoomTypingMember } from '../../hooks/useRoomTypingMembers';
 import { TypingIndicator } from '../../components/typing-indicator';
 import { stopPropagation } from '../../utils/keyboard';
-import { getMatrixToRoom } from '../../plugins/matrix-to';
+import { getBetterCordPermalink } from '../../plugins/permalink';
 import { getCanonicalAliasOrRoomId, isRoomAlias } from '../../utils/matrix';
 import { getViaServers } from '../../plugins/via-servers';
 import { useMediaAuthentication } from '../../hooks/useMediaAuthentication';
@@ -55,11 +65,17 @@ import { useRoomCreators } from '../../hooks/useRoomCreators';
 import { useRoomPermissions } from '../../hooks/useRoomPermissions';
 import { InviteUserPrompt } from '../../components/invite-user-prompt';
 import { useCallState } from '../../pages/client/call/CallProvider';
-import { SpeakerHigh } from '@phosphor-icons/react';
-import { useCallMembers } from '../../hooks/useCallMemberships';
+import { mDirectAtom } from '../../state/mDirectList';
+import { useClientConfig } from '../../hooks/useClientConfig';
+import { AccountDataEvent } from '../../../types/matrix/accountData';
+import { roomHasCallScreenShare } from '../../hooks/useCallMemberPresence';
+import { useCallMembers, useCallStartTime } from '../../hooks/useCallMemberships';
 import { useRoomNavigate } from '../../hooks/useRoomNavigate';
 import { RoomNavUser } from './RoomNavUser';
 import { useRoomName } from '../../hooks/useRoomMeta';
+import { useBridgeRoomPresence } from '../../hooks/useBridgeRoomPresence';
+import { useStateEvent } from '../../hooks/useStateEvent';
+import { StateEvent } from '../../../types/matrix/room';
 
 type RoomNavItemMenuProps = {
   room: Room;
@@ -78,6 +94,9 @@ const RoomNavItemMenu = forwardRef<HTMLDivElement, RoomNavItemMenuProps>(
     const canInvite = permissions.action('invite', mx.getSafeUserId());
     const openRoomSettings = useOpenRoomSettings();
     const space = useSpaceOptionally();
+    const mDirects = useAtomValue(mDirectAtom);
+    const roomToParents = useAtomValue(roomToParentsAtom);
+    const { hashRouter } = useClientConfig();
 
     const [invitePrompt, setInvitePrompt] = useState(false);
 
@@ -93,7 +112,30 @@ const RoomNavItemMenu = forwardRef<HTMLDivElement, RoomNavItemMenuProps>(
     const handleCopyLink = () => {
       const roomIdOrAlias = getCanonicalAliasOrRoomId(mx, room.roomId);
       const viaServers = isRoomAlias(roomIdOrAlias) ? undefined : getViaServers(room);
-      copyToClipboard(getMatrixToRoom(roomIdOrAlias, viaServers));
+      const orphanParents = getOrphanParents(roomToParents, room.roomId);
+      const preferredSpaceId =
+        space?.roomId ??
+        (orphanParents.length > 0
+          ? guessPerfectParent(mx, room.roomId, orphanParents) ?? orphanParents[0]
+          : undefined);
+      const directEvent = getAccountData(mx, AccountDataEvent.Direct);
+      const isDirect =
+        mDirects.has(room.roomId) ||
+        (!!directEvent && getMDirects(directEvent).has(room.roomId));
+      copyToClipboard(
+        getBetterCordPermalink(
+          {
+            kind: 'room',
+            roomIdOrAlias,
+            viaServers,
+            spaceIdOrAlias: preferredSpaceId
+              ? getCanonicalAliasOrRoomId(mx, preferredSpaceId)
+              : undefined,
+            direct: isDirect,
+          },
+          hashRouter
+        )
+      );
       requestClose();
     };
 
@@ -258,6 +300,8 @@ export function RoomNavItem({
     setViewedCallRoomId,
     isChatOpen,
     speakingUsers,
+    isScreenShareEnabled,
+    remoteParticipantStates,
     toggleChat,
     hangUp,
     callStatus,
@@ -266,21 +310,6 @@ export function RoomNavItem({
   // isActiveCall: true as soon as this room is set as active call (including while connecting)
   const isActiveCall = activeCallRoomId === room.roomId;
 
-  // Call duration badge — local timer, MM:SS only
-  const [callDuration, setCallDuration] = useState(0);
-  const [callStartedAt] = useState(() => Date.now());
-
-  useEffect(() => {
-    if (!isActiveCall || callStatus !== 'connected') {
-      setCallDuration(0);
-      return;
-    }
-    const id = setInterval(() => {
-      setCallDuration(Math.floor((Date.now() - callStartedAt) / 1000));
-    }, 1000);
-    return () => clearInterval(id);
-  }, [isActiveCall, callStatus, callStartedAt]);
-
   function formatCallDuration(s: number): string {
     const m = Math.floor(s / 60);
     const sec = s % 60;
@@ -288,18 +317,52 @@ export function RoomNavItem({
   }
   const callMemberships = useCallMembers(mx, room.roomId);
 
+  // hasActiveCall: true whenever ANY member is in the call — drives timer visibility for everyone
+  const hasActiveCall = room.isCallRoom() && callMemberships.length > 0;
+
+  // Server-tracked start timestamp written by the first joiner (org.bettercord.call.info).
+  // Same value for ALL clients, survives page reloads, resets when last member leaves.
+  const callStartTime = useCallStartTime(mx, room.roomId);
+
+  // Tick every second to keep the displayed duration current
+  const [, setTick] = useState(0);
+  useEffect(() => {
+    if (!hasActiveCall || callStartTime === null) return undefined;
+    const id = setInterval(() => setTick((t) => t + 1), 1000);
+    return () => clearInterval(id);
+  }, [hasActiveCall, callStartTime]);
+
   // IMPORTANT: sidebar membership must come from Matrix call.member state only.
   // LiveKit participant.identity can be opaque/non-Matrix IDs and creates ghost users.
-  const displayedCallMembers = callMemberships;
+  //
+  // Instant local-user removal: when WE hang up, activeCallRoomId becomes null
+  // immediately (synchronous state update in CallProvider) — no need to wait for
+  // the Matrix call.member event to arrive (~300ms network round-trip).
+  // Remote users still go through the normal Matrix event path (+ 200ms grace).
+  const myUserId = mx.getUserId();
+  const displayedCallMembers = isActiveCall
+    ? callMemberships
+    : callMemberships.filter((id) => id !== myUserId);
+
+  // Bridge presence: server-side source of truth for mute/camera/SS/deafen badges.
+  // Only open the SSE connection when the room actually has an active call.
+  const bridgePresenceMap = useBridgeRoomPresence(hasActiveCall ? room.roomId : null);
 
   const hasSpeakingMember =
     room.isCallRoom() &&
     isActiveCall &&
     displayedCallMembers.some((memberId) => speakingUsers.has(memberId));
+  const hasLiveMember =
+    room.isCallRoom() &&
+    (roomHasCallScreenShare(mx, room.roomId) ||
+      (isActiveCall &&
+        (isScreenShareEnabled ||
+          Array.from(remoteParticipantStates.values()).some((state) => state.isScreenSharing))));
 
   const powerLevels = usePowerLevels(room);
   const creators = useRoomCreators(room);
   const roomName = useRoomName(room);
+  const isEncrypted = !!useStateEvent(room, StateEvent.RoomEncryption);
 
   const permissions = useRoomPermissions(creators, powerLevels);
   const canJoinCall = permissions.event(EventType.GroupCallMemberPrefix, mx.getSafeUserId());
@@ -389,37 +452,52 @@ export function RoomNavItem({
       >
         <NavButton onClick={handleNavItemClick} aria-label={ariaLabel} tabIndex={tabIndex}>
           <NavItemContent>
-            <Box as="span" grow="Yes" alignItems="Center" gap="200">
-              <Avatar size="200" radii="400">
-                {showAvatar ? (
-                  <RoomAvatar
-                    roomId={room.roomId}
-                    src={
-                      direct
-                        ? getDirectRoomAvatarUrl(mx, room, 96, useAuthentication)
-                        : getRoomAvatarUrl(mx, room, 96, useAuthentication)
-                    }
-                    alt={roomName}
-                    renderFallback={() => (
-                      <Text as="span" size="H6">
-                        {nameInitials(roomName)}
-                      </Text>
-                    )}
-                  />
-                ) : (
-                  <RoomIcon
+            <Box as="span" grow="Yes" alignItems="Center" gap="200" style={{ minWidth: 0 }}>
+              <span style={{ position: 'relative', flexShrink: 0 }}>
+                <Avatar size="200" radii="400">
+                  {showAvatar ? (
+                    <RoomAvatar
+                      roomId={room.roomId}
+                      src={
+                        direct
+                          ? getDirectRoomAvatarUrl(mx, room, 96, useAuthentication)
+                          : getRoomAvatarUrl(mx, room, 96, useAuthentication)
+                      }
+                      alt={roomName}
+                      renderFallback={() => (
+                        <Text as="span" size="H6">
+                          {nameInitials(roomName)}
+                        </Text>
+                      )}
+                    />
+                  ) : (
+                    <RoomIcon
+                      style={{
+                        opacity: unread || isActiveCall ? config.opacity.P500 : config.opacity.P300,
+                      }}
+                      filled={selected || isActiveCall}
+                      size="100"
+                      joinRule={room.getJoinRule()}
+                      roomType={room.getType()}
+                      locked={room.isCallRoom() && !canJoinCall}
+                    />
+                  )}
+                </Avatar>
+                {isEncrypted && (
+                  <Lock
+                    size={8}
+                    weight="fill"
                     style={{
-                      opacity: unread || isActiveCall ? config.opacity.P500 : config.opacity.P300,
+                      position: 'absolute',
+                      bottom: -1,
+                      right: -2,
+                      color: 'var(--text-secondary)',
+                      opacity: 0.6,
                     }}
-                    filled={selected || isActiveCall}
-                    size="100"
-                    joinRule={room.getJoinRule()}
-                    roomType={room.getType()}
-                    locked={room.isCallRoom() && !canJoinCall}
                   />
                 )}
-              </Avatar>
-              <Box as="span" grow="Yes" alignItems="Center" gap="200">
+              </span>
+              <Box as="span" grow="Yes" alignItems="Center" gap="200" style={{ minWidth: 0 }}>
                 <Text
                   priority={unread || isActiveCall ? '500' : '300'}
                   as="span"
@@ -428,7 +506,7 @@ export function RoomNavItem({
                 >
                   {roomName}
                 </Text>
-                {isActiveCall && callStatus === 'connected' && (
+                {hasActiveCall && callStartTime !== null && (
                   <span
                     style={{
                       fontSize: '11px',
@@ -438,51 +516,76 @@ export function RoomNavItem({
                       flexShrink: 0,
                     }}
                   >
-                    {formatCallDuration(callDuration)}
+                    {formatCallDuration(Math.max(0, Math.floor((Date.now() - callStartTime) / 1000)))}
                   </span>
                 )}
               </Box>
-              {/* Speaker icon when others are in this voice channel */}
-              {room.isCallRoom() && displayedCallMembers.length > 0 && !optionsVisible && !unread && (
-                <SpeakerHigh
-                  size={12}
-                  weight="fill"
-                  style={{
-                    color: hasSpeakingMember
-                      ? '#23a55a'
-                      : isActiveCall
-                        ? 'color-mix(in srgb, #23a55a 65%, #ffffff 35%)'
-                        : 'rgba(255,255,255,0.4)',
-                    filter: hasSpeakingMember ? 'drop-shadow(0 0 6px rgba(35,165,90,0.65))' : undefined,
-                    flexShrink: 0,
-                  }}
-                  aria-label={`${displayedCallMembers.length} in voice`}
-                />
-              )}
-              {!optionsVisible && !unread && !selected && typingMember.length > 0 && (
-                <Badge
-                  size="300"
-                  variant="Secondary"
-                  fill="Soft"
-                  radii="Pill"
-                  outlined
-                  style={{ overflow: 'visible', paddingInline: '6px' }}
-                >
-                  <TypingIndicator size="300" disableAnimation />
-                </Badge>
-              )}
-              {!optionsVisible && unread && (
-                <UnreadBadgeCenter>
-                  <UnreadBadge highlight={unread.highlight > 0} count={unread.total} />
-                </UnreadBadgeCenter>
-              )}
-              {!optionsVisible && notificationMode !== RoomNotificationMode.Unset && (
-                <Icon
-                  size="50"
-                  src={getRoomNotificationModeIcon(notificationMode)}
-                  aria-label={notificationMode}
-                />
-              )}
+              <Box
+                as="span"
+                alignItems="Center"
+                gap="100"
+                shrink="No"
+                style={{
+                  minWidth: toRem(room.isCallRoom() ? 52 : 24),
+                  justifyContent: 'flex-end',
+                  flexShrink: 0,
+                }}
+              >
+                {hasLiveMember && !optionsVisible && !unread && (
+                  <MonitorPlay
+                    size={12}
+                    weight="fill"
+                    style={{
+                      color: '#f23f43',
+                      filter: 'drop-shadow(0 0 6px rgba(242,63,67,0.55))',
+                      flexShrink: 0,
+                    }}
+                    aria-label="Live stream active"
+                  />
+                )}
+                {room.isCallRoom() && displayedCallMembers.length > 0 && !optionsVisible && !unread && (
+                  <SpeakerHigh
+                    size={12}
+                    weight="fill"
+                    style={{
+                      color: hasSpeakingMember
+                        ? '#23a55a'
+                        : isActiveCall
+                          ? 'color-mix(in srgb, #23a55a 65%, #ffffff 35%)'
+                          : 'rgba(255,255,255,0.4)',
+                      filter: hasSpeakingMember
+                        ? 'drop-shadow(0 0 6px rgba(35,165,90,0.65))'
+                        : undefined,
+                      flexShrink: 0,
+                    }}
+                    aria-label={`${displayedCallMembers.length} in voice`}
+                  />
+                )}
+                {!optionsVisible && !unread && !selected && typingMember.length > 0 && (
+                  <Badge
+                    size="300"
+                    variant="Secondary"
+                    fill="Soft"
+                    radii="Pill"
+                    outlined
+                    style={{ overflow: 'visible', paddingInline: '6px', flexShrink: 0 }}
+                  >
+                    <TypingIndicator size="300" disableAnimation />
+                  </Badge>
+                )}
+                {!optionsVisible && unread && (
+                  <UnreadBadgeCenter>
+                    <UnreadBadge highlight={unread.highlight > 0} count={unread.total} />
+                  </UnreadBadgeCenter>
+                )}
+                {!optionsVisible && !unread && notificationMode !== RoomNotificationMode.Unset && (
+                  <Icon
+                    size="50"
+                    src={getRoomNotificationModeIcon(notificationMode)}
+                    aria-label={notificationMode}
+                  />
+                )}
+              </Box>
             </Box>
           </NavItemContent>
         </NavButton>
@@ -598,6 +701,7 @@ export function RoomNavItem({
               key={userId}
               room={room}
               userId={userId}
+              bridgePresence={bridgePresenceMap.get(userId)}
             />
           ))}
         </Box>

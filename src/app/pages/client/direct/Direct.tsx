@@ -40,7 +40,7 @@ import { roomToUnreadAtom } from '../../../state/room/roomToUnread';
 import { useCategoryHandler } from '../../../hooks/useCategoryHandler';
 import { useNavToActivePathMapper } from '../../../hooks/useNavToActivePathMapper';
 import { useDirectRooms } from './useDirectRooms';
-import { PageNav, PageNavContent, PageNavDock, PageNavHeader } from '../../../components/page';
+import { PageNav, PageNavContent, PageNavHeader } from '../../../components/page';
 import { useClosedNavCategoriesAtom } from '../../../state/hooks/closedNavCategories';
 import { useRoomsUnread } from '../../../state/hooks/unread';
 import { markAsRead } from '../../../utils/notifications';
@@ -52,8 +52,6 @@ import {
   useRoomsNotificationPreferencesContext,
 } from '../../../hooks/useRoomsNotificationPreferences';
 import { useDirectCreateSelected } from '../../../hooks/router/useDirectSelected';
-import { CallNavStatus } from '../../../features/room-nav/RoomCallNavStatus';
-import { UserArea } from '../../../components/user-area/UserArea';
 import { useRoomListKeyboard } from '../../../hooks/useRoomListKeyboard';
 import { RoomListbox } from '../../../components/room-listbox/RoomListbox';
 import { searchModalAtom, searchModalInitialCharAtom } from '../../../state/searchModal';
@@ -391,12 +389,6 @@ export function Direct() {
             </NavCategory>
           </Box>
         </PageNavContent>
-      )}
-      {screenSize === ScreenSize.Mobile && (
-        <PageNavDock>
-          <CallNavStatus />
-          <UserArea />
-        </PageNavDock>
       )}
     </PageNav>
   );
