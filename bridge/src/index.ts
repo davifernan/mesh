@@ -390,4 +390,4 @@ const PORT = Number(process.env.PORT ?? 3001);
 console.log(`[bridge] Presence Bridge running on port ${PORT}`);
 console.log(`[bridge] LiveKit API key: ${LIVEKIT_API_KEY ? '✓ set' : '✗ MISSING'}`);
 
-export default { port: PORT, fetch: app.fetch };
+export default { port: PORT, fetch: app.fetch, idleTimeout: 0 };
