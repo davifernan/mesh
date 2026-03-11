@@ -5,3 +5,8 @@ devAssets
 
 .DS_Store
 .idea
+
+# Local env — never commit secrets
+.env
+.env.local
+.env.*.local

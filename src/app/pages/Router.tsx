@@ -69,6 +69,7 @@ import { Create } from './client/create';
 import { CreateSpaceModalRenderer } from '../features/create-space';
 import { SearchModalRenderer } from '../features/search';
 import { CallProvider } from './client/call/CallProvider';
+import { BridgePresenceProvider } from '../features/call/BridgePresenceProvider';
 import { PersistentCallContainer } from './client/call/PersistentCallContainer';
 import { IncomingCallNotification } from '../features/call/IncomingCallNotification';
 import { GlobalKeyboardShortcuts } from '../components/GlobalKeyboardShortcuts';
@@ -134,6 +135,7 @@ export const createRouter = (clientConfig: ClientConfig, screenSize: ScreenSize,
                   <ClientBindAtoms>
                     <ClientNonUIFeatures>
                       <MobileDrawerProvider>
+                      <BridgePresenceProvider>
                       <CallProvider>
                       <ClientLayout
                           nav={
@@ -164,6 +166,7 @@ export const createRouter = (clientConfig: ClientConfig, screenSize: ScreenSize,
                           }}
                         />
                       </CallProvider>
+                      </BridgePresenceProvider>
                       <SearchModalRenderer />
                       <UserRoomProfileRenderer />
                       <CreateRoomModalRenderer />

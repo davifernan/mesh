@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { createPortal } from 'react-dom';
 import { useAtomValue, useSetAtom } from 'jotai';
 import { settingsAtom, Settings } from '../../../state/settings';
 import { effectiveAVSettingsAtom } from '../../../state/avQuality';
@@ -25,6 +26,8 @@ interface ScreenShareModalProps {
 }
 
 export function ScreenShareModal({ onConfirm, onCancel }: ScreenShareModalProps) {
+  if (typeof document === 'undefined') return null;
+
   const settings = useAtomValue(settingsAtom);
   const setSettings = useSetAtom(settingsAtom);
   const effective = useAtomValue(effectiveAVSettingsAtom);
@@ -45,64 +48,68 @@ export function ScreenShareModal({ onConfirm, onCancel }: ScreenShareModalProps)
     if (e.target === e.currentTarget) onCancel();
   };
 
-  return (
+  return createPortal(
     <div className={css.Overlay} onClick={handleOverlayClick}>
       <div className={css.Modal} role="dialog" aria-modal="true" aria-labelledby="ss-modal-title">
-        <h2 id="ss-modal-title" className={css.Title}>
-          Share Screen
-        </h2>
 
-        <div className={css.Section}>
-          <div className={css.Label}>Resolution</div>
-          <div className={css.ChipRow}>
-            {SS_RESOLUTIONS.map((res) => {
-              const allowed = isResolutionAllowed(res, serverMaxRes);
-              return (
-                <button
-                  key={res}
-                  type="button"
-                  className={css.Chip}
-                  data-selected={ssResolution === res}
-                  data-disabled={!allowed}
-                  onClick={() => allowed && setSsResolution(res)}
-                  aria-pressed={ssResolution === res}
-                  disabled={!allowed}
-                >
-                  {res === 'source' ? 'Source' : res}
-                </button>
-              );
-            })}
-          </div>
+        {/* ── Header ─────────────────────────────────────────────────── */}
+        <div className={css.Header}>
+          <h2 id="ss-modal-title" className={css.Title}>Share Screen</h2>
+          <div className={css.Subtitle}>Choose your quality settings before sharing</div>
         </div>
 
-        <div className={css.Section}>
-          <div className={css.Label}>Framerate</div>
-          <div className={css.ChipRow}>
-            {SS_FPS.map((fps) => {
-              const allowed = fps <= serverMaxFps;
-              return (
-                <button
-                  key={fps}
-                  type="button"
-                  className={css.Chip}
-                  data-selected={ssFps === fps}
-                  data-disabled={!allowed}
-                  onClick={() => allowed && setSsFps(fps)}
-                  aria-pressed={ssFps === fps}
-                  disabled={!allowed}
-                >
-                  {fps} fps
-                </button>
-              );
-            })}
-          </div>
-        </div>
+        {/* ── Body ───────────────────────────────────────────────────── */}
+        <div className={css.Body}>
 
-        <div className={css.Section}>
+          {/* Resolution */}
+          <div className={css.Section}>
+            <div className={css.Label}>Resolution</div>
+            <div className={css.ChipRow}>
+              {SS_RESOLUTIONS.map((res) => {
+                const allowed = isResolutionAllowed(res, serverMaxRes);
+                const isActive = ssResolution === res;
+                return (
+                  <button
+                    key={res}
+                    type="button"
+                    className={[css.Chip, isActive ? css.ChipActive : ''].filter(Boolean).join(' ')}
+                    onClick={() => allowed && setSsResolution(res)}
+                    aria-pressed={isActive}
+                    disabled={!allowed}
+                  >
+                    {res === 'source' ? 'Source' : res}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Framerate */}
+          <div className={css.Section}>
+            <div className={css.Label}>Framerate</div>
+            <div className={css.ChipRow}>
+              {SS_FPS.map((fps) => {
+                const allowed = fps <= serverMaxFps;
+                const isActive = ssFps === fps;
+                return (
+                  <button
+                    key={fps}
+                    type="button"
+                    className={[css.Chip, isActive ? css.ChipActive : ''].filter(Boolean).join(' ')}
+                    onClick={() => allowed && setSsFps(fps)}
+                    aria-pressed={isActive}
+                    disabled={!allowed}
+                  >
+                    {fps} fps
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* System Audio */}
           <div className={css.AudioRow}>
-            <span className={css.Label} style={{ textTransform: 'none', letterSpacing: 'normal', fontSize: '14px', fontWeight: 500, color: 'var(--text-normal)' }}>
-              Capture System Audio
-            </span>
+            <span className={css.AudioLabel}>Capture System Audio</span>
             <label className={css.Toggle}>
               <input
                 type="checkbox"
@@ -113,15 +120,18 @@ export function ScreenShareModal({ onConfirm, onCancel }: ScreenShareModalProps)
               <span className={css.ToggleSlider} />
             </label>
           </div>
+
+          {/* Server cap info */}
+          {(serverMaxRes !== 'source' || serverMaxFps < 120) && (
+            <div className={css.InfoRow}>
+              ℹ Max: {serverMaxRes === 'source' ? 'Source' : serverMaxRes} / {serverMaxFps} fps (Space Admin)
+            </div>
+          )}
+
         </div>
 
-        {(serverMaxRes !== 'source' || serverMaxFps < 120) && (
-          <div className={css.InfoRow}>
-            ℹ Max: {serverMaxRes === 'source' ? 'Source' : serverMaxRes} / {serverMaxFps} fps (Space Admin)
-          </div>
-        )}
-
-        <div className={css.ButtonRow}>
+        {/* ── Footer ─────────────────────────────────────────────────── */}
+        <div className={css.Footer}>
           <button type="button" className={css.BtnCancel} onClick={onCancel}>
             Cancel
           </button>
@@ -129,7 +139,9 @@ export function ScreenShareModal({ onConfirm, onCancel }: ScreenShareModalProps)
             Save &amp; Join Call →
           </button>
         </div>
+
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }

@@ -67,6 +67,7 @@ const DISPLAY_ONLY: DisplayEntry[] = [
   { key: 'mod+shift+m', description: 'Toggle mute (in call)', category: 'Actions' },
   { key: 'mod+shift+v', description: 'Toggle video (in call)', category: 'Actions' },
   { key: 'mod+shift+h', description: 'End call', category: 'Actions' },
+  { key: 'mod+shift+b', description: 'Toggle soundboard (in call)', category: 'Actions' },
   { key: 'alt+f', description: 'Search in room', category: 'Search' },
   { key: 'alt+n', description: 'Go to next unread room', category: 'Navigation' },
   { key: 'alt+shift+\u2193', description: 'Next unread room', category: 'Navigation' },

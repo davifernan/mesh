@@ -107,6 +107,58 @@ prevents flicker during membership renewal.
 
 ---
 
+## Bridge Presence — Architecture
+
+Server-side source of truth für participant state (mute / camera / screenshare / deafened).
+Vollständig unabhängig davon, welche Frontend-Version die einzelnen Clients laufen.
+
+### Komponenten
+
+| Datei | Verantwortung |
+|---|---|
+| `src/app/features/call/BridgePresenceContext.ts` | React-Context-Interface (`BridgePresenceContextValue`) |
+| `src/app/features/call/BridgePresenceProvider.tsx` | SSE-Verbindungspool, REST-Bootstrap, ref-counted Lifecycle |
+| `src/app/hooks/useBridgeRoomPresence.ts` | Thin Context-Consumer-Hook (nutzt `useSyncExternalStore`) |
+
+### Datenfluss
+
+```
+LiveKit Webhook
+  → bridge/src/index.ts (Hono, Bun)
+  → GET /api/presence/:roomId/stream (SSE)
+  → BridgePresenceProvider (Connection Pool)
+  → useBridgeRoomPresence(roomId)
+  → RoomNavItem → RoomNavUser (Mute/Camera/Stream/Deafen Badges)
+```
+
+### Verbindungsmanagement (BridgePresenceProvider)
+
+- **Eine SSE-Verbindung pro roomId** — nicht pro Component-Instanz
+- **Ref-counted**: öffnet beim ersten `subscribeSSE(roomId)`-Aufruf, schließt beim letzten cleanup
+- **Presence-Cache bleibt** nach close erhalten — überlebt Virtualizer-bedingtes Unmount/Remount
+- **REST Bootstrap** (`GET /api/presence/:roomId`) beim ersten Subscribe für sofortigen initialen State
+- **Exponential Backoff** bei SSE-Verbindungsfehlern (1s → 2s → 4s → ... → 30s max)
+
+### Presence-Auflösung (resolvePresence in RoomNavUser.tsx)
+
+Priorität für Remote-User (höchste zuerst):
+1. **LiveKit-Client-State** (`pState`) — nur wenn lokaler Client im selben Call ist
+2. **Bridge-Presence** (`remoteBridge`) — server-seitig, funktioniert für alle Clients
+3. **Matrix-State** (`persistedPresence`) — langsamer Fallback via `io.bettercord.call.presence`
+
+Lokaler User liest immer direkt aus dem live Call-State (CallProvider context).
+
+### Regeln — NICHT tun
+
+```
+NEVER useBridgeRoomPresence() aufrufen außerhalb eines Nachfahrens von <BridgePresenceProvider>
+NEVER presence-Map direkt mutieren — immer neue Referenz via notifyListeners() im Provider
+NEVER BridgePresenceProvider mehrfach in den Tree hängen — genau einmal, oberhalb aller RoomNavItem-Render-Punkte
+NEVER subscribeSSE ohne entsprechendes cleanup — Hook erledigt das automatisch via useEffect
+```
+
+---
+
 ## SFU Token Endpoints
 
 Two endpoints (try new first, fall back to legacy):
@@ -505,10 +557,12 @@ Events that trigger `updateRemote(participant)`:
 ```
 src/app/
 ├── features/call/
-│   ├── avPresets.ts          — LiveKit preset mapping (resolution → VideoPreset)
-│   ├── sfuToken.ts           — OpenID → LiveKit JWT
-│   ├── matrixKeyProvider.ts  — MatrixRTC keys → LiveKit E2EE
-│   └── nativeCallEngine.ts   — useNativeCall() hook (main engine)
+│   ├── avPresets.ts                      — LiveKit preset mapping (resolution → VideoPreset)
+│   ├── sfuToken.ts                       — OpenID → LiveKit JWT
+│   ├── matrixKeyProvider.ts              — MatrixRTC keys → LiveKit E2EE
+│   ├── nativeCallEngine.ts               — useNativeCall() hook (main engine)
+│   ├── BridgePresenceContext.ts          — React-Context-Interface für Bridge Presence
+│   └── BridgePresenceProvider.tsx        — SSE-Verbindungspool für Sidebar-Presence-Badges
 │
 ├── pages/client/call/
 │   ├── CallProvider.tsx              — Context: activeCallRoomId, speakingUsers, etc.
@@ -541,5 +595,6 @@ src/app/
 │   └── Space.tsx             — SpaceHeader (guild name + caret dropdown trigger)
 │
 └── hooks/
-    └── useCallMemberships.ts  — Sidebar user list (reads Matrix state events)
+    ├── useCallMemberships.ts      — Sidebar user list (reads Matrix state events)
+    └── useBridgeRoomPresence.ts   — Context-Consumer; gibt Map<userId, CallPresenceState> zurück
 ```

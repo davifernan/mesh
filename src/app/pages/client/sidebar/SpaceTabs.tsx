@@ -31,6 +31,7 @@ import { selectSpaceHasVoiceActivity } from '../../../state/voiceActivity';
 import { roomHasCallScreenShare } from '../../../hooks/useCallMemberPresence';
 import { BETTERCORD_CALL_PRESENCE_EVENT } from '../../../features/call/callPresenceState';
 import { useSpaceVoiceActivity } from '../../../hooks/useSpaceVoiceActivity';
+import { useSpaceLiveActivity } from '../../../hooks/useSpaceLiveActivity';
 import {
   draggable,
   dropTargetForElements,
@@ -767,6 +768,7 @@ export function SpaceTabs({ scrollRef }: SpaceTabsProps) {
   const [draggingItem, setDraggingItem] = useState<SidebarDraggable>();
 
   useSpaceVoiceActivity(orphanSpaces);
+  useSpaceLiveActivity(orphanSpaces);
 
   useDnDMonitor(
     scrollRef,

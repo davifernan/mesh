@@ -31,11 +31,16 @@ function getWidgets(room: Room): RoomWidget[] {
     }));
 }
 
-export function useRoomWidgets(room: Room): RoomWidget[] {
-  const [widgets, setWidgets] = useState<RoomWidget[]>(() => getWidgets(room));
+export function useRoomWidgets(room: Room | null): RoomWidget[] {
+  const [widgets, setWidgets] = useState<RoomWidget[]>(() => room ? getWidgets(room) : []);
 
   useEffect(() => {
+    if (!room) {
+      setWidgets([]);
+      return;
+    }
     const refresh = () => setWidgets(getWidgets(room));
+    refresh();
     room.on(RoomStateEvent.Events, refresh);
     return () => {
       room.off(RoomStateEvent.Events, refresh);

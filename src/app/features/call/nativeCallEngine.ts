@@ -15,6 +15,12 @@
 
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { Room, RoomEvent, Track, LocalAudioTrack, LocalVideoTrack } from 'livekit-client';
+import {
+  getSoundboardMixer,
+  getSoundboardMixerIfActive,
+  destroySoundboardMixerSingleton,
+  type SoundboardMixer,
+} from './soundboardMixer';
 import type { MatrixClient } from 'matrix-js-sdk';
 import { useAtomValue } from 'jotai';
 import { useMatrixClient } from '../../hooks/useMatrixClient';
@@ -176,6 +182,10 @@ export function useNativeCall(roomId: string | null): NativeCallEngine {
   // Stays false if the user manually muted before deafening — we don't touch their manual mute.
   const mutedByDeafenRef = useRef(false);
 
+  // Holds the active SoundboardMixer for the current call session.
+  // Created when the mic track is first obtained; torn down on cleanup/hangUp.
+  const mixerRef = useRef<SoundboardMixer | null>(null);
+
   // Refs for publishing call presence to Matrix state (io.bettercord.call.presence)
   // These mirror the latest local AV state so the publish helper always has fresh values.
   const presenceRoomIdRef = useRef<string | null>(null);
@@ -234,6 +244,11 @@ export function useNativeCall(roomId: string | null): NativeCallEngine {
     if (!roomId) return;
 
     let aborted = false;
+    const SPEAK_ACTIVATE_MS = 180;
+    const SPEAK_DEACTIVATE_MS = 500;
+    const activateTimers = new Map<string, ReturnType<typeof setTimeout>>();
+    const deactivateTimers = new Map<string, ReturnType<typeof setTimeout>>();
+    const confirmedSpeakers = new Set<string>();
 
     async function connect() {
       setStatus('connecting');
@@ -418,12 +433,37 @@ export function useNativeCall(roomId: string | null): NativeCallEngine {
 
         room.on(RoomEvent.ActiveSpeakersChanged, (speakers) => {
           const nextSpeakers = new Set(
-            speakers.map((speaker) => resolveParticipantUserId(speaker, matrixRoom))
+            speakers.map((s) => resolveParticipantUserId(s, matrixRoom))
           );
-          if (room.localParticipant.isSpeaking) {
-            nextSpeakers.add(userId);
+          if (room.localParticipant.isSpeaking) nextSpeakers.add(userId);
+
+          // Users who are speaking → activate, cancel any pending deactivation
+          for (const uid of nextSpeakers) {
+            const dt = deactivateTimers.get(uid);
+            if (dt !== undefined) { clearTimeout(dt); deactivateTimers.delete(uid); }
+            if (!confirmedSpeakers.has(uid) && !activateTimers.has(uid)) {
+              activateTimers.set(uid, setTimeout(() => {
+                activateTimers.delete(uid);
+                confirmedSpeakers.add(uid);
+                setSpeakingUsers(new Set(confirmedSpeakers));
+              }, SPEAK_ACTIVATE_MS));
+            }
           }
-          setSpeakingUsers(nextSpeakers);
+
+          // Users no longer speaking → deactivate, cancel any pending activation
+          const allTracked = [...confirmedSpeakers, ...activateTimers.keys()];
+          for (const uid of allTracked) {
+            if (nextSpeakers.has(uid)) continue;
+            const at = activateTimers.get(uid);
+            if (at !== undefined) { clearTimeout(at); activateTimers.delete(uid); continue; }
+            if (!deactivateTimers.has(uid)) {
+              deactivateTimers.set(uid, setTimeout(() => {
+                deactivateTimers.delete(uid);
+                confirmedSpeakers.delete(uid);
+                setSpeakingUsers(new Set(confirmedSpeakers));
+              }, SPEAK_DEACTIVATE_MS));
+            }
+          }
         });
 
         room.on(RoomEvent.TrackMuted, (pub, participant) => {
@@ -466,6 +506,15 @@ export function useNativeCall(roomId: string | null): NativeCallEngine {
         room.on(RoomEvent.ParticipantDisconnected, (participant) => {
           updateRemote(participant, true);
           playCallSound(CallSoundType.UserLeave, { enabled: callSoundsEnabledRef.current });
+          // Immediately clear speaking state for disconnected participant
+          const disconnectedUid = resolveParticipantUserId(participant, matrixRoom);
+          const at = activateTimers.get(disconnectedUid);
+          if (at !== undefined) { clearTimeout(at); activateTimers.delete(disconnectedUid); }
+          const dt = deactivateTimers.get(disconnectedUid);
+          if (dt !== undefined) { clearTimeout(dt); deactivateTimers.delete(disconnectedUid); }
+          if (confirmedSpeakers.delete(disconnectedUid)) {
+            setSpeakingUsers(new Set(confirmedSpeakers));
+          }
         });
 
         room.on(RoomEvent.LocalTrackPublished, (pub) => {
@@ -502,6 +551,38 @@ export function useNativeCall(roomId: string | null): NativeCallEngine {
           } else {
             throw err;
           }
+        }
+
+        // 9b. Wrap the published mic track in the soundboard mixer so that
+        //     soundboard clips are blended into the outbound audio stream.
+        //     We unpublish the raw mic track, init the mixer, then republish
+        //     a custom LocalAudioTrack carrying the mixed output.
+        try {
+          const micPub = room.localParticipant.getTrackPublication(Track.Source.Microphone);
+          const rawMicTrack = micPub?.track;
+          if (rawMicTrack instanceof LocalAudioTrack) {
+            const rawMst = rawMicTrack.mediaStreamTrack;
+
+            // Create (or reclaim) the singleton mixer and feed it the raw mic track.
+            destroySoundboardMixerSingleton(); // discard any stale instance from a prior call
+            const mixer = getSoundboardMixer(rawMst);
+            mixerRef.current = mixer;
+
+            // Unpublish the raw mic track (keepDeviceAlive=true so the OS mic stays open).
+            await room.localParticipant.unpublishTrack(rawMicTrack, false);
+
+            // Publish the mixer's blended output track as the microphone source.
+            const mixedMst = mixer.getMixedTrack();
+            const mixedLocalTrack = new LocalAudioTrack(mixedMst, undefined, false);
+            await room.localParticipant.publishTrack(mixedLocalTrack, {
+              audioPreset: bitrateToAudioPreset(av.audioBitrate),
+              source: Track.Source.Microphone,
+            });
+          }
+        } catch (mixerErr) {
+          // Mixer init is best-effort — if it fails, raw mic is already published
+          // (or was unpublished; LiveKit will log the state). Log and continue.
+          console.error('[SoundboardMixer] Failed to initialize mixer track:', mixerErr);
         }
 
         if (!aborted) {
@@ -559,6 +640,9 @@ export function useNativeCall(roomId: string | null): NativeCallEngine {
         publishCallPresenceState(mx, leaveRoomId, leaveUserId, leaveDeviceId, null).catch(() => {});
       }
 
+      // Tear down the soundboard mixer before disconnecting the room.
+      destroySoundboardMixerSingleton();
+      mixerRef.current = null;
       void roomRef.current?.disconnect();
       roomRef.current = null;
       void rtcSessionRef.current?.leaveRoomSession?.();
@@ -568,6 +652,12 @@ export function useNativeCall(roomId: string | null): NativeCallEngine {
       setStatus('idle');
       setCallJoinTime(null);
       setLivekitRoom(null);
+      // Cancel all pending speaking timers
+      for (const t of activateTimers.values()) clearTimeout(t);
+      for (const t of deactivateTimers.values()) clearTimeout(t);
+      activateTimers.clear();
+      deactivateTimers.clear();
+      confirmedSpeakers.clear();
       setSpeakingUsers(new Set());
       setRemoteParticipantStates(new Map());
     };
@@ -621,6 +711,11 @@ export function useNativeCall(roomId: string | null): NativeCallEngine {
               autoGainControl: userSettingsRef.current.autoGainControl,
             }),
           );
+          // restartTrack replaces the underlying MediaStreamTrack — update the mixer
+          // source so the new (recaptured) mic feeds through.
+          if (mixerRef.current) {
+            mixerRef.current.setMicTrack(micTrack.mediaStreamTrack);
+          }
         }
 
         if (publishChanged) {
@@ -629,6 +724,11 @@ export function useNativeCall(roomId: string | null): NativeCallEngine {
             ...(micPub?.options ?? {}),
             audioPreset: bitrateToAudioPreset(effectiveAVRef.current.audioBitrate),
           });
+          // After republish the track object is the same instance but update the
+          // mixer source reference to be safe.
+          if (mixerRef.current) {
+            mixerRef.current.setMicTrack(micTrack.mediaStreamTrack);
+          }
         }
       })
       .catch((err) => {
@@ -658,6 +758,9 @@ export function useNativeCall(roomId: string | null): NativeCallEngine {
       mx.sendStateEvent(leaveRoomId, CALL_INFO_EVENT as any, {}, '').catch(() => {});
     }
     clearPresence();
+    // Tear down the soundboard mixer before disconnecting the room.
+    destroySoundboardMixerSingleton();
+    mixerRef.current = null;
     void roomRef.current?.disconnect();
     roomRef.current = null;
     void rtcSessionRef.current?.leaveRoomSession?.();
@@ -678,6 +781,8 @@ export function useNativeCall(roomId: string | null): NativeCallEngine {
     presenceAudioRef.current = newEnabled;
     setIsAudioEnabled(newEnabled);
     playCallSound(newEnabled ? CallSoundType.Unmute : CallSoundType.Mute, { enabled: callSoundsEnabledRef.current });
+    // Gate the mic branch in the Web Audio graph (clips continue unaffected).
+    mixerRef.current?.setMicEnabled(newEnabled);
     await lp.setMicrophoneEnabled(newEnabled);
     publishPresence({ isMicMuted: !newEnabled });
   }, [publishPresence]);
@@ -810,6 +915,8 @@ export function useNativeCall(roomId: string | null): NativeCallEngine {
         mutedByDeafenRef.current = true;
         presenceAudioRef.current = false;
         setIsAudioEnabled(false);
+        // Also silence the mic branch in the Web Audio graph.
+        mixerRef.current?.setMicEnabled(false);
         await lp.setMicrophoneEnabled(false);
         publishPresence({ isMicMuted: true });
       }
@@ -818,6 +925,8 @@ export function useNativeCall(roomId: string | null): NativeCallEngine {
         mutedByDeafenRef.current = false;
         presenceAudioRef.current = true;
         setIsAudioEnabled(true);
+        // Restore mic branch in the Web Audio graph.
+        mixerRef.current?.setMicEnabled(true);
         await lp.setMicrophoneEnabled(true);
         publishPresence({ isMicMuted: false });
       }
@@ -851,4 +960,19 @@ export function useNativeCall(roomId: string | null): NativeCallEngine {
     stopScreenShare,
     toggleDeafen,
   };
+}
+
+/**
+ * Returns the active SoundboardMixer for the current call session, or null if
+ * no call is in progress or the mixer has not been initialized yet.
+ *
+ * Use this from UI components to trigger soundboard clip playback:
+ *
+ *   const mixer = getSoundboardMixerFromEngine();
+ *   if (mixer) mixer.playSoundboardClip('mxc://...', 0.8, homeserverUrl);
+ */
+export function getSoundboardMixerFromEngine(): SoundboardMixer | null {
+  // getSoundboardMixerIfActive() returns the existing singleton only if it is
+  // open, or null if no call is in progress / mixer has been torn down.
+  return getSoundboardMixerIfActive();
 }

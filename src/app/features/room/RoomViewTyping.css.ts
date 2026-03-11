@@ -25,3 +25,11 @@ export const RoomViewTyping = style([
 export const TypingText = style({
   flexGrow: 1,
 });
+
+export const RoomViewTypingPlaceholder = style([
+  DefaultReset,
+  {
+    padding: `${config.space.S100} ${config.space.S500}`,
+    width: '100%',
+  },
+]);

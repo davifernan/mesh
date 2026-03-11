@@ -15,6 +15,8 @@ import {
   SpeakerSlash,
   CaretDown,
   SlidersHorizontal,
+  MusicNote,
+  Rocket,
 } from '@phosphor-icons/react';
 import { ScreenSize, useScreenSizeContext } from '../../../hooks/useScreenSize';
 import { useLocalParticipant } from '@livekit/components-react';
@@ -23,7 +25,9 @@ import { useAtom } from 'jotai';
 import { useCallState } from './CallProvider';
 import { settingsAtom } from '../../../state/settings';
 import { ScreenShareModal } from '../../../components/voice/ScreenShareModal/ScreenShareModal';
+import { SoundboardPanel } from '../../../components/soundboard';
 import { showStatsAtom } from './VoiceCallLayoutStore';
+import { ActivityPicker } from './ActivityPicker';
 import styles from './NativeCallControlBar.module.css';
 
 function formatDuration(s: number): string {
@@ -56,6 +60,8 @@ export function NativeCallControlBar() {
     remoteParticipantStates,
     livekitRoom,
     callJoinTime,
+    isSoundboardOpen,
+    setSoundboardOpen,
   } = useCallState();
 
   // Screen share state comes from the LiveKit RoomContext — no polling needed.
@@ -101,15 +107,18 @@ export function NativeCallControlBar() {
 
   // ── Screen share context menu ──────────────────────────────────────────────
   const [showSSMenu, setShowSSMenu] = useState(false);
+  const [showActivities, setShowActivities] = useState(false);
+  const activitiesRef = useRef<HTMLDivElement>(null);
 
   // Close menus when clicking outside
   const micMenuRef = useRef<HTMLDivElement>(null);
   const camMenuRef = useRef<HTMLDivElement>(null);
   const ssMenuRef = useRef<HTMLDivElement>(null);
   const mediaMenuRef = useRef<HTMLDivElement>(null);
+  const soundboardMenuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    if (!showMicMenu && !showCamMenu && !showSSMenu && !showMediaMenu) return;
+    if (!showMicMenu && !showCamMenu && !showSSMenu && !showMediaMenu && !isSoundboardOpen) return;
     const handler = (e: MouseEvent) => {
       if (showMicMenu && micMenuRef.current && !micMenuRef.current.contains(e.target as Node)) {
         setShowMicMenu(false);
@@ -123,10 +132,21 @@ export function NativeCallControlBar() {
       if (showMediaMenu && mediaMenuRef.current && !mediaMenuRef.current.contains(e.target as Node)) {
         setShowMediaMenu(false);
       }
+      if (isSoundboardOpen && soundboardMenuRef.current && !soundboardMenuRef.current.contains(e.target as Node)) {
+        setSoundboardOpen(false);
+      }
     };
     document.addEventListener('mousedown', handler);
     return () => document.removeEventListener('mousedown', handler);
-  }, [showMicMenu, showCamMenu, showSSMenu, showMediaMenu]);
+  }, [showMicMenu, showCamMenu, showSSMenu, showMediaMenu, isSoundboardOpen, setSoundboardOpen]);
+
+  const toggleActivities = useCallback(() => {
+    setShowActivities((v) => !v);
+    setShowMicMenu(false);
+    setShowCamMenu(false);
+    setShowSSMenu(false);
+    setShowMediaMenu(false);
+  }, []);
 
   const openMicMenu = useCallback(async (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -468,6 +488,38 @@ export function NativeCallControlBar() {
               >
                 <Waveform size={20} />
               </button>
+
+              {/* Soundboard */}
+              <div className={styles.btnWrap} ref={soundboardMenuRef}>
+                <button
+                  className={`${styles.btn} ${isSoundboardOpen ? styles.btnActive : ''}`}
+                  onClick={() => setSoundboardOpen(!isSoundboardOpen)}
+                  title="Soundboard"
+                  aria-label="Toggle soundboard"
+                  aria-pressed={isSoundboardOpen}
+                >
+                  <MusicNote size={20} />
+                </button>
+                {isSoundboardOpen && (
+                  <SoundboardPanel onClose={() => setSoundboardOpen(false)} />
+                )}
+              </div>
+
+              {/* Activities */}
+              <div className={styles.btnWrap} ref={activitiesRef}>
+                <button
+                  className={`${styles.btn} ${showActivities ? styles.btnActive : ''}`}
+                  onClick={toggleActivities}
+                  title="Activities"
+                  aria-label="Open activities picker"
+                  aria-pressed={showActivities}
+                >
+                  <Rocket size={20} />
+                </button>
+                {showActivities && (
+                  <ActivityPicker onClose={() => setShowActivities(false)} />
+                )}
+              </div>
 
               {/* Stats */}
               <button

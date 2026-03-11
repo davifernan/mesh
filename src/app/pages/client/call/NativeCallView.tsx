@@ -9,6 +9,7 @@ import { NativeCallParticipantGrid } from './NativeCallParticipantGrid';
 import { NativeCallControlBar } from './NativeCallControlBar';
 import { BCStatsPanel } from './BCStatsPanel';
 import { showStatsAtom } from './VoiceCallLayoutStore';
+import { useRoomWidgets } from '../../../hooks/useRoomWidgets';
 import styles from './NativeCallView.module.css';
 
 function useVoiceHUDIdle(timeoutMs = 3000) {
@@ -76,7 +77,9 @@ export function NativeCallView() {
   const showStats = useAtomValue(showStatsAtom);
   const setShowStats = useSetAtom(showStatsAtom);
 
-  const roomName = activeCallRoomId ? (mx.getRoom(activeCallRoomId)?.name ?? '') : '';
+  const activeRoom = activeCallRoomId ? (mx.getRoom(activeCallRoomId) ?? null) : null;
+  const roomName = activeRoom?.name ?? '';
+  const widgets = useRoomWidgets(activeRoom);
 
   useEffect(() => {
     const wakeHud = () => activate();
@@ -153,7 +156,7 @@ export function NativeCallView() {
         <AudioUnblockButton />
 
         {/* Main content — fills all remaining space */}
-        <NativeCallParticipantGrid />
+        <NativeCallParticipantGrid widgets={widgets} />
 
         {/* Stats panel — floating top-right, NOT inside HUD opacity layer */}
         {showStats && (

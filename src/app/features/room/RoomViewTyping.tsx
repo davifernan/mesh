@@ -28,7 +28,7 @@ export const RoomViewTyping = as<'div', RoomViewTypingProps>(
       .reverse();
 
     if (typingNames.length === 0) {
-      return null;
+      return <div className={css.RoomViewTypingPlaceholder} aria-hidden="true" />;
     }
 
     const handleDropAll = () => {

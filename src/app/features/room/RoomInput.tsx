@@ -100,6 +100,7 @@ import {
   getImageMsgContent,
   getVideoMsgContent,
 } from './msgContent';
+import { GifItem } from '../../plugins/gif/types';
 import { getMemberDisplayName, getMentionContent, trimReplyFromBody } from '../../utils/room';
 import { CommandAutocomplete } from './CommandAutocomplete';
 import { CharacterCounter } from '../../components/editor/CharacterCounter';
@@ -517,6 +518,22 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
       });
     };
 
+    const handleGifSelect = useCallback(
+      (gif: GifItem) => {
+        mx.sendMessage(roomId, {
+          msgtype: 'm.image',
+          url: gif.url,
+          body: gif.title || 'GIF',
+          info: {
+            w: gif.width,
+            h: gif.height,
+            mimetype: 'image/gif',
+          },
+        } as any);
+      },
+      [mx, roomId]
+    );
+
     return (
       <div ref={ref}>
         {uploadSizeError && (
@@ -722,6 +739,8 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
                         onEmojiSelect={handleEmoticonSelect}
                         onCustomEmojiSelect={handleEmoticonSelect}
                         onStickerSelect={handleStickerSelect}
+                        onGifSelect={handleGifSelect}
+                        roomId={roomId}
                         requestClose={() => {
                           setEmojiBoardTab((t) => {
                             if (t) {
@@ -735,19 +754,34 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
                     }
                   >
                     {!hideStickerBtn && (
-                      <IconButton
-                        aria-label="Open sticker picker"
-                        aria-pressed={emojiBoardTab === EmojiBoardTab.Sticker}
-                        onClick={() => setEmojiBoardTab(EmojiBoardTab.Sticker)}
-                        variant="SurfaceVariant"
-                        size="300"
-                        radii="300"
-                      >
-                        <Icon
-                          src={Icons.Sticker}
-                          filled={emojiBoardTab === EmojiBoardTab.Sticker}
-                        />
-                      </IconButton>
+                      <>
+                        <IconButton
+                          aria-label="Open GIF picker"
+                          aria-pressed={emojiBoardTab === EmojiBoardTab.GIF}
+                          onClick={() => setEmojiBoardTab(EmojiBoardTab.GIF)}
+                          variant="SurfaceVariant"
+                          size="300"
+                          radii="300"
+                        >
+                          <Icon
+                            src={Icons.Photo}
+                            filled={emojiBoardTab === EmojiBoardTab.GIF}
+                          />
+                        </IconButton>
+                        <IconButton
+                          aria-label="Open sticker picker"
+                          aria-pressed={emojiBoardTab === EmojiBoardTab.Sticker}
+                          onClick={() => setEmojiBoardTab(EmojiBoardTab.Sticker)}
+                          variant="SurfaceVariant"
+                          size="300"
+                          radii="300"
+                        >
+                          <Icon
+                            src={Icons.Sticker}
+                            filled={emojiBoardTab === EmojiBoardTab.Sticker}
+                          />
+                        </IconButton>
+                      </>
                     )}
                     <IconButton
                       ref={emojiBtnRef}

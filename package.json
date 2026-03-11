@@ -29,6 +29,9 @@
     "@fontsource/ibm-plex-mono": "5.2.7",
     "@fontsource/ibm-plex-sans": "5.2.8",
     "@fontsource/inter": "4.5.14",
+    "@giphy/js-fetch-api": "5.7.0",
+    "@giphy/js-types": "5.1.0",
+    "@giphy/react-components": "10.1.1",
     "@livekit/components-core": "^0.12.0",
     "@livekit/components-react": "^2.0.0",
     "@phosphor-icons/react": "2.1.10",
@@ -84,6 +87,7 @@
     "slate-dom": "0.112.2",
     "slate-history": "0.110.3",
     "slate-react": "0.112.1",
+    "styled-components": "6.3.11",
     "ua-parser-js": "1.0.35",
     "zod": "4.3.6"
   },

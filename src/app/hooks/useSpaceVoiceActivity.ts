@@ -10,7 +10,7 @@ const CALL_MEMBER_TYPES = [
 ];
 
 /** Returns true if the room has at least one active call member state event. */
-function roomHasCallActivity(room: Room): boolean {
+export function roomHasCallActivity(room: Room): boolean {
   for (const type of CALL_MEMBER_TYPES) {
     const events: MatrixEvent[] = room.currentState.getStateEvents(type) ?? [];
     for (const ev of events) {

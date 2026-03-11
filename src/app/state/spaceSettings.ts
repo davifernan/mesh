@@ -8,6 +8,8 @@ export enum SpaceSettingsPage {
   DeveloperToolsPage,
   AVSettingsPage,
   UploadSettingsPage,
+  SoundboardPage,
+  GifCollectionsPage,
 }
 
 export type SpaceSettingsState = {

@@ -12,6 +12,10 @@ services:
       BETTERCORD_HOMESERVER: '${BETTERCORD_HOMESERVER}'
       BETTERCORD_LIVEKIT_URL: '${BETTERCORD_LIVEKIT_URL}'
       BETTERCORD_PRESENCE_URL: '${BETTERCORD_PRESENCE_URL}'
+      # Optional: set these to show Polls/Whiteboard in the Activities catalog.
+      # Must be publicly reachable URLs (loaded by users' browsers, not the container).
+      BETTERCORD_POLLS_URL: '${BETTERCORD_POLLS_URL:-}'
+      BETTERCORD_WHITEBOARD_URL: '${BETTERCORD_WHITEBOARD_URL:-}'
     depends_on:
       bridge:
         condition: service_healthy
@@ -40,6 +44,52 @@ services:
       - bettercord
       - voicechat
     restart: unless-stopped
+
+  polls-widget:
+    # nordeck/matrix-poll-widget — self-hosted polls for BetterCord rooms.
+    #
+    # Setup (server admin):
+    #   1. Start with: docker compose --profile microapps up -d polls-widget
+    #   2. Expose port 3001 via your reverse proxy as a public URL,
+    #      e.g. https://polls.your-domain.com
+    #   3. Set BETTERCORD_POLLS_URL=https://polls.your-domain.com in your .env
+    #      and restart the bettercord container so config-microapps.js is regenerated.
+    #   4. Polls will now appear in the BetterCord Activities catalog (🚀 button in call view).
+    #
+    # CORS: the nordeck image allows all origins by default, no extra config needed.
+    image: ghcr.io/nordeck/matrix-poll-widget:latest
+    restart: unless-stopped
+    ports:
+      - "${POLLS_HOST_PORT:-3001}:8080"
+    environment:
+      REACT_APP_HOME_SERVER_URL: '${BETTERCORD_HOMESERVER:-https://matrix.org}'
+    networks:
+      - bettercord
+    profiles:
+      - microapps
+
+  neoboard-widget:
+    # nordeck/matrix-neoboard-widget — collaborative whiteboard for BetterCord rooms.
+    #
+    # Setup (server admin):
+    #   1. Start with: docker compose --profile microapps up -d neoboard-widget
+    #   2. Expose port 3003 via your reverse proxy as a public URL,
+    #      e.g. https://whiteboard.your-domain.com
+    #   3. Set BETTERCORD_WHITEBOARD_URL=https://whiteboard.your-domain.com in your .env
+    #      and restart the bettercord container so config-microapps.js is regenerated.
+    #   4. Whiteboard will now appear in the BetterCord Activities catalog (🚀 button).
+    #
+    # Note: nordeck/matrix-neoboard stores whiteboard state as Matrix room events.
+    # Ensure your homeserver has reasonable rate limits for state events.
+    # Port 3003 (3002 is reserved for the bridge service on the host).
+    image: ghcr.io/nordeck/matrix-neoboard-widget:latest
+    restart: unless-stopped
+    ports:
+      - "${WHITEBOARD_HOST_PORT:-3003}:8080"
+    networks:
+      - bettercord
+    profiles:
+      - microapps
 
 networks:
   bettercord:

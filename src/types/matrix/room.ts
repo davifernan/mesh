@@ -38,6 +38,9 @@ export enum StateEvent {
 
   PoniesRoomEmotes = 'im.ponies.room_emotes',
   PowerLevelTags = 'in.cinny.room.power_level_tags',
+
+  BetterCordSpaceSoundboard = 'io.bettercord.space.soundboard',
+  BetterCordSpaceGifCollection = 'io.bettercord.space.gif_collection',
 }
 
 export enum MessageEvent {

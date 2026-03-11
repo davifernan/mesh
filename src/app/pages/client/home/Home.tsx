@@ -52,7 +52,7 @@ import { roomToUnreadAtom } from '../../../state/room/roomToUnread';
 import { useCategoryHandler } from '../../../hooks/useCategoryHandler';
 import { useNavToActivePathMapper } from '../../../hooks/useNavToActivePathMapper';
 import { PageNav, PageNavHeader, PageNavContent } from '../../../components/page';
-import { useRoomUnread, useRoomsUnread } from '../../../state/hooks/unread';
+import { useRoomsUnread } from '../../../state/hooks/unread';
 import { markAsRead } from '../../../utils/notifications';
 import { useClosedNavCategoriesAtom } from '../../../state/hooks/closedNavCategories';
 import { stopPropagation } from '../../../utils/keyboard';
@@ -72,10 +72,9 @@ import { useOrphanSpaces } from '../../../state/hooks/roomList';
 import { allRoomsAtom } from '../../../state/room-list/roomList';
 import { roomToParentsAtom } from '../../../state/room/roomToParents';
 import { useSidebarItems } from '../../../hooks/useSidebarItems';
-import { getRoomAvatarUrl } from '../../../utils/room';
-import { nameInitials } from '../../../utils/common';
-import { useMediaAuthentication } from '../../../hooks/useMediaAuthentication';
 import { ScreenSize, useScreenSizeContext } from '../../../hooks/useScreenSize';
+import { HomeSpaceCard } from './HomeSpaceCard';
+import { ActiveCallsSection } from './ActiveCallsSection';
 import homeStyles from './Home.module.css';
 
 type HomeMenuProps = {
@@ -235,45 +234,6 @@ function HomeHeader() {
   );
 }
 
-/** Single space card in the mobile grid */
-type HomeSpaceCardProps = {
-  roomId: string;
-  selected: boolean;
-  onClick: (roomId: string) => void;
-};
-function HomeSpaceCard({ roomId, selected, onClick }: HomeSpaceCardProps) {
-  const mx = useMatrixClient();
-  const useAuthentication = useMediaAuthentication();
-  const unread = useRoomUnread(roomId, roomToUnreadAtom);
-  const space = mx.getRoom(roomId);
-  if (!space) return null;
-
-  const avatarUrl = getRoomAvatarUrl(mx, space, 96, useAuthentication);
-
-  return (
-    <button
-      type="button"
-      className={`${homeStyles.spaceCard} ${selected ? homeStyles.spaceCardActive : ''}`}
-      onClick={() => onClick(roomId)}
-      aria-label={`${space.name} space`}
-    >
-      <div className={homeStyles.spaceAvatar}>
-        {avatarUrl ? (
-          <img src={avatarUrl} alt={space.name} />
-        ) : (
-          <span className={homeStyles.spaceAvatarFallback}>{nameInitials(space.name, 2)}</span>
-        )}
-        {unread && unread.total > 0 && (
-          <div
-            className={`${homeStyles.spaceUnreadDot} ${unread.highlight > 0 ? homeStyles.spaceUnreadHighlight : ''}`}
-          />
-        )}
-      </div>
-      <span className={homeStyles.spaceName}>{space.name}</span>
-    </button>
-  );
-}
-
 /** Spaces grid — only rendered on mobile */
 function HomeSpacesSection() {
   const mx = useMatrixClient();
@@ -393,7 +353,10 @@ export function Home() {
   const virtualizer = useVirtualizer({
     count: sortedRooms.length,
     getScrollElement: () => scrollRef.current,
-    estimateSize: () => 38,
+    estimateSize: (index) => {
+      const room = mx.getRoom(sortedRooms[index]);
+      return room?.isCallRoom() ? 80 : 38;
+    },
     overscan: 10,
     getItemKey: (index) => sortedRooms[index],
   });
@@ -421,6 +384,7 @@ export function Home() {
       ) : (
         <PageNavContent scrollRef={scrollRef}>
           <Box direction="Column" gap="300">
+            <ActiveCallsSection />
             {isMobile && <HomeSpacesSection />}
             {isMobile && <div className={homeStyles.sectionDivider} />}
             <NavCategory>

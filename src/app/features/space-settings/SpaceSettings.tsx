@@ -19,6 +19,8 @@ import { General } from './general';
 import { Permissions } from './permissions';
 import { SpaceAVSettings } from './SpaceAVSettings';
 import { SpaceUploadSettings } from './SpaceUploadSettings';
+import { SpaceSoundboardSettings } from './SpaceSoundboardSettings';
+import { SpaceGifCollectionSettings } from './SpaceGifCollectionSettings';
 
 type SpaceSettingsMenuItem = {
   page: SpaceSettingsPage;
@@ -58,6 +60,16 @@ const useSpaceSettingsMenuItems = (): SpaceSettingsMenuItem[] =>
         page: SpaceSettingsPage.UploadSettingsPage,
         name: 'Datei-Upload',
         icon: Icons.Attachment,
+      },
+      {
+        page: SpaceSettingsPage.SoundboardPage,
+        name: 'Soundboard',
+        icon: Icons.Mic,
+      },
+      {
+        page: SpaceSettingsPage.GifCollectionsPage,
+        name: 'GIF-Sammlungen',
+        icon: Icons.Smile,
       },
       {
         page: SpaceSettingsPage.DeveloperToolsPage,
@@ -182,6 +194,12 @@ export function SpaceSettings({ initialPage, requestClose }: SpaceSettingsProps)
       )}
       {activePage === SpaceSettingsPage.UploadSettingsPage && (
         <SpaceUploadSettings requestClose={handlePageRequestClose} />
+      )}
+      {activePage === SpaceSettingsPage.SoundboardPage && (
+        <SpaceSoundboardSettings spaceId={room.roomId} requestClose={handlePageRequestClose} />
+      )}
+      {activePage === SpaceSettingsPage.GifCollectionsPage && (
+        <SpaceGifCollectionSettings spaceId={room.roomId} requestClose={handlePageRequestClose} />
       )}
       {activePage === SpaceSettingsPage.DeveloperToolsPage && (
         <DeveloperTools requestClose={handlePageRequestClose} />

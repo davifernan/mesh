@@ -13,7 +13,7 @@ import { useMediaAuthentication } from '../../../hooks/useMediaAuthentication';
 import { resolveParticipantUserId } from '../../../features/call/participantIdentity';
 import { useCallState } from './CallProvider';
 import { getPresenceBadgeKinds, getPresenceSummary, PRESENCE_BADGE_LABEL } from '../../../features/call/presenceBadges';
-import { getMemberAvatarMxc } from '../../../utils/room';
+import { getMemberAvatarMxc, getMemberDisplayName } from '../../../utils/room';
 import styles from './NativeCallParticipantTile.module.css';
 
 // ── Avatar accent colors (Discord-like palette) ────────────────────────────
@@ -49,7 +49,14 @@ export function NativeCallParticipantTile({
 }: NativeCallParticipantTileProps) {
   const mx = useMatrixClient();
   const useAuthentication = useMediaAuthentication();
-  const { activeCallRoomId, remoteParticipantStates, isAudioEnabled, isDeafened, isFrontCamera } = useCallState();
+  const {
+    activeCallRoomId,
+    remoteParticipantStates,
+    speakingUsers,
+    isAudioEnabled,
+    isDeafened,
+    isFrontCamera,
+  } = useCallState();
 
   // ── Track resolution ──────────────────────────────────────────────────
   const allTracksUnfiltered = useTracks([
@@ -84,14 +91,30 @@ export function NativeCallParticipantTile({
   const fps = camPub?.track?.mediaStreamTrack.getSettings().frameRate;
 
   // ── Identity / display ───────────────────────────────────────────────
-  const displayName = participant.name || participant.identity;
-  const initial = displayName.charAt(0).toUpperCase();
   const isLocal = participant instanceof LocalParticipant;
   const room = activeCallRoomId ? mx.getRoom(activeCallRoomId) : null;
   const userId = useMemo(
     () => resolveParticipantUserId(participant, room),
     [participant, room]
   );
+  const displayName = useMemo(() => {
+    // 1. Matrix room member display name (most reliable)
+    const matrixName = room ? getMemberDisplayName(room, userId) : undefined;
+    if (matrixName) return matrixName;
+
+    // 2. LiveKit participant.name — only if it looks like a real display name
+    //    (not a Matrix ID, which would just repeat the identity noise)
+    const livekitName = participant.name;
+    if (livekitName && !livekitName.startsWith('@')) return livekitName;
+
+    // 3. Clean Matrix userId resolved from identity (strips device suffix)
+    //    Prefer this over raw identity which includes `_DEVICEID` clutter
+    if (userId && userId !== participant.identity) return userId;
+
+    // 4. Raw identity as last resort
+    return participant.identity;
+  }, [room, userId, participant.name, participant.identity]);
+  const isSpeaking = speakingUsers.has(userId);
 
   // ── Matrix avatar ─────────────────────────────────────────────────────
   const avatarMxcUrl = useMemo(
@@ -132,7 +155,7 @@ export function NativeCallParticipantTile({
     [hasScreenShare, isCameraOn, isParticipantDeafened, isMuted]
   );
   const badgeKinds = useMemo(() => getPresenceBadgeKinds(presenceState), [presenceState]);
-  const tileAriaLabel = `${displayName}${participant.isSpeaking ? ', speaking' : ''}. ${getPresenceSummary(
+  const tileAriaLabel = `${displayName}${isSpeaking ? ', speaking' : ''}. ${getPresenceSummary(
     presenceState
   )}.`;
 
@@ -171,7 +194,7 @@ export function NativeCallParticipantTile({
     <div
       ref={tileRef}
       className={[styles.tile, className].filter(Boolean).join(' ')}
-      data-speaking={participant.isSpeaking ? 'true' : 'false'}
+      data-speaking={isSpeaking ? 'true' : 'false'}
       data-pinned={isPinned ? 'true' : 'false'}
       style={{
         '--voice-tile-accent-color': tileAccentColor,

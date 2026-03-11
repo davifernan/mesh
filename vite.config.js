@@ -107,9 +107,9 @@ export default defineConfig({
       // Forward /api/presence/* to the local presence bridge (bun run bridge/src/index.ts)
       // so SSE and REST presence calls work in dev without Docker.
       '/api/presence': {
-        target: 'http://localhost:3001',
-        rewrite: (path) => path.replace(/^\/api\/presence/, '/presence'),
+        target: 'https://chat.nilo.live',
         changeOrigin: true,
+        secure: true,
       },
     },
   },
@@ -162,8 +162,12 @@ export default defineConfig({
     rollupOptions: {
       plugins: [inject({ Buffer: ['buffer', 'Buffer'] })],
       input: {
-        main: path.resolve(__dirname, 'index.html'),
-        widget: path.resolve(__dirname, 'widget.html'),
+        main:       path.resolve(__dirname, 'index.html'),
+        widget:     path.resolve(__dirname, 'widget.html'),
+        youtube:    path.resolve(__dirname, 'youtube.html'),
+        spotify:    path.resolve(__dirname, 'spotify.html'),
+        polls:      path.resolve(__dirname, 'polls.html'),
+        whiteboard: path.resolve(__dirname, 'whiteboard.html'),
       },
     },
   },

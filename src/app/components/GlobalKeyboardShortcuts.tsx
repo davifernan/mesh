@@ -33,6 +33,7 @@ const CALL_SHORTCUTS: DisplayShortcut[] = [
   { key: 'mod+shift+m', description: 'Toggle mute (in call)', category: 'Actions' },
   { key: 'mod+shift+v', description: 'Toggle video (in call)', category: 'Actions' },
   { key: 'mod+shift+h', description: 'End call', category: 'Actions' },
+  { key: 'mod+shift+b', description: 'Toggle soundboard (in call)', category: 'Actions' },
 ];
 
 const SPACE_SHORTCUT: DisplayShortcut = {
@@ -158,7 +159,7 @@ function getRegionSections(): HTMLElement[] {
 export function GlobalKeyboardShortcuts() {
   const navigate = useNavigate();
   useGlobalKeyboardShortcuts();
-  const { hangUp, toggleAudio, toggleVideo, activeCallRoomId, setActiveCallRoomId } = useCallState();
+  const { hangUp, toggleAudio, toggleVideo, activeCallRoomId, setActiveCallRoomId, setSoundboardOpen, isSoundboardOpen } = useCallState();
   const setPeopleDrawer = useSetSetting(settingsAtom, 'isPeopleDrawer');
   const unreadIndexRef = useRef(0);
   const mx = useMatrixClient();
@@ -197,9 +198,12 @@ export function GlobalKeyboardShortcuts() {
       } else if (isKeyHotkey('mod+shift+h', evt)) {
         evt.preventDefault();
         hangUp();
+      } else if (isKeyHotkey('mod+shift+b', evt)) {
+        evt.preventDefault();
+        setSoundboardOpen(!isSoundboardOpen);
       }
     },
-    [activeCallRoomId, hangUp, toggleAudio, toggleVideo]
+    [activeCallRoomId, hangUp, toggleAudio, toggleVideo, setSoundboardOpen, isSoundboardOpen]
   );
 
   const handleSpaceKeyDown = useCallback(

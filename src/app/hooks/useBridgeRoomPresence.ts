@@ -1,123 +1,45 @@
 /**
  * useBridgeRoomPresence
  *
- * Opens an SSE connection to the BetterCord presence bridge
- * (`/api/presence/:roomId/stream`) and returns a reactive Map of
- * `userId → CallPresenceState` for every participant currently in the room.
+ * Gibt eine reaktive Map<userId, CallPresenceState> zurück,
+ * die vom BridgePresenceProvider via SSE aktuell gehalten wird.
  *
- * Design goals:
- *  - Falls back gracefully when the bridge is unavailable (returns empty Map)
- *  - Reconnects automatically after transient network failures (exponential back-off)
- *  - Only opens a connection when a roomId is provided and the component is mounted
- *  - Cleans up the SSE connection on unmount or roomId change
+ * Die SSE-Verbindung wird ref-counted im Provider verwaltet:
+ *   - öffnet beim ersten Subscriber für diesen roomId
+ *   - schließt beim letzten Subscriber (Presence-Cache bleibt erhalten)
+ *
+ * Voraussetzung: Muss innerhalb von <BridgePresenceProvider> gerendert werden.
+ *
+ * @param roomId  Matrix room ID zum Subscriben, oder null/undefined zum Überspringen.
  */
 
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useContext, useEffect, useSyncExternalStore } from 'react';
 import type { CallPresenceState } from '../features/call/callPresenceState';
-import { useClientConfig } from './useClientConfig';
+import { BridgePresenceContext } from '../features/call/BridgePresenceContext';
 
-// Shape of a single bridge SSE / REST message
-type BridgePresencePayload = {
-  userId: string;
-  type: 'update' | 'left';
-  isMicMuted: boolean;
-  isCameraOn: boolean;
-  isScreenSharing: boolean;
-  isDeafened: boolean;
-  updatedAt: number;
-};
+const EMPTY_MAP: ReadonlyMap<string, CallPresenceState> = new Map();
 
-// Maximum back-off between reconnect attempts: 30 s
-const MAX_BACKOFF_MS = 30_000;
-
-/**
- * Returns a Map<userId, CallPresenceState> that is kept live via SSE.
- * The Map is updated in-place on every bridge event — React receives a new
- * Map reference on each update so components re-render correctly.
- *
- * @param roomId  Matrix room ID to subscribe to, or null/undefined to skip.
- */
 export function useBridgeRoomPresence(
   roomId: string | null | undefined,
-): Map<string, CallPresenceState> {
-  const { presenceUrl } = useClientConfig();
-  const [presence, setPresence] = useState<Map<string, CallPresenceState>>(
-    () => new Map(),
-  );
+): ReadonlyMap<string, CallPresenceState> {
+  const { subscribeSSE, subscribeToUpdates, getSnapshot } = useContext(BridgePresenceContext);
 
-  // Stable ref so the reconnect loop can read the latest backoff without
-  // needing to be recreated every render.
-  const backoffRef = useRef(1_000);
-  const retryTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const esRef = useRef<EventSource | null>(null);
-
+  // Öffne/schließe SSE-Verbindung (ref-counted im Provider)
   useEffect(() => {
-    if (!roomId) {
-      setPresence(new Map());
-      return undefined;
-    }
+    if (!roomId) return undefined;
+    return subscribeSSE(roomId);
+  }, [roomId, subscribeSSE]);
 
-    let destroyed = false;
-    backoffRef.current = 1_000;
-
-    function connect() {
-      if (destroyed) return;
-
-      const presenceBase = presenceUrl ?? '/api/presence';
-      const url = `${presenceBase}/${encodeURIComponent(roomId!)}/stream`;
-      const es = new EventSource(url);
-      esRef.current = es;
-
-      // Accumulate the full room snapshot here; swap into React state on every event
-      const snapshot = new Map<string, CallPresenceState>();
-
-      es.onmessage = (ev: MessageEvent<string>) => {
-        if (destroyed) return;
-        try {
-          const payload = JSON.parse(ev.data) as BridgePresencePayload;
-          const { userId, isMicMuted, isCameraOn, isScreenSharing, isDeafened } = payload;
-
-          if (payload.type === 'left') {
-            snapshot.delete(userId);
-          } else {
-            snapshot.set(userId, { isMicMuted, isCameraOn, isScreenSharing, isDeafened });
-          }
-
-          // Give React a new Map reference so useMemo / shallow comparisons work
-          setPresence(new Map(snapshot));
-
-          // Reset back-off on successful message
-          backoffRef.current = 1_000;
-        } catch {
-          // Malformed JSON — ignore
-        }
-      };
-
-      es.onerror = () => {
-        if (destroyed) return;
-        es.close();
-        esRef.current = null;
-
-        // Back-off and retry
-        const delay = backoffRef.current;
-        backoffRef.current = Math.min(delay * 2, MAX_BACKOFF_MS);
-        retryTimerRef.current = setTimeout(connect, delay);
-      };
-    }
-
-    connect();
-
-    return () => {
-      destroyed = true;
-      esRef.current?.close();
-      esRef.current = null;
-      if (retryTimerRef.current !== null) {
-        clearTimeout(retryTimerRef.current);
-        retryTimerRef.current = null;
-      }
-      setPresence(new Map());
-    };
-  }, [roomId]);
-
-  return presence;
+  // Lies Presence-State reaktiv via useSyncExternalStore
+  // subscribe-Funktion: stabil per useCallback damit kein Endlos-Rerender
+  return useSyncExternalStore(
+    useCallback(
+      (listener) => (roomId ? subscribeToUpdates(roomId, listener) : () => {}),
+      [roomId, subscribeToUpdates],
+    ),
+    useCallback(
+      () => (roomId ? getSnapshot(roomId) : EMPTY_MAP),
+      [roomId, getSnapshot],
+    ),
+  );
 }

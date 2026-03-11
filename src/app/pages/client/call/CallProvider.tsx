@@ -10,11 +10,10 @@ import React, {
 } from 'react';
 import { ClientEvent, MatrixEvent } from 'matrix-js-sdk';
 import { MatrixRTCSession } from 'matrix-js-sdk/lib/matrixrtc/MatrixRTCSession';
-import { RoomEvent } from 'livekit-client';
 import type { Room } from 'livekit-client';
 import { useNativeCall, type CallStatus } from '../../../features/call/nativeCallEngine';
-import { resolveParticipantUserId } from '../../../features/call/participantIdentity';
-import { playCallSound as playCallSoundMP3, CallSoundType } from '../../../utils/callSounds';
+import { getSoundboardMixerFromEngine } from '../../../features/call/nativeCallEngine';
+import { playCallSound, CallSoundType } from '../../../utils/callSounds';
 import { useMatrixClient } from '../../../hooks/useMatrixClient';
 import { useChannelAVOverride } from '../../../hooks/useChannelAVOverride';
 
@@ -45,6 +44,13 @@ interface CallContextState {
   callStatus: CallStatus;
   callError: Error | null;
   callJoinTime: Date | null;
+  // Soundboard
+  playSoundboardClip: (url: string, volume?: number) => string | null;
+  stopSoundboardClip: (clipId: string) => void;
+  stopAllSoundboardClips: () => void;
+  activeSoundboardClips: Set<string>;
+  isSoundboardOpen: boolean;
+  setSoundboardOpen: (open: boolean) => void;
 }
 
 const CallContext = createContext<CallContextState | undefined>(undefined);
@@ -66,6 +72,38 @@ export function CallProvider({ children }: CallProviderProps) {
 
   // Keep channelAVOverrideAtom in sync with the active call room's state event
   useChannelAVOverride(activeCallRoomId);
+
+  // ── Soundboard state ────────────────────────────────────────────────────────
+  const [isSoundboardOpen, setIsSoundboardOpenState] = useState(false);
+  const [activeSoundboardClips, setActiveSoundboardClips] = useState<Set<string>>(new Set());
+
+  const setSoundboardOpen = useCallback((open: boolean) => {
+    setIsSoundboardOpenState(open);
+  }, []);
+
+  const playSoundboardClip = useCallback((url: string, volume?: number): string | null => {
+    const mixer = getSoundboardMixerFromEngine();
+    if (!mixer) return null;
+    const clipId = mixer.playSoundboardClip(url, volume);
+    setActiveSoundboardClips((prev) => new Set([...prev, clipId]));
+    return clipId;
+  }, []);
+
+  const stopSoundboardClip = useCallback((clipId: string) => {
+    const mixer = getSoundboardMixerFromEngine();
+    mixer?.stopSoundboardClip(clipId);
+    setActiveSoundboardClips((prev) => {
+      const next = new Set(prev);
+      next.delete(clipId);
+      return next;
+    });
+  }, []);
+
+  const stopAllSoundboardClips = useCallback(() => {
+    const mixer = getSoundboardMixerFromEngine();
+    mixer?.stopAllClips();
+    setActiveSoundboardClips(new Set());
+  }, []);
 
   const setActiveCallRoomId = useCallback(
     (roomId: string | null, isVoiceRoom = false) => {
@@ -173,10 +211,10 @@ export function CallProvider({ children }: CallProviderProps) {
 
       if (useMatrixMembershipSounds) {
         for (const sender of currentSenders) {
-          if (!known.has(sender) && sender !== myUserId) playCallSoundMP3(CallSoundType.UserJoin);
+          if (!known.has(sender) && sender !== myUserId) playCallSound(CallSoundType.UserJoin);
         }
         for (const sender of known) {
-          if (!currentSenders.has(sender) && sender !== myUserId) playCallSoundMP3(CallSoundType.UserLeave);
+          if (!currentSenders.has(sender) && sender !== myUserId) playCallSound(CallSoundType.UserLeave);
         }
       }
 
@@ -195,41 +233,6 @@ export function CallProvider({ children }: CallProviderProps) {
     };
   }, [activeCallRoomId, mx, engine.livekitRoom, engine.status]);
 
-  // LiveKit join/leave sounds for immediate feedback (no Matrix delayed-event lag).
-  useEffect(() => {
-    if (!engine.livekitRoom || engine.status !== 'connected') return;
-
-    const myUserId = mx.getUserId() ?? '';
-    const activeRoom = activeCallRoomId ? mx.getRoom(activeCallRoomId) : null;
-
-    const onParticipantConnected = (participant: {
-      identity: string;
-      name?: string;
-      metadata?: string;
-      attributes?: Record<string, string>;
-    }) => {
-      const uid = resolveParticipantUserId(participant, activeRoom);
-      if (uid !== myUserId) playCallSound(true);
-    };
-
-    const onParticipantDisconnected = (participant: {
-      identity: string;
-      name?: string;
-      metadata?: string;
-      attributes?: Record<string, string>;
-    }) => {
-      const uid = resolveParticipantUserId(participant, activeRoom);
-      if (uid !== myUserId) playCallSound(false);
-    };
-
-    engine.livekitRoom.on(RoomEvent.ParticipantConnected, onParticipantConnected as any);
-    engine.livekitRoom.on(RoomEvent.ParticipantDisconnected, onParticipantDisconnected as any);
-
-    return () => {
-      engine.livekitRoom?.off(RoomEvent.ParticipantConnected, onParticipantConnected as any);
-      engine.livekitRoom?.off(RoomEvent.ParticipantDisconnected, onParticipantDisconnected as any);
-    };
-  }, [activeCallRoomId, engine.livekitRoom, engine.status, mx]);
 
   const setViewedCallRoomId = useCallback(
     (roomId: string | null) => {
@@ -279,6 +282,12 @@ export function CallProvider({ children }: CallProviderProps) {
     callStatus: engine.status,
     callError: engine.error,
     callJoinTime: engine.callJoinTime,
+    playSoundboardClip,
+    stopSoundboardClip,
+    stopAllSoundboardClips,
+    activeSoundboardClips,
+    isSoundboardOpen,
+    setSoundboardOpen,
   }), [
     activeCallRoomId,
     setActiveCallRoomId,
@@ -290,6 +299,12 @@ export function CallProvider({ children }: CallProviderProps) {
     toggleChat,
     hangUp,
     engine,
+    playSoundboardClip,
+    stopSoundboardClip,
+    stopAllSoundboardClips,
+    activeSoundboardClips,
+    isSoundboardOpen,
+    setSoundboardOpen,
   ]);
 
   return <CallContext.Provider value={contextValue}>{children}</CallContext.Provider>;

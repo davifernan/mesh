@@ -352,9 +352,15 @@ export function RoomNavItem({
     room.isCallRoom() &&
     isActiveCall &&
     displayedCallMembers.some((memberId) => speakingUsers.has(memberId));
+  // Bridge map augments Matrix state: if any participant in the bridge map is screensharing,
+  // show the live icon even when the Matrix presence state event hasn't propagated yet.
+  const bridgeHasLiveMember =
+    room.isCallRoom() &&
+    Array.from(bridgePresenceMap.values()).some((p) => p.isScreenSharing);
   const hasLiveMember =
     room.isCallRoom() &&
     (roomHasCallScreenShare(mx, room.roomId) ||
+      bridgeHasLiveMember ||
       (isActiveCall &&
         (isScreenShareEnabled ||
           Array.from(remoteParticipantStates.values()).some((state) => state.isScreenSharing))));

@@ -26,6 +26,9 @@ import { SmallWidget, createVirtualWidget } from '../call/SmallWidget';
 import { useToolbarConfig } from '../../hooks/useToolbarConfig';
 import { ToolbarItemId } from '../../state/toolbarConfig';
 import { PanelIconPicker } from './PanelIconPicker';
+import { getAppCatalog, AppCatalogEntry } from '../../state/microappCatalog';
+import '../../../apps/index';
+import { WidgetCatalogView } from './WidgetCatalogView';
 
 // Global atom — set this to any widget id to auto-select that widget when the drawer opens.
 // Toolbar shortcut buttons set this before toggling the drawer open.
@@ -143,6 +146,8 @@ type WidgetsDrawerProps = {
 export function WidgetsDrawer({ room, onClose, width = 420, isFullWidth, onToggleFullWidth }: WidgetsDrawerProps) {
   const mx = useMatrixClient();
   const widgets = useRoomWidgets(room);
+  const [activeTab, setActiveTab] = useState<'catalog' | 'widgets'>('catalog');
+  const catalog = React.useMemo(() => getAppCatalog(), []);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [isAdding, setIsAdding] = useState(false);
   const [addUrl, setAddUrl] = useState('');
@@ -217,6 +222,18 @@ export function WidgetsDrawer({ room, onClose, width = 420, isFullWidth, onToggl
     setAddName('');
   }, []);
 
+  const handleAddCatalogApp = useCallback(async (entry: AppCatalogEntry) => {
+    const resolvedUrl = substituteTemplateVars(entry.widgetUrl, mx, room.roomId, entry.id);
+    await mx.sendStateEvent(room.roomId, 'im.vector.modular.widgets' as any, {
+      type: 'm.custom',
+      url: resolvedUrl,
+      name: entry.name,
+      id: entry.id,
+    }, entry.id);
+    setActiveTab('widgets');
+    setSelectedId(entry.id);
+  }, [mx, room.roomId]);
+
   const openIconPicker = useCallback((w: RoomWidget, anchor: RectCords) => {
     setIconPickerWidget(w);
     setIconPickerAnchor(anchor);
@@ -284,8 +301,33 @@ export function WidgetsDrawer({ room, onClose, width = 420, isFullWidth, onToggl
         </IconButton>
       </Box>
 
-      {/* Widget selector tabs — always shown when widgets exist; click active chip to deselect */}
-      {widgets.length > 0 && (
+      {/* Tab bar: Apps | Widgets */}
+      <Box
+        gap="100"
+        style={{
+          padding: `${config.space.S100} ${config.space.S300}`,
+          borderBottom: `1px solid ${color.Surface.ContainerLine}`,
+          flexShrink: 0,
+        }}
+      >
+        <Chip
+          variant={activeTab === 'catalog' ? 'Primary' : 'Surface'}
+          radii="Pill"
+          onClick={() => setActiveTab('catalog')}
+        >
+          <Text size="T200">Apps</Text>
+        </Chip>
+        <Chip
+          variant={activeTab === 'widgets' ? 'Primary' : 'Surface'}
+          radii="Pill"
+          onClick={() => setActiveTab('widgets')}
+        >
+          <Text size="T200">Widgets</Text>
+        </Chip>
+      </Box>
+
+      {/* Widget selector tabs — shown in Widgets tab when widgets exist */}
+      {activeTab === 'widgets' && widgets.length > 0 && (
         <Box
           gap="100"
           style={{
@@ -343,95 +385,109 @@ export function WidgetsDrawer({ room, onClose, width = 420, isFullWidth, onToggl
         }
       />
 
-      {/* Add widget form */}
-      {isAdding && (
-        <Box
-          direction="Column"
-          gap="200"
-          style={{
-            padding: config.space.S300,
-            borderBottom: `1px solid ${color.Surface.ContainerLine}`,
-            flexShrink: 0,
-          }}
-        >
-          <Text size="L400">Add Widget</Text>
-          <input
-            type="url"
-            placeholder="Widget URL (required)"
-            value={addUrl}
-            onChange={(e) => setAddUrl(e.target.value)}
-            style={inputStyle}
-            autoFocus
-          />
-          <input
-            type="text"
-            placeholder="Name (defaults to hostname)"
-            value={addName}
-            onChange={(e) => setAddName(e.target.value)}
-            style={inputStyle}
-            onKeyDown={(e) => { if (e.key === 'Enter') handleAdd(); }}
-          />
-          <Box gap="200">
-            <Button
-              size="300"
-              variant="Primary"
-              onClick={handleAdd}
-              disabled={!addUrl.trim() || saving}
-            >
-              <Text size="B300">{saving ? 'Adding…' : 'Add'}</Text>
-            </Button>
-            <Button size="300" variant="Secondary" fill="Soft" onClick={cancelAdd}>
-              <Text size="B300">Cancel</Text>
-            </Button>
-          </Box>
-        </Box>
+      {/* Catalog tab content */}
+      {activeTab === 'catalog' && (
+        <WidgetCatalogView
+          catalog={catalog}
+          canManageWidgets={canManageWidgets}
+          onAdd={handleAddCatalogApp}
+        />
       )}
 
-      {/* Widget iframe or empty state */}
-      {selectedWidget ? (
-        <Box grow="Yes" direction="Column" style={{ minHeight: 0, overflow: 'hidden' }}>
-          <WidgetView key={selectedWidget.id} room={room} widget={selectedWidget} />
-        </Box>
-      ) : !isAdding ? (
-        <Box grow="Yes" justifyContent="Center" alignItems="Center" direction="Column" gap="300">
-          <Text size="T300" priority="300">
-            {widgets.length > 0 ? 'Select a widget above to load it.' : 'No widgets in this room.'}
-          </Text>
-          {widgets.length === 0 && canManageWidgets && (
-            <Button size="300" variant="Secondary" fill="Soft" onClick={() => setIsAdding(true)}>
-              <Icon src={Icons.Plus} size="100" />
-              <Text size="B300">Add Widget</Text>
-            </Button>
-          )}
-        </Box>
-      ) : null}
-
-      {/* Footer: manage buttons when widgets exist */}
-      {widgets.length > 0 && canManageWidgets && !isAdding && (
-        <Box
-          shrink="No"
-          gap="200"
-          style={{
-            padding: `${config.space.S200} ${config.space.S300}`,
-            borderTop: `1px solid ${color.Surface.ContainerLine}`,
-          }}
-        >
-          <Button size="300" variant="Secondary" fill="Soft" onClick={() => setIsAdding(true)}>
-            <Icon src={Icons.Plus} size="100" />
-            <Text size="B300">Add</Text>
-          </Button>
-          {selectedWidget && (
-            <Button
-              size="300"
-              variant="Critical"
-              fill="Soft"
-              onClick={() => handleRemove(selectedWidget.id)}
+      {/* Widgets tab content */}
+      {activeTab === 'widgets' && (
+        <>
+          {/* Add widget form */}
+          {isAdding && (
+            <Box
+              direction="Column"
+              gap="200"
+              style={{
+                padding: config.space.S300,
+                borderBottom: `1px solid ${color.Surface.ContainerLine}`,
+                flexShrink: 0,
+              }}
             >
-              <Icon src={Icons.Delete} size="100" />
-              <Text size="B300">Remove</Text>
-            </Button>
+              <Text size="L400">Add Widget</Text>
+              <input
+                type="url"
+                placeholder="Widget URL (required)"
+                value={addUrl}
+                onChange={(e) => setAddUrl(e.target.value)}
+                style={inputStyle}
+                autoFocus
+              />
+              <input
+                type="text"
+                placeholder="Name (defaults to hostname)"
+                value={addName}
+                onChange={(e) => setAddName(e.target.value)}
+                style={inputStyle}
+                onKeyDown={(e) => { if (e.key === 'Enter') handleAdd(); }}
+              />
+              <Box gap="200">
+                <Button
+                  size="300"
+                  variant="Primary"
+                  onClick={handleAdd}
+                  disabled={!addUrl.trim() || saving}
+                >
+                  <Text size="B300">{saving ? 'Adding…' : 'Add'}</Text>
+                </Button>
+                <Button size="300" variant="Secondary" fill="Soft" onClick={cancelAdd}>
+                  <Text size="B300">Cancel</Text>
+                </Button>
+              </Box>
+            </Box>
           )}
-        </Box>
+
+          {/* Widget iframe or empty state */}
+          {selectedWidget ? (
+            <Box grow="Yes" direction="Column" style={{ minHeight: 0, overflow: 'hidden' }}>
+              <WidgetView key={selectedWidget.id} room={room} widget={selectedWidget} />
+            </Box>
+          ) : !isAdding ? (
+            <Box grow="Yes" justifyContent="Center" alignItems="Center" direction="Column" gap="300">
+              <Text size="T300" priority="300">
+                {widgets.length > 0 ? 'Select a widget above to load it.' : 'No widgets in this room.'}
+              </Text>
+              {widgets.length === 0 && canManageWidgets && (
+                <Button size="300" variant="Secondary" fill="Soft" onClick={() => setIsAdding(true)}>
+                  <Icon src={Icons.Plus} size="100" />
+                  <Text size="B300">Add Widget</Text>
+                </Button>
+              )}
+            </Box>
+          ) : null}
+
+          {/* Footer: manage buttons when widgets exist */}
+          {widgets.length > 0 && canManageWidgets && !isAdding && (
+            <Box
+              shrink="No"
+              gap="200"
+              style={{
+                padding: `${config.space.S200} ${config.space.S300}`,
+                borderTop: `1px solid ${color.Surface.ContainerLine}`,
+              }}
+            >
+              <Button size="300" variant="Secondary" fill="Soft" onClick={() => setIsAdding(true)}>
+                <Icon src={Icons.Plus} size="100" />
+                <Text size="B300">Add</Text>
+              </Button>
+              {selectedWidget && (
+                <Button
+                  size="300"
+                  variant="Critical"
+                  fill="Soft"
+                  onClick={() => handleRemove(selectedWidget.id)}
+                >
+                  <Icon src={Icons.Delete} size="100" />
+                  <Text size="B300">Remove</Text>
+                </Button>
+              )}
+            </Box>
+          )}
+        </>
       )}
     </Box>
   );

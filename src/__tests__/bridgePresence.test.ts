@@ -1,0 +1,1458 @@
+// React 18 erfordert IS_REACT_ACT_ENVIRONMENT=true damit act() keine Warnungen
+// schreibt. Das muss vor allen anderen Importen gesetzt werden.
+// @ts-ignore
+globalThis.IS_REACT_ACT_ENVIRONMENT = true;
+
+/**
+ * bridgePresence.test.ts
+ *
+ * Drei Testgruppen:
+ *   1. resolvePresence() — pure Logik (keine React-Abhaengigkeit)
+ *   2. BridgePresenceProvider — Connection Pool via Context-Direktzugriff
+ *   3. REST Bootstrap — fetch-Mocking
+ *
+ * Kein @testing-library/react installiert → Gruppen 2+3 testen den Provider
+ * durch direkten Aufruf der exportierten Logik-Bausteine via BridgePresenceContext
+ * und eigenem Mini-React-Render (react-dom/client + act).
+ *
+ * Alle schweren Nicht-Pure-Module werden via vi.mock() weggemockt, damit
+ * vanilla-extract / matrix-js-sdk / livekit-client nicht im Test-Kontext
+ * initialisiert werden.
+ */
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Mocks MUESSEN vor allen Importen stehen (Vitest hoisted)
+// ─────────────────────────────────────────────────────────────────────────────
+
+import { vi } from 'vitest';
+
+// Alle vanilla-extract CSS-Module wegmocken
+vi.mock('../app/components/nav/styles.css.ts', () => ({}));
+vi.mock('../app/components/nav/NavCategory.tsx', () => ({ NavCategory: () => null }));
+
+// Alle Module die transitive Imports von vanilla-extract / livekit / matrix haben
+vi.mock('folds', () => ({
+  Avatar: () => null,
+  Badge: () => null,
+  Box: () => null,
+  Icon: () => null,
+  Icons: {},
+  Text: () => null,
+}));
+vi.mock('matrix-js-sdk', () => ({ Room: class Room {} }));
+vi.mock('livekit-client', () => ({ Track: { Source: { ScreenShare: 'screen_share' } } }));
+vi.mock('@phosphor-icons/react', () => ({
+  MicrophoneSlash: () => null,
+  SpeakerSlash: () => null,
+  VideoCamera: () => null,
+}));
+vi.mock('../app/components/nav', () => ({
+  NavButton: () => null,
+  NavItem: () => null,
+  NavItemContent: () => null,
+}));
+vi.mock('../app/components/user-avatar', () => ({ UserAvatar: () => null }));
+vi.mock('../app/hooks/useMatrixClient', () => ({ useMatrixClient: () => ({}) }));
+vi.mock('../app/hooks/useCallMemberPresence', () => ({
+  useCallMemberPresence: () => ({
+    isMicMuted: false,
+    isCameraOn: false,
+    isScreenSharing: false,
+    isDeafened: false,
+  }),
+}));
+vi.mock('../app/pages/client/call/CallProvider', () => ({
+  useCallState: () => ({
+    activeCallRoomId: null,
+    setActiveCallRoomId: () => {},
+    speakingUsers: new Set(),
+    remoteParticipantStates: new Map(),
+    isAudioEnabled: true,
+    isVideoEnabled: false,
+    isDeafened: false,
+    isScreenShareEnabled: false,
+    livekitRoom: null,
+    callStatus: 'idle',
+  }),
+}));
+vi.mock('../app/features/call/participantIdentity', () => ({
+  resolveParticipantUserId: () => '',
+}));
+vi.mock('../app/features/call/presenceBadges', () => ({
+  getPresenceBadgeKinds: () => [],
+  getPresenceSummary: () => '',
+  PRESENCE_BADGE_LABEL: { camera: '', deafened: '', muted: '' },
+}));
+vi.mock('../app/utils/matrix', () => ({ getMxIdLocalPart: (id: string) => id }));
+vi.mock('../app/utils/room', () => ({
+  getMemberAvatarMxc: () => null,
+  getMemberDisplayName: () => 'User',
+}));
+vi.mock('../app/hooks/useMediaAuthentication', () => ({ useMediaAuthentication: () => false }));
+vi.mock('../app/state/hooks/userRoomProfile', () => ({ useOpenUserRoomProfile: () => () => {} }));
+vi.mock('../app/hooks/useSpace', () => ({ useSpaceOptionally: () => null }));
+vi.mock('../app/features/room-nav/RoomNavUser.module.css', () => ({}));
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Echte Imports NACH den Mocks
+// ─────────────────────────────────────────────────────────────────────────────
+
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { resolvePresence } from '../app/features/room-nav/RoomNavUser';
+import type { ResolvePresenceArgs } from '../app/features/room-nav/RoomNavUser';
+import type { CallPresenceState } from '../app/features/call/callPresenceState';
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Gruppe 1: resolvePresence() — pure Logik
+// ─────────────────────────────────────────────────────────────────────────────
+
+describe('resolvePresence', () => {
+  const basePersisted: CallPresenceState = {
+    isMicMuted: false,
+    isCameraOn: false,
+    isScreenSharing: false,
+    isDeafened: false,
+  };
+
+  const baseArgs: ResolvePresenceArgs = {
+    isLocalUser: false,
+    isActiveCall: false,
+    pState: undefined,
+    remoteBridge: undefined,
+    persistedPresence: basePersisted,
+    isAudioEnabled: true,
+    isVideoEnabled: false,
+    isCallDeafened: false,
+    isScreenShareEnabled: false,
+  };
+
+  // ── Remote, kein Call, kein Bridge → nur persistedPresence ──────────────
+
+  it('remote user not in call, no bridge: returns persistedPresence as-is', () => {
+    const result = resolvePresence(baseArgs);
+    expect(result).toEqual(basePersisted);
+  });
+
+  it('remote user not in call, no bridge, persisted muted: returns isMicMuted=true', () => {
+    const result = resolvePresence({
+      ...baseArgs,
+      persistedPresence: { ...basePersisted, isMicMuted: true },
+    });
+    expect(result.isMicMuted).toBe(true);
+    expect(result.isCameraOn).toBe(false);
+  });
+
+  it('remote user not in call, no bridge, persisted cameraOn: returns isCameraOn=true', () => {
+    const result = resolvePresence({
+      ...baseArgs,
+      persistedPresence: { ...basePersisted, isCameraOn: true },
+    });
+    expect(result.isCameraOn).toBe(true);
+  });
+
+  // ── Remote, mit Bridge ──────────────────────────────────────────────────
+
+  it('remote user with bridge muted: returns isMicMuted=true (bridge=true, persisted=false)', () => {
+    const result = resolvePresence({
+      ...baseArgs,
+      remoteBridge: { isMicMuted: true, isCameraOn: false, isScreenSharing: false, isDeafened: false },
+    });
+    expect(result.isMicMuted).toBe(true);
+  });
+
+  it('remote user bridge isMicMuted=false overrides stale persisted muted=true', () => {
+    const result = resolvePresence({
+      ...baseArgs,
+      remoteBridge: { isMicMuted: false, isCameraOn: false, isScreenSharing: false, isDeafened: false },
+      persistedPresence: { ...basePersisted, isMicMuted: true },
+    });
+    expect(result.isMicMuted).toBe(false);
+  });
+
+  it('remote user with bridge: both false → isMicMuted=false', () => {
+    const result = resolvePresence({
+      ...baseArgs,
+      remoteBridge: { isMicMuted: false, isCameraOn: false, isScreenSharing: false, isDeafened: false },
+      persistedPresence: { ...basePersisted, isMicMuted: false },
+    });
+    expect(result.isMicMuted).toBe(false);
+  });
+
+  it('remote user with bridge cameraOn=true: returns isCameraOn=true', () => {
+    const result = resolvePresence({
+      ...baseArgs,
+      remoteBridge: { isMicMuted: false, isCameraOn: true, isScreenSharing: false, isDeafened: false },
+    });
+    expect(result.isCameraOn).toBe(true);
+  });
+
+  it('remote user bridge cameraOn=false overrides stale persisted cameraOn=true', () => {
+    const result = resolvePresence({
+      ...baseArgs,
+      remoteBridge: { isMicMuted: false, isCameraOn: false, isScreenSharing: false, isDeafened: false },
+      persistedPresence: { ...basePersisted, isCameraOn: true },
+    });
+    expect(result.isCameraOn).toBe(false);
+  });
+
+  // ── Remote, mit pState (lokaler Client im selben Call) ──────────────────
+
+  it('remote user with pState: pState takes priority over bridge for micMuted', () => {
+    // pState sagt audioEnabled=true (nicht muted) — bridge sagt muted
+    const result = resolvePresence({
+      ...baseArgs,
+      isActiveCall: true,
+      pState: { audioEnabled: true, videoEnabled: false, isScreenSharing: false },
+      remoteBridge: { isMicMuted: true, isCameraOn: false, isScreenSharing: false, isDeafened: false },
+    });
+    // pState hat Vorrang: audioEnabled=true → isMicMuted=false
+    expect(result.isMicMuted).toBe(false);
+  });
+
+  it('remote user with pState audioEnabled=false: isMicMuted=true (pState priority)', () => {
+    const result = resolvePresence({
+      ...baseArgs,
+      isActiveCall: true,
+      pState: { audioEnabled: false, videoEnabled: false, isScreenSharing: false },
+    });
+    expect(result.isMicMuted).toBe(true);
+  });
+
+  it('remote user with pState videoEnabled=true: isCameraOn=true (pState priority)', () => {
+    const result = resolvePresence({
+      ...baseArgs,
+      isActiveCall: true,
+      pState: { audioEnabled: true, videoEnabled: true, isScreenSharing: false },
+    });
+    expect(result.isCameraOn).toBe(true);
+  });
+
+  it('remote user with pState ignores stale persisted screenSharing=true', () => {
+    const result = resolvePresence({
+      ...baseArgs,
+      isActiveCall: true,
+      pState: { audioEnabled: true, videoEnabled: false, isScreenSharing: false },
+      persistedPresence: { ...basePersisted, isScreenSharing: true },
+    });
+    expect(result.isScreenSharing).toBe(false);
+  });
+
+  it('remote user with pState: pState screenSharing=true → isScreenSharing=true', () => {
+    const result = resolvePresence({
+      ...baseArgs,
+      isActiveCall: true,
+      pState: { audioEnabled: true, videoEnabled: false, isScreenSharing: true },
+    });
+    expect(result.isScreenSharing).toBe(true);
+  });
+
+  it('remote user with pState: both screenSharing false → false', () => {
+    const result = resolvePresence({
+      ...baseArgs,
+      isActiveCall: true,
+      pState: { audioEnabled: true, videoEnabled: false, isScreenSharing: false },
+    });
+    expect(result.isScreenSharing).toBe(false);
+  });
+
+  // ── Lokaler User, im aktiven Call ────────────────────────────────────────
+
+  it('local user in active call: isMicMuted = !isAudioEnabled (muted)', () => {
+    const result = resolvePresence({
+      ...baseArgs,
+      isLocalUser: true,
+      isActiveCall: true,
+      isAudioEnabled: false,
+    });
+    expect(result.isMicMuted).toBe(true);
+  });
+
+  it('local user in active call: isMicMuted=false when isAudioEnabled=true', () => {
+    const result = resolvePresence({
+      ...baseArgs,
+      isLocalUser: true,
+      isActiveCall: true,
+      isAudioEnabled: true,
+    });
+    expect(result.isMicMuted).toBe(false);
+  });
+
+  it('local user in active call: isCameraOn = isVideoEnabled (true)', () => {
+    const result = resolvePresence({
+      ...baseArgs,
+      isLocalUser: true,
+      isActiveCall: true,
+      isVideoEnabled: true,
+    });
+    expect(result.isCameraOn).toBe(true);
+  });
+
+  it('local user in active call: isCameraOn=false when isVideoEnabled=false', () => {
+    const result = resolvePresence({
+      ...baseArgs,
+      isLocalUser: true,
+      isActiveCall: true,
+      isVideoEnabled: false,
+    });
+    expect(result.isCameraOn).toBe(false);
+  });
+
+  it('local user in active call: isDeafened = isCallDeafened (true)', () => {
+    const result = resolvePresence({
+      ...baseArgs,
+      isLocalUser: true,
+      isActiveCall: true,
+      isCallDeafened: true,
+    });
+    expect(result.isDeafened).toBe(true);
+  });
+
+  it('local user in active call: isDeafened=false when isCallDeafened=false', () => {
+    const result = resolvePresence({
+      ...baseArgs,
+      isLocalUser: true,
+      isActiveCall: true,
+      isCallDeafened: false,
+    });
+    expect(result.isDeafened).toBe(false);
+  });
+
+  it('local user in active call: screenshare = isScreenShareEnabled OR persisted (enabled)', () => {
+    const result = resolvePresence({
+      ...baseArgs,
+      isLocalUser: true,
+      isActiveCall: true,
+      isScreenShareEnabled: true,
+    });
+    expect(result.isScreenSharing).toBe(true);
+  });
+
+  it('local user in active call ignores stale persisted screenshare=true', () => {
+    const result = resolvePresence({
+      ...baseArgs,
+      isLocalUser: true,
+      isActiveCall: true,
+      isScreenShareEnabled: false,
+      persistedPresence: { ...basePersisted, isScreenSharing: true },
+    });
+    expect(result.isScreenSharing).toBe(false);
+  });
+
+  it('local user in active call: screenshare=false when both false', () => {
+    const result = resolvePresence({
+      ...baseArgs,
+      isLocalUser: true,
+      isActiveCall: true,
+      isScreenShareEnabled: false,
+    });
+    expect(result.isScreenSharing).toBe(false);
+  });
+
+  // ── Lokaler User, nicht im Call ──────────────────────────────────────────
+
+  it('local user not in call: falls back to persistedPresence exactly', () => {
+    const persisted: CallPresenceState = {
+      isMicMuted: true,
+      isCameraOn: true,
+      isScreenSharing: false,
+      isDeafened: true,
+    };
+    const result = resolvePresence({
+      ...baseArgs,
+      isLocalUser: true,
+      isActiveCall: false,
+      persistedPresence: persisted,
+    });
+    expect(result).toEqual(persisted);
+  });
+
+  it('local user not in call: ignores isAudioEnabled/isVideoEnabled', () => {
+    const result = resolvePresence({
+      ...baseArgs,
+      isLocalUser: true,
+      isActiveCall: false,
+      isAudioEnabled: false,  // wuerde muted bedeuten wenn im Call
+      isVideoEnabled: true,   // wuerde camera-on bedeuten wenn im Call
+      persistedPresence: { ...basePersisted, isMicMuted: false, isCameraOn: false },
+    });
+    expect(result.isMicMuted).toBe(false);
+    expect(result.isCameraOn).toBe(false);
+  });
+
+  it('local user not in call: screenshare from persisted only', () => {
+    const r1 = resolvePresence({
+      ...baseArgs,
+      isLocalUser: true,
+      isActiveCall: false,
+      isScreenShareEnabled: true,  // ignoriert weil nicht im Call
+      persistedPresence: { ...basePersisted, isScreenSharing: false },
+    });
+    expect(r1.isScreenSharing).toBe(false);
+
+    const r2 = resolvePresence({
+      ...baseArgs,
+      isLocalUser: true,
+      isActiveCall: false,
+      persistedPresence: { ...basePersisted, isScreenSharing: true },
+    });
+    expect(r2.isScreenSharing).toBe(true);
+  });
+
+  // ── isDeafened Bridge vs persisted Prioritaet ────────────────────────────
+
+  it('remote user: deafen bridge=true, persisted=false → true', () => {
+    const result = resolvePresence({
+      ...baseArgs,
+      remoteBridge: { isMicMuted: false, isCameraOn: false, isScreenSharing: false, isDeafened: true },
+    });
+    expect(result.isDeafened).toBe(true);
+  });
+
+  it('remote user bridge deafen=false overrides stale persisted deafen=true', () => {
+    const result = resolvePresence({
+      ...baseArgs,
+      remoteBridge: { isMicMuted: false, isCameraOn: false, isScreenSharing: false, isDeafened: false },
+      persistedPresence: { ...basePersisted, isDeafened: true },
+    });
+    expect(result.isDeafened).toBe(false);
+  });
+
+  it('remote user: deafen bridge=false, persisted=false → false', () => {
+    const result = resolvePresence({
+      ...baseArgs,
+      remoteBridge: { isMicMuted: false, isCameraOn: false, isScreenSharing: false, isDeafened: false },
+    });
+    expect(result.isDeafened).toBe(false);
+  });
+
+  it('remote user without bridge: deafen reads only from persistedPresence', () => {
+    const result = resolvePresence({
+      ...baseArgs,
+      remoteBridge: undefined,
+      persistedPresence: { ...basePersisted, isDeafened: true },
+    });
+    expect(result.isDeafened).toBe(true);
+  });
+
+  it('remote user without bridge: deafen=false from persisted', () => {
+    const result = resolvePresence({ ...baseArgs });
+    expect(result.isDeafened).toBe(false);
+  });
+
+  // ── isScreenSharing kombiniert fuer Remote ohne pState ──────────────────
+
+  it('remote user with bridge screenSharing=true: isScreenSharing=true', () => {
+    const result = resolvePresence({
+      ...baseArgs,
+      remoteBridge: { isMicMuted: false, isCameraOn: false, isScreenSharing: true, isDeafened: false },
+    });
+    expect(result.isScreenSharing).toBe(true);
+  });
+
+  it('remote user bridge screenSharing=false overrides stale persisted screenSharing=true', () => {
+    const result = resolvePresence({
+      ...baseArgs,
+      remoteBridge: { isMicMuted: false, isCameraOn: false, isScreenSharing: false, isDeafened: false },
+      persistedPresence: { ...basePersisted, isScreenSharing: true },
+    });
+    expect(result.isScreenSharing).toBe(false);
+  });
+
+  it('remote user no bridge, no pState: screenSharing true from persisted', () => {
+    const result = resolvePresence({ ...baseArgs, persistedPresence: { ...basePersisted, isScreenSharing: true } });
+    expect(result.isScreenSharing).toBe(true);
+  });
+
+  it('remote user no bridge, no pState: screenSharing false from persisted', () => {
+    const result = resolvePresence({ ...baseArgs });
+    expect(result.isScreenSharing).toBe(false);
+  });
+
+  // ── Vollstaendige State-Objekte ──────────────────────────────────────────
+
+  it('returns exactly the four expected keys (no extras)', () => {
+    const result = resolvePresence(baseArgs);
+    expect(Object.keys(result).sort()).toEqual(
+      ['isCameraOn', 'isDeafened', 'isMicMuted', 'isScreenSharing'].sort()
+    );
+  });
+
+  it('result is a plain object (not the same reference as persistedPresence)', () => {
+    const result = resolvePresence(baseArgs);
+    expect(result).not.toBe(basePersisted);
+  });
+
+  it('all false inputs → all false outputs', () => {
+    const result = resolvePresence(baseArgs);
+    expect(result.isMicMuted).toBe(false);
+    expect(result.isCameraOn).toBe(false);
+    expect(result.isScreenSharing).toBe(false);
+    expect(result.isDeafened).toBe(false);
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Helfer: MockEventSource fuer Gruppen 2 + 3
+// ─────────────────────────────────────────────────────────────────────────────
+
+class MockEventSource {
+  static instances: MockEventSource[] = [];
+
+  onmessage: ((ev: { data: string }) => void) | null = null;
+  onerror: (() => void) | null = null;
+  closed = false;
+
+  constructor(public url: string) {
+    MockEventSource.instances.push(this);
+  }
+
+  close() {
+    this.closed = true;
+  }
+
+  /** Simuliert eine eingehende SSE-Nachricht. */
+  emit(data: object) {
+    this.onmessage?.({ data: JSON.stringify(data) });
+  }
+
+  static reset() {
+    MockEventSource.instances = [];
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Helfer: BridgePresenceProvider mounten (kein @testing-library/react)
+//
+// Wir rendern den Provider in ein happy-dom-div und lesen den Context ueber
+// einen eigenen Consumer-Komponenten aus. React's `act` aus react 18 stellt
+// sicher, dass State-Updates synchron geflusht werden.
+// ─────────────────────────────────────────────────────────────────────────────
+
+import React from 'react';
+import { createRoot } from 'react-dom/client';
+import { BridgePresenceContext } from '../app/features/call/BridgePresenceContext';
+import { BridgePresenceProvider } from '../app/features/call/BridgePresenceProvider';
+import type { BridgePresenceContextValue } from '../app/features/call/BridgePresenceContext';
+import { ClientConfigProvider } from '../app/hooks/useClientConfig';
+
+// Minimale ClientConfig für Tests — BridgePresenceProvider braucht useClientConfig()
+const TEST_CLIENT_CONFIG = {};
+
+async function captureContextWithoutProvider(): Promise<BridgePresenceContextValue> {
+  const { act } = await import('react-dom/test-utils');
+  let capturedCtx!: BridgePresenceContextValue;
+
+  function Consumer() {
+    capturedCtx = React.useContext(BridgePresenceContext);
+    return null;
+  }
+
+  const container = document.createElement('div');
+  document.body.appendChild(container);
+  const root = createRoot(container);
+
+  await act(async () => {
+    root.render(React.createElement(Consumer));
+  });
+
+  act(() => {
+    root.unmount();
+  });
+  container.remove();
+
+  return capturedCtx;
+}
+
+describe('BridgePresenceContext defaults', () => {
+  it('returns stable no-op defaults when provider is missing', async () => {
+    const ctx = await captureContextWithoutProvider();
+    const cleanupSSE = ctx.subscribeSSE('!room:server');
+    const cleanupUpdates = ctx.subscribeToUpdates('!room:server', () => {});
+    const snapshotA = ctx.getSnapshot('!room:server');
+    const snapshotB = ctx.getSnapshot('!room:server');
+
+    expect(typeof cleanupSSE).toBe('function');
+    expect(typeof cleanupUpdates).toBe('function');
+    expect(snapshotA).toBe(snapshotB);
+
+    cleanupSSE();
+    cleanupUpdates();
+  });
+});
+
+/**
+ * Mountet BridgePresenceProvider in ein frisches div.
+ * Gibt den Context-Wert sowie ein unmount-Handle zurueck.
+ */
+async function mountProvider(): Promise<{
+  ctx: BridgePresenceContextValue;
+  unmount: () => void;
+}> {
+  // In React 18 lebt `act` in react-dom/test-utils, nicht als named export von 'react'
+  const { act } = await import('react-dom/test-utils');
+
+  let capturedCtx!: BridgePresenceContextValue;
+
+  function Consumer() {
+    capturedCtx = React.useContext(BridgePresenceContext);
+    return null;
+  }
+
+  const container = document.createElement('div');
+  document.body.appendChild(container);
+  const root = createRoot(container);
+
+  await act(async () => {
+    root.render(
+      React.createElement(ClientConfigProvider, { value: TEST_CLIENT_CONFIG },
+        React.createElement(BridgePresenceProvider, null,
+          React.createElement(Consumer)
+        )
+      )
+    );
+  });
+
+  return {
+    ctx: capturedCtx,
+    unmount: () => {
+      // eslint-disable-next-line @typescript-eslint/no-floating-promises
+      act(() => { root.unmount(); });
+      container.remove();
+    },
+  };
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Gruppe 2: BridgePresenceProvider — Connection Pool
+// ─────────────────────────────────────────────────────────────────────────────
+
+describe('BridgePresenceProvider — Connection Pool', () => {
+  beforeEach(() => {
+    vi.stubGlobal('EventSource', MockEventSource);
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({}),
+    }));
+    MockEventSource.reset();
+  });
+
+  afterEach(() => {
+    MockEventSource.reset();
+    vi.unstubAllGlobals();
+  });
+
+  it('oeffnet keine SSE-Verbindung ohne subscribeSSE-Aufruf', async () => {
+    const { unmount } = await mountProvider();
+    expect(MockEventSource.instances).toHaveLength(0);
+    unmount();
+  });
+
+  it('oeffnet genau eine SSE-Verbindung beim ersten subscribeSSE(roomId)', async () => {
+    const { act } = await import('react-dom/test-utils');
+    const { ctx, unmount } = await mountProvider();
+
+    let cleanup!: () => void;
+    await act(async () => {
+      cleanup = ctx.subscribeSSE('!room1:server');
+    });
+
+    expect(MockEventSource.instances).toHaveLength(1);
+    expect(MockEventSource.instances[0].url).toContain('room1');
+
+    cleanup();
+    unmount();
+  });
+
+  it('oeffnet keine zweite Verbindung bei zweitem subscribeSSE(roomId)', async () => {
+    const { act } = await import('react-dom/test-utils');
+    const { ctx, unmount } = await mountProvider();
+
+    let cleanup1!: () => void;
+    let cleanup2!: () => void;
+
+    await act(async () => {
+      cleanup1 = ctx.subscribeSSE('!room1:server');
+      cleanup2 = ctx.subscribeSSE('!room1:server');
+    });
+
+    expect(MockEventSource.instances).toHaveLength(1);
+
+    cleanup1();
+    cleanup2();
+    unmount();
+  });
+
+  it('oeffnet separate Verbindungen fuer verschiedene roomIds', async () => {
+    const { act } = await import('react-dom/test-utils');
+    const { ctx, unmount } = await mountProvider();
+
+    let cleanup1!: () => void;
+    let cleanup2!: () => void;
+
+    await act(async () => {
+      cleanup1 = ctx.subscribeSSE('!room1:server');
+      cleanup2 = ctx.subscribeSSE('!room2:server');
+    });
+
+    expect(MockEventSource.instances).toHaveLength(2);
+    const urls = MockEventSource.instances.map((es) => es.url);
+    expect(urls.some((u) => u.includes('room1'))).toBe(true);
+    expect(urls.some((u) => u.includes('room2'))).toBe(true);
+
+    cleanup1();
+    cleanup2();
+    unmount();
+  });
+
+  it('schliesst SSE nach letztem cleanup', async () => {
+    const { act } = await import('react-dom/test-utils');
+    const { ctx, unmount } = await mountProvider();
+
+    let cleanup!: () => void;
+    await act(async () => {
+      cleanup = ctx.subscribeSSE('!room1:server');
+    });
+
+    const es = MockEventSource.instances[0];
+    expect(es.closed).toBe(false);
+
+    await act(async () => { cleanup(); });
+
+    expect(es.closed).toBe(true);
+    unmount();
+  });
+
+  it('plant keinen Reconnect mehr wenn subscriberCount vor onerror bereits 0 ist', async () => {
+    vi.useFakeTimers();
+    const { act } = await import('react-dom/test-utils');
+    const { ctx, unmount } = await mountProvider();
+
+    let cleanup!: () => void;
+    await act(async () => {
+      cleanup = ctx.subscribeSSE('!room1:server');
+    });
+
+    const es = MockEventSource.instances[0];
+
+    await act(async () => {
+      cleanup();
+    });
+
+    es.onerror?.();
+    vi.advanceTimersByTime(30_000);
+
+    expect(MockEventSource.instances).toHaveLength(1);
+
+    vi.useRealTimers();
+    unmount();
+  });
+
+  it('reconnects with exponential backoff while subscribers remain', async () => {
+    vi.useFakeTimers();
+    const { act } = await import('react-dom/test-utils');
+    const { ctx, unmount } = await mountProvider();
+
+    await act(async () => {
+      ctx.subscribeSSE('!room1:server');
+    });
+
+    const first = MockEventSource.instances[0];
+    first.onerror?.();
+    expect(MockEventSource.instances).toHaveLength(1);
+
+    vi.advanceTimersByTime(999);
+    expect(MockEventSource.instances).toHaveLength(1);
+
+    vi.advanceTimersByTime(1);
+    expect(MockEventSource.instances).toHaveLength(2);
+
+    const second = MockEventSource.instances[1];
+    second.onerror?.();
+
+    vi.advanceTimersByTime(1_999);
+    expect(MockEventSource.instances).toHaveLength(2);
+
+    vi.advanceTimersByTime(1);
+    expect(MockEventSource.instances).toHaveLength(3);
+
+    vi.useRealTimers();
+    unmount();
+  });
+
+  it('schliesst SSE erst wenn ALLE cleanups aufgerufen wurden (ref-counting)', async () => {
+    const { act } = await import('react-dom/test-utils');
+    const { ctx, unmount } = await mountProvider();
+
+    let cleanup1!: () => void;
+    let cleanup2!: () => void;
+
+    await act(async () => {
+      cleanup1 = ctx.subscribeSSE('!room1:server');
+      cleanup2 = ctx.subscribeSSE('!room1:server');
+    });
+
+    const es = MockEventSource.instances[0];
+
+    await act(async () => { cleanup1(); });
+    // Erster cleanup → noch ein Subscriber → SSE bleibt offen
+    expect(es.closed).toBe(false);
+
+    await act(async () => { cleanup2(); });
+    // Zweiter cleanup → kein Subscriber mehr → SSE geschlossen
+    expect(es.closed).toBe(true);
+    unmount();
+  });
+
+  it('behaelt presence-Cache nach letztem cleanup', async () => {
+    const { act } = await import('react-dom/test-utils');
+    const { ctx, unmount } = await mountProvider();
+
+    let cleanup!: () => void;
+    await act(async () => {
+      cleanup = ctx.subscribeSSE('!room1:server');
+    });
+
+    const es = MockEventSource.instances[0];
+
+    // Simuliert ein SSE-Update
+    await act(async () => {
+      es.emit({
+        type: 'update',
+        userId: 'user1',
+        isMicMuted: true,
+        isCameraOn: false,
+        isScreenSharing: false,
+        isDeafened: false,
+        updatedAt: 1000,
+      });
+    });
+
+    // Snapshot vor cleanup
+    expect(ctx.getSnapshot('!room1:server').has('user1')).toBe(true);
+
+    await act(async () => { cleanup(); });
+
+    // Snapshot nach cleanup — Cache bleibt erhalten
+    const snapshotAfter = ctx.getSnapshot('!room1:server');
+    expect(snapshotAfter.has('user1')).toBe(true);
+    expect(snapshotAfter.get('user1')?.isMicMuted).toBe(true);
+
+    unmount();
+  });
+
+  it('getSnapshot gibt leere Map zurueck fuer unbekannte roomId', async () => {
+    const { ctx, unmount } = await mountProvider();
+    const snapshot = ctx.getSnapshot('!unknown:server');
+    expect(snapshot).toBeDefined();
+    expect(snapshot.size).toBe(0);
+    unmount();
+  });
+
+  it('notifiziert listener nach SSE-Update', async () => {
+    const { act } = await import('react-dom/test-utils');
+    const { ctx, unmount } = await mountProvider();
+    const roomId = '!room1:server';
+
+    await act(async () => { ctx.subscribeSSE(roomId); });
+
+    const listener = vi.fn();
+    ctx.subscribeToUpdates(roomId, listener);
+
+    const es = MockEventSource.instances[0];
+
+    await act(async () => {
+      es.emit({
+        type: 'update',
+        userId: 'user1',
+        isMicMuted: false,
+        isCameraOn: true,
+        isScreenSharing: false,
+        isDeafened: false,
+        updatedAt: 2000,
+      });
+    });
+
+    expect(listener).toHaveBeenCalledTimes(1);
+    unmount();
+  });
+
+  it('notifiziert listener mehrfach bei mehreren SSE-Events', async () => {
+    const { act } = await import('react-dom/test-utils');
+    const { ctx, unmount } = await mountProvider();
+    const roomId = '!room1:server';
+
+    await act(async () => { ctx.subscribeSSE(roomId); });
+
+    const listener = vi.fn();
+    ctx.subscribeToUpdates(roomId, listener);
+    const es = MockEventSource.instances[0];
+
+    await act(async () => {
+      es.emit({ type: 'update', userId: 'user1', isMicMuted: false, isCameraOn: false, isScreenSharing: false, isDeafened: false, updatedAt: 1 });
+      es.emit({ type: 'update', userId: 'user2', isMicMuted: true, isCameraOn: false, isScreenSharing: false, isDeafened: false, updatedAt: 2 });
+    });
+
+    expect(listener).toHaveBeenCalledTimes(2);
+    unmount();
+  });
+
+  it('entfernt userId aus snapshot bei type=left', async () => {
+    const { act } = await import('react-dom/test-utils');
+    const { ctx, unmount } = await mountProvider();
+    const roomId = '!room1:server';
+
+    await act(async () => { ctx.subscribeSSE(roomId); });
+
+    const es = MockEventSource.instances[0];
+
+    // Erst update, dann left
+    await act(async () => {
+      es.emit({
+        type: 'update',
+        userId: 'user1',
+        isMicMuted: false,
+        isCameraOn: false,
+        isScreenSharing: false,
+        isDeafened: false,
+        updatedAt: 100,
+      });
+    });
+
+    expect(ctx.getSnapshot(roomId).has('user1')).toBe(true);
+
+    await act(async () => {
+      es.emit({ type: 'left', userId: 'user1', updatedAt: 200 });
+    });
+
+    expect(ctx.getSnapshot(roomId).has('user1')).toBe(false);
+    unmount();
+  });
+
+  it('ignoriert stale left-events wenn ein neuerer Presence-Eintrag existiert', async () => {
+    const { act } = await import('react-dom/test-utils');
+    const { ctx, unmount } = await mountProvider();
+    const roomId = '!room1:server';
+
+    await act(async () => { ctx.subscribeSSE(roomId); });
+
+    const es = MockEventSource.instances[0];
+    await act(async () => {
+      es.emit({
+        type: 'update',
+        userId: 'user1',
+        isMicMuted: false,
+        isCameraOn: true,
+        isScreenSharing: false,
+        isDeafened: false,
+        updatedAt: 500,
+      });
+    });
+
+    const snapshotBefore = ctx.getSnapshot(roomId);
+
+    await act(async () => {
+      es.emit({ type: 'left', userId: 'user1', updatedAt: 100 });
+    });
+
+    const snapshotAfter = ctx.getSnapshot(roomId);
+    expect(snapshotAfter).toBe(snapshotBefore);
+    expect(snapshotAfter.get('user1')?.isCameraOn).toBe(true);
+    unmount();
+  });
+
+  it('ignoriert SSE-Update wenn updatedAt aelter als vorhandener Eintrag', async () => {
+    const { act } = await import('react-dom/test-utils');
+    const { ctx, unmount } = await mountProvider();
+    const roomId = '!room1:server';
+
+    await act(async () => { ctx.subscribeSSE(roomId); });
+
+    const es = MockEventSource.instances[0];
+
+    // Neueres Update zuerst
+    await act(async () => {
+      es.emit({
+        type: 'update',
+        userId: 'user1',
+        isMicMuted: true,
+        isCameraOn: false,
+        isScreenSharing: false,
+        isDeafened: false,
+        updatedAt: 9999,
+      });
+    });
+
+    // Aelteres Update danach — soll ignoriert werden
+    await act(async () => {
+      es.emit({
+        type: 'update',
+        userId: 'user1',
+        isMicMuted: false,
+        isCameraOn: true,
+        isScreenSharing: false,
+        isDeafened: false,
+        updatedAt: 1,  // aelter!
+      });
+    });
+
+    const entry = ctx.getSnapshot(roomId).get('user1');
+    // isMicMuted=true vom neueren Update bleibt erhalten
+    expect(entry?.isMicMuted).toBe(true);
+    expect(entry?.isCameraOn).toBe(false);
+
+    unmount();
+  });
+
+  it('ignoriert malformed SSE-JSON (kein crash)', async () => {
+    const { act } = await import('react-dom/test-utils');
+    const { ctx, unmount } = await mountProvider();
+    const roomId = '!room1:server';
+
+    await act(async () => { ctx.subscribeSSE(roomId); });
+
+    const es = MockEventSource.instances[0];
+
+    // Kein Fehler-Throw erwartet
+    await act(async () => {
+      es.onmessage?.({ data: 'INVALID_JSON{{{}' });
+    });
+
+    expect(ctx.getSnapshot(roomId).size).toBe(0);
+    unmount();
+  });
+
+  it('snapshot ist eine neue Map-Referenz nach SSE-Update (useSyncExternalStore-Kompatibilitaet)', async () => {
+    const { act } = await import('react-dom/test-utils');
+    const { ctx, unmount } = await mountProvider();
+    const roomId = '!room1:server';
+
+    await act(async () => { ctx.subscribeSSE(roomId); });
+
+    const snapshotBefore = ctx.getSnapshot(roomId);
+
+    const es = MockEventSource.instances[0];
+    await act(async () => {
+      es.emit({
+        type: 'update',
+        userId: 'user1',
+        isMicMuted: false,
+        isCameraOn: false,
+        isScreenSharing: false,
+        isDeafened: false,
+        updatedAt: 500,
+      });
+    });
+
+    const snapshotAfter = ctx.getSnapshot(roomId);
+    // Neue Referenz nach Update (nicht dieselbe Map-Instanz)
+    expect(snapshotAfter).not.toBe(snapshotBefore);
+    unmount();
+  });
+
+  it('unsubscribeFromUpdates entfernt listener korrekt', async () => {
+    const { act } = await import('react-dom/test-utils');
+    const { ctx, unmount } = await mountProvider();
+    const roomId = '!room1:server';
+
+    await act(async () => { ctx.subscribeSSE(roomId); });
+
+    const listener = vi.fn();
+    const unsubListener = ctx.subscribeToUpdates(roomId, listener);
+
+    // Listener entfernen
+    unsubListener();
+
+    const es = MockEventSource.instances[0];
+    await act(async () => {
+      es.emit({
+        type: 'update',
+        userId: 'user2',
+        isMicMuted: true,
+        isCameraOn: false,
+        isScreenSharing: false,
+        isDeafened: false,
+        updatedAt: 1000,
+      });
+    });
+
+    // Listener wurde entfernt → nicht aufgerufen
+    expect(listener).not.toHaveBeenCalled();
+    unmount();
+  });
+
+  it('snapshot-Eintraege enthalten nicht updatedAt (nur CallPresenceState-Felder)', async () => {
+    const { act } = await import('react-dom/test-utils');
+    const { ctx, unmount } = await mountProvider();
+    const roomId = '!room1:server';
+
+    await act(async () => { ctx.subscribeSSE(roomId); });
+
+    const es = MockEventSource.instances[0];
+    await act(async () => {
+      es.emit({
+        type: 'update',
+        userId: 'user1',
+        isMicMuted: false,
+        isCameraOn: false,
+        isScreenSharing: false,
+        isDeafened: false,
+        updatedAt: 123,
+      });
+    });
+
+    const entry = ctx.getSnapshot(roomId).get('user1');
+    expect(entry).toBeDefined();
+    // updatedAt soll NICHT im oeffentlichen Snapshot auftauchen
+    expect('updatedAt' in (entry as object)).toBe(false);
+    expect(Object.keys(entry as object).sort()).toEqual(
+      ['isCameraOn', 'isDeafened', 'isMicMuted', 'isScreenSharing'].sort()
+    );
+
+    unmount();
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Gruppe 3: REST Bootstrap
+// ─────────────────────────────────────────────────────────────────────────────
+
+describe('BridgePresenceProvider — REST Bootstrap', () => {
+  beforeEach(() => {
+    vi.stubGlobal('EventSource', MockEventSource);
+    MockEventSource.reset();
+  });
+
+  afterEach(() => {
+    MockEventSource.reset();
+    vi.unstubAllGlobals();
+  });
+
+  it('ruft /api/presence/:roomId beim ersten subscribeSSE auf', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({}),
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    const { act } = await import('react-dom/test-utils');
+    const { ctx, unmount } = await mountProvider();
+    const roomId = '!room1:server';
+
+    let cleanup!: () => void;
+    await act(async () => {
+      cleanup = ctx.subscribeSSE(roomId);
+    });
+
+    // fetch-Promise auflösen
+    await act(async () => { await Promise.resolve(); });
+
+    const calledUrls = fetchMock.mock.calls.map((call: unknown[]) => call[0] as string);
+    expect(calledUrls.some((url) => url.includes('/api/presence/'))).toBe(true);
+    expect(calledUrls.some((url) => url.includes('room1'))).toBe(true);
+    // Nur einmal beim ersten Subscribe
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+
+    cleanup();
+    unmount();
+  });
+
+  it('fuellt snapshot mit REST-Daten vor erstem SSE-Event', async () => {
+    const restData = {
+      user1: {
+        userId: 'user1',
+        isMicMuted: true,
+        isCameraOn: false,
+        isScreenSharing: false,
+        isDeafened: false,
+        updatedAt: 5000,
+      },
+    };
+
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => restData,
+    }));
+
+    const { act } = await import('react-dom/test-utils');
+    const { ctx, unmount } = await mountProvider();
+    const roomId = '!room1:server';
+
+    await act(async () => { ctx.subscribeSSE(roomId); });
+
+    // REST-Response vollstaendig auflösen
+    await act(async () => {
+      await new Promise<void>((resolve) => setTimeout(resolve, 0));
+    });
+
+    const snapshot = ctx.getSnapshot(roomId);
+    expect(snapshot.has('user1')).toBe(true);
+    expect(snapshot.get('user1')?.isMicMuted).toBe(true);
+
+    unmount();
+  });
+
+  it('fuellt snapshot mit mehreren Usern aus REST-Response', async () => {
+    const restData = {
+      user1: { userId: 'user1', isMicMuted: true, isCameraOn: false, isScreenSharing: false, isDeafened: false, updatedAt: 100 },
+      user2: { userId: 'user2', isMicMuted: false, isCameraOn: true, isScreenSharing: false, isDeafened: false, updatedAt: 200 },
+    };
+
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => restData,
+    }));
+
+    const { act } = await import('react-dom/test-utils');
+    const { ctx, unmount } = await mountProvider();
+    const roomId = '!room1:server';
+
+    await act(async () => { ctx.subscribeSSE(roomId); });
+    await act(async () => { await new Promise<void>((resolve) => setTimeout(resolve, 0)); });
+
+    const snapshot = ctx.getSnapshot(roomId);
+    expect(snapshot.has('user1')).toBe(true);
+    expect(snapshot.has('user2')).toBe(true);
+    expect(snapshot.get('user2')?.isCameraOn).toBe(true);
+
+    unmount();
+  });
+
+  it('ignoriert REST-Fehler: SSE laeuft weiter, kein crash', async () => {
+    // fetch wirft einen Netzwerkfehler
+    vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new Error('Network error')));
+
+    const { act } = await import('react-dom/test-utils');
+    const { ctx, unmount } = await mountProvider();
+    const roomId = '!room1:server';
+
+    // Kein Fehler-Throw erwartet
+    await act(async () => { ctx.subscribeSSE(roomId); });
+    await act(async () => { await new Promise<void>((resolve) => setTimeout(resolve, 0)); });
+
+    // SSE sollte trotzdem offen sein
+    expect(MockEventSource.instances).toHaveLength(1);
+    expect(MockEventSource.instances[0].closed).toBe(false);
+
+    // Snapshot leer (REST hat nichts geliefert)
+    expect(ctx.getSnapshot(roomId).size).toBe(0);
+
+    unmount();
+  });
+
+  it('ignoriert REST non-ok response: Snapshot bleibt leer, kein crash', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
+      ok: false,
+      json: async () => ({}),
+    }));
+
+    const { act } = await import('react-dom/test-utils');
+    const { ctx, unmount } = await mountProvider();
+    const roomId = '!room1:server';
+
+    await act(async () => { ctx.subscribeSSE(roomId); });
+    await act(async () => { await new Promise<void>((resolve) => setTimeout(resolve, 0)); });
+
+    expect(ctx.getSnapshot(roomId).size).toBe(0);
+    unmount();
+  });
+
+  it('REST ruft fetch NICHT nochmal auf bei zweitem subscribeSSE desselben Raums', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({}),
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    const { act } = await import('react-dom/test-utils');
+    const { ctx, unmount } = await mountProvider();
+    const roomId = '!room1:server';
+
+    await act(async () => {
+      ctx.subscribeSSE(roomId);
+      ctx.subscribeSSE(roomId);
+    });
+    await act(async () => { await new Promise<void>((resolve) => setTimeout(resolve, 0)); });
+
+    // bootstrapREST wird nur beim ERSTEN subscribe aufgerufen
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+
+    unmount();
+  });
+
+  it('ueberschreibt REST-Daten nicht mit aelterem SSE-Event (updatedAt-Vergleich)', async () => {
+    // REST liefert einen neueren Timestamp
+    const restData = {
+      user1: {
+        userId: 'user1',
+        isMicMuted: false,   // REST: nicht muted, Timestamp 9999
+        isCameraOn: false,
+        isScreenSharing: false,
+        isDeafened: false,
+        updatedAt: 9999,
+      },
+    };
+
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => restData,
+    }));
+
+    const { act } = await import('react-dom/test-utils');
+    const { ctx, unmount } = await mountProvider();
+    const roomId = '!room1:server';
+
+    await act(async () => { ctx.subscribeSSE(roomId); });
+
+    // REST auflösen
+    await act(async () => { await new Promise<void>((resolve) => setTimeout(resolve, 0)); });
+
+    const es = MockEventSource.instances[0];
+
+    // SSE-Event mit ALTEM Timestamp kommt NACH dem REST-Update
+    await act(async () => {
+      es.emit({
+        type: 'update',
+        userId: 'user1',
+        isMicMuted: true,   // SSE sagt: muted, aber Timestamp ist aelter!
+        isCameraOn: true,
+        isScreenSharing: false,
+        isDeafened: false,
+        updatedAt: 1,  // aelter als REST (9999)
+      });
+    });
+
+    // REST-Daten bleiben (SSE wird ignoriert weil updatedAt juenger)
+    const entry = ctx.getSnapshot(roomId).get('user1');
+    expect(entry?.isMicMuted).toBe(false);  // REST-Wert bleibt
+    expect(entry?.isCameraOn).toBe(false);   // REST-Wert bleibt
+
+    unmount();
+  });
+
+  it('SSE-Event mit neuerem Timestamp ueberschreibt REST-Daten', async () => {
+    const restData = {
+      user1: {
+        userId: 'user1',
+        isMicMuted: false,
+        isCameraOn: false,
+        isScreenSharing: false,
+        isDeafened: false,
+        updatedAt: 100,
+      },
+    };
+
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => restData,
+    }));
+
+    const { act } = await import('react-dom/test-utils');
+    const { ctx, unmount } = await mountProvider();
+    const roomId = '!room1:server';
+
+    await act(async () => { ctx.subscribeSSE(roomId); });
+    await act(async () => { await new Promise<void>((resolve) => setTimeout(resolve, 0)); });
+
+    const es = MockEventSource.instances[0];
+
+    // SSE-Event mit NEUEREM Timestamp
+    await act(async () => {
+      es.emit({
+        type: 'update',
+        userId: 'user1',
+        isMicMuted: true,   // neuer Wert
+        isCameraOn: true,
+        isScreenSharing: false,
+        isDeafened: false,
+        updatedAt: 99999,   // neuer als REST (100)
+      });
+    });
+
+    const entry = ctx.getSnapshot(roomId).get('user1');
+    expect(entry?.isMicMuted).toBe(true);   // SSE-Wert gesetzt
+    expect(entry?.isCameraOn).toBe(true);    // SSE-Wert gesetzt
+
+    unmount();
+  });
+
+  it('REST-Daten mit fehlenden Feldern werden sicher auf false defaulted', async () => {
+    const restData = {
+      user1: {
+        userId: 'user1',
+        // isMicMuted / isCameraOn / isScreenSharing / isDeafened fehlen → false
+        updatedAt: 500,
+      },
+    };
+
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => restData,
+    }));
+
+    const { act } = await import('react-dom/test-utils');
+    const { ctx, unmount } = await mountProvider();
+
+    await act(async () => { ctx.subscribeSSE('!room1:server'); });
+    await act(async () => { await new Promise<void>((resolve) => setTimeout(resolve, 0)); });
+
+    const entry = ctx.getSnapshot('!room1:server').get('user1');
+    expect(entry?.isMicMuted).toBe(false);
+    expect(entry?.isCameraOn).toBe(false);
+    expect(entry?.isScreenSharing).toBe(false);
+    expect(entry?.isDeafened).toBe(false);
+
+    unmount();
+  });
+
+  it('notifiziert listener nach REST-Bootstrap (changed=true)', async () => {
+    const restData = {
+      user1: { userId: 'user1', isMicMuted: true, isCameraOn: false, isScreenSharing: false, isDeafened: false, updatedAt: 100 },
+    };
+
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => restData,
+    }));
+
+    const { act } = await import('react-dom/test-utils');
+    const { ctx, unmount } = await mountProvider();
+    const roomId = '!room1:server';
+
+    const listener = vi.fn();
+
+    await act(async () => {
+      ctx.subscribeSSE(roomId);
+      ctx.subscribeToUpdates(roomId, listener);
+    });
+
+    // REST auflösen
+    await act(async () => { await new Promise<void>((resolve) => setTimeout(resolve, 0)); });
+
+    expect(listener).toHaveBeenCalled();
+    unmount();
+  });
+
+  it('notifiziert listener NICHT bei REST wenn keine Daten geaendert (leere Response)', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({}),  // Leeres Objekt → changed=false
+    }));
+
+    const { act } = await import('react-dom/test-utils');
+    const { ctx, unmount } = await mountProvider();
+    const roomId = '!room1:server';
+
+    const listener = vi.fn();
+
+    await act(async () => {
+      ctx.subscribeSSE(roomId);
+      ctx.subscribeToUpdates(roomId, listener);
+    });
+
+    await act(async () => { await new Promise<void>((resolve) => setTimeout(resolve, 0)); });
+
+    // Leere Response → changed=false → listener nicht aufgerufen
+    expect(listener).not.toHaveBeenCalled();
+    unmount();
+  });
+});

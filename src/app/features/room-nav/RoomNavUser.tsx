@@ -21,7 +21,7 @@ import styles from './RoomNavUser.module.css';
 type RoomNavUserProps = {
   room: Room;
   userId: string;
-  /** Live presence from the server-side bridge (highest priority source). */
+  /** Live presence from the server-side bridge (remote fallback behind pState). */
   bridgePresence?: CallPresenceState;
 };
 
@@ -29,6 +29,76 @@ type AttachableVideoTrack = {
   attach: (element?: HTMLMediaElement) => HTMLMediaElement;
   detach: (element?: HTMLMediaElement) => HTMLMediaElement[];
 };
+
+export type ResolvePresenceArgs = {
+  isLocalUser: boolean;
+  isActiveCall: boolean;
+  pState?: { audioEnabled: boolean; videoEnabled: boolean; isScreenSharing: boolean };
+  remoteBridge?: CallPresenceState;
+  persistedPresence: CallPresenceState;
+  /** Nur relevant wenn isLocalUser && isActiveCall */
+  isAudioEnabled: boolean;
+  /** Nur relevant wenn isLocalUser && isActiveCall */
+  isVideoEnabled: boolean;
+  /** Nur relevant wenn isLocalUser */
+  isCallDeafened: boolean;
+  /** Nur relevant wenn isLocalUser && isActiveCall */
+  isScreenShareEnabled: boolean;
+};
+
+/**
+ * Berechnet den anzuzeigenden Presence-State fuer einen RoomNavUser.
+ *
+ * Prioritaetsreihenfolge fuer Remote-User:
+ *   1. LiveKit-Client-State (pState) – nur verfuegbar wenn lokaler Client im selben Call
+ *   2. Bridge-Presence (remoteBridge) – server-seitig, funktioniert fuer alle Clients
+ *   3. Matrix-State (persistedPresence) – langsamer Fallback via State-Events
+ *
+ * Lokaler User liest immer direkt aus dem Call-State.
+ */
+export function resolvePresence({
+  isLocalUser,
+  isActiveCall,
+  pState,
+  remoteBridge,
+  persistedPresence,
+  isAudioEnabled,
+  isVideoEnabled,
+  isCallDeafened,
+  isScreenShareEnabled,
+}: ResolvePresenceArgs): CallPresenceState {
+  const isMicMuted = isLocalUser
+    ? (isActiveCall ? !isAudioEnabled : persistedPresence.isMicMuted)
+    : pState !== undefined
+      ? !(pState?.audioEnabled ?? true)
+      : remoteBridge !== undefined
+        ? remoteBridge.isMicMuted
+        : persistedPresence.isMicMuted;
+
+  const isCameraOn = isLocalUser
+    ? (isActiveCall ? isVideoEnabled : persistedPresence.isCameraOn)
+    : pState !== undefined
+      ? (pState?.videoEnabled ?? false)
+      : remoteBridge !== undefined
+        ? remoteBridge.isCameraOn
+        : persistedPresence.isCameraOn;
+
+  const isDeafened = isLocalUser
+    ? (isActiveCall ? isCallDeafened : persistedPresence.isDeafened)
+    : remoteBridge !== undefined
+      ? remoteBridge.isDeafened
+      : persistedPresence.isDeafened;
+
+  const isScreenSharing = isLocalUser
+    ? (isActiveCall ? isScreenShareEnabled : persistedPresence.isScreenSharing)
+    : pState !== undefined
+      ? (pState?.isScreenSharing ?? false)
+      : remoteBridge !== undefined
+        ? remoteBridge.isScreenSharing
+        : persistedPresence.isScreenSharing;
+
+  return { isMicMuted, isCameraOn, isDeafened, isScreenSharing };
+}
 
 export function RoomNavUser({ room, userId, bridgePresence }: RoomNavUserProps) {
   const mx = useMatrixClient();
@@ -57,79 +127,38 @@ export function RoomNavUser({ room, userId, bridgePresence }: RoomNavUserProps) 
     : undefined;
   const getName = getMemberDisplayName(room, userId) ?? getMxIdLocalPart(userId);
   const persistedPresence = useCallMemberPresence(mx, room.roomId, userId);
-  const participantSpeaking = useMemo(() => {
-    if (!isActiveCall || !livekitRoom) return false;
-    if (isLocalUser) return livekitRoom.localParticipant.isSpeaking;
-
-    return Array.from(livekitRoom.remoteParticipants.values()).some(
-      (participant) =>
-        resolveParticipantUserId(participant, room) === userId && participant.isSpeaking
-    );
-  }, [isActiveCall, isLocalUser, livekitRoom, room, userId]);
-  const isSpeaking = isActiveCall && (speakingUsers.has(userId) || participantSpeaking);
+  const isSpeaking = isActiveCall && speakingUsers.has(userId);
 
   // ── Presence resolution ────────────────────────────────────────────────────
   //
-  // LOCAL USER  → always use live LiveKit state from useCallState().
+  // LOCAL USER  → use the live call state directly while this room is active.
   //   We have perfect real-time data here. Bridge data is skipped entirely:
   //   it can lag or be momentarily wrong (e.g. track_muted webhook during
   //   mic-setup) and would override the correct local state, breaking the
   //   speaking indicator and mute badge.
   //
-  // REMOTE USER → priority: bridge > livekit-client state > Matrix state.
-  //   bridgePresence  — server-side SSE; works for ALL client versions.
-  //   pState          — livekit-client remote participant snapshot.
+  // REMOTE USER → priority: pState > bridge > Matrix state.
+  //   pState            — livekit-client remote participant snapshot while local client is in-call.
+  //   bridgePresence    — server-side SSE; works for all client versions.
   //   persistedPresence — Matrix io.bettercord.call.presence state event.
 
   const pState = activeCallRoomId === room.roomId ? remoteParticipantStates.get(userId) : undefined;
-  const hasLivePresenceState = isLocalUser ? isActiveCall : pState !== undefined;
-
-  // Bridge is ONLY used for remote users — never for the local user.
-  const remoteBridge = isLocalUser ? undefined : bridgePresence;
-
-  const isAudioMuted = isLocalUser
-    ? (isActiveCall ? !isAudioEnabled : persistedPresence.isMicMuted)
-    : remoteBridge
-      ? remoteBridge.isMicMuted
-      : hasLivePresenceState
-        ? !(pState?.audioEnabled ?? true)
-        : persistedPresence.isMicMuted;
-
-  const isCameraOn = isLocalUser
-    ? (isActiveCall ? isVideoEnabled : persistedPresence.isCameraOn)
-    : remoteBridge
-      ? remoteBridge.isCameraOn
-      : hasLivePresenceState
-        ? (pState?.videoEnabled ?? false)
-        : persistedPresence.isCameraOn;
-
-  // Deafen: local user always reads from live call state (isCallDeafened).
-  // Remote users: bridge carries this via participant_attributes_changed webhook.
-  const isDeafened = isLocalUser
-    ? (isActiveCall ? isCallDeafened : persistedPresence.isDeafened)
-    : remoteBridge
-      ? remoteBridge.isDeafened
-      : persistedPresence.isDeafened;
-
-  const isScreensharing = isLocalUser
-    ? (isActiveCall
-        ? isScreenShareEnabled || persistedPresence.isScreenSharing
-        : persistedPresence.isScreenSharing)
-    : remoteBridge
-      ? remoteBridge.isScreenSharing
-      : hasLivePresenceState
-        ? (pState?.isScreenSharing ?? false) || persistedPresence.isScreenSharing
-        : persistedPresence.isScreenSharing;
 
   const presenceState = useMemo(
-    () => ({
-      isScreenSharing: isScreensharing,
-      isCameraOn,
-      isDeafened,
-      isMicMuted: isAudioMuted,
+    () => resolvePresence({
+      isLocalUser,
+      isActiveCall,
+      pState,
+      remoteBridge: isLocalUser ? undefined : bridgePresence,
+      persistedPresence,
+      isAudioEnabled,
+      isVideoEnabled,
+      isCallDeafened,
+      isScreenShareEnabled,
     }),
-    [isScreensharing, isCameraOn, isDeafened, isAudioMuted]
+    [isLocalUser, isActiveCall, pState, bridgePresence, persistedPresence, isAudioEnabled, isVideoEnabled, isCallDeafened, isScreenShareEnabled],
   );
+  const { isMicMuted: isAudioMuted, isCameraOn, isDeafened, isScreenSharing: isScreensharing } = presenceState;
   const badgeKinds = useMemo(() => getPresenceBadgeKinds(presenceState), [presenceState]);
 
   const [showPreview, setShowPreview] = useState(false);

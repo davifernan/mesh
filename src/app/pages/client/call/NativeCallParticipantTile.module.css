@@ -24,18 +24,22 @@
   min-height: 120px;
   outline: 0px solid var(--voice-status-success);
   outline-offset: -1px;
-  transition: outline-width 0.4s ease-in 0.5s;
+  box-shadow: 0 0 0 0 color-mix(in srgb, var(--voice-status-success) 24%, transparent);
+  transition: outline-width 0.15s ease, box-shadow 0.15s ease;
 }
 
 .tile[data-speaking='true'] {
   outline-width: var(--speaking-indicator-width, 3.5px);
-  transition: outline-width 0.2s ease-out 0s;
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--voice-status-success) 24%, transparent),
+    0 0 18px color-mix(in srgb, var(--voice-status-success) 22%, transparent);
 }
 
 /* ── Speaking ring on avatar placeholder ──────────────────────────────── */
 .tile[data-speaking='true'] .initial,
 .tile[data-speaking='true'] .avatarImg {
-  box-shadow: 0 0 0 3px var(--voice-status-success);
+  box-shadow:
+    0 0 0 2px var(--voice-status-success, #23a55a),
+    0 0 10px color-mix(in srgb, var(--voice-status-success, #23a55a) 45%, transparent);
 }
 
 /* ── Camera video (fades in when active) ───────────────────────────────── */
@@ -73,7 +77,7 @@
   border-radius: 20%;
   object-fit: cover;
   flex-shrink: 0;
-  transition: box-shadow 0.2s ease;
+  transition: box-shadow 0.15s ease;
 }
 
 .initial {
@@ -87,7 +91,7 @@
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
-  transition: box-shadow 0.2s ease;
+  transition: box-shadow 0.15s ease;
 }
 
 /* ── "You" self-view pill (top-left, always visible) ──────────────────── */
