@@ -1,6 +1,52 @@
 import { createClient, MatrixClient, IndexedDBStore, IndexedDBCryptoStore } from 'matrix-js-sdk';
 
 import { cryptoCallbacks } from './secretStorageKeys';
+
+/**
+ * Patch the global fetch to handle duplicate one-time key uploads gracefully.
+ *
+ * Background: The matrix-rust-crypto SDK generates one-time key IDs sequentially
+ * starting at 0. After clearing browser storage (IndexedDB), the counter resets —
+ * but the old keys are still on the server. Synapse rejects re-uploads of the same
+ * key ID with 400 "One time key already exists". The SDK does not handle this error
+ * and retries it on every sync, blocking the entire outgoing-request queue including
+ * room-key distribution → E2EE audio decryption fails.
+ *
+ * Fix: Intercept the 400 and return a synthetic 200 with an empty success body.
+ * Security: The old key remains on the server — identical to the situation where
+ * the upload succeeded the first time. No new attack surface is introduced.
+ *
+ * This workaround can be removed once matrix-rust-crypto handles "key already exists"
+ * gracefully (upstream issue: https://github.com/matrix-org/matrix-rust-sdk/issues).
+ */
+function patchFetchForOTKConflicts(): void {
+  const _fetch = window.fetch.bind(window);
+  window.fetch = async (input, init) => {
+    const response = await _fetch(input, init);
+
+    if (response.status !== 400) return response;
+
+    const url = typeof input === 'string' ? input : input instanceof Request ? input.url : '';
+    if (!url.includes('/keys/upload')) return response;
+
+    let body: Record<string, unknown> = {};
+    try {
+      body = await response.clone().json();
+    } catch {
+      return response;
+    }
+
+    const error = typeof body.error === 'string' ? body.error : '';
+    if (!error.includes('already exists')) return response;
+
+    // Key is already on the server — treat as success so the SDK moves on.
+    console.debug('[initMatrix] OTK already exists on server, returning synthetic 200');
+    return new Response(JSON.stringify({}), {
+      status: 200,
+      headers: { 'Content-Type': 'application/json' },
+    });
+  };
+}
 import { clearNavToActivePathStore } from '../app/state/navToActivePath';
 import { pushSessionToSW } from '../sw-session';
 import { removeSecondarySession } from '../app/state/sessions';
@@ -25,6 +71,7 @@ const getSessionDbNames = (session: Session) => {
 };
 
 export const initClient = async (session: Session): Promise<MatrixClient> => {
+  patchFetchForOTKConflicts();
   const dbNames = getSessionDbNames(session);
 
   const indexedDBStore = new IndexedDBStore({

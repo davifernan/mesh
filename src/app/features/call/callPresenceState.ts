@@ -110,7 +110,7 @@ export async function publishCallPresenceState(
   deviceId: string,
   presence: CallPresenceState | null
 ): Promise<void> {
-  const stateKey = `${userId}_${deviceId}`;
+  const stateKey = `_${userId}_${deviceId}`;
 
   await mx.sendStateEvent(
     roomId,

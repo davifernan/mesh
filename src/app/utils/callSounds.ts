@@ -84,7 +84,7 @@ export function playCallSound(type: CallSoundType, options: PlayCallSoundOptions
   // Stop any existing instance first.
   stopCallSound(type);
 
-  const audio = new Audio(`/sound/${type}.mp3`);
+  const audio = new Audio(`/sound/${type}.mp3?v=2`);
   audio.volume = Math.max(0, Math.min(1, volume * masterVolume));
   audio.loop = loop;
 

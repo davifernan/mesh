@@ -278,6 +278,29 @@ export function useNativeCall(roomId: string | null): NativeCallEngine {
         const userId = mx.getUserId() ?? '';
         const deviceId = mx.getDeviceId() ?? '';
 
+        // In a browser context (not Electron), stored device IDs may have come from
+        // Electron which uses different internal hardware IDs than Chrome — passing
+        // an Electron device ID to getUserMedia in Chrome causes "Requested device not found".
+        // We detect Electron via userAgent and skip stored IDs in plain browser.
+        const isElectron = /electron/i.test(navigator.userAgent);
+
+        let validMicDeviceId = isElectron ? userSettingsRef.current.micDeviceId : undefined;
+        let validCameraDeviceId = isElectron ? userSettingsRef.current.cameraDeviceId : undefined;
+
+        // Even in Electron, validate stored IDs against the real device list to catch
+        // unplugged / renamed devices.
+        if (isElectron && (validMicDeviceId || validCameraDeviceId)) {
+          try {
+            const devices = await navigator.mediaDevices.enumerateDevices();
+            const ids = new Set(devices.filter((d) => d.deviceId).map((d) => d.deviceId));
+            if (validMicDeviceId && !ids.has(validMicDeviceId)) validMicDeviceId = undefined;
+            if (validCameraDeviceId && !ids.has(validCameraDeviceId)) validCameraDeviceId = undefined;
+          } catch {
+            validMicDeviceId = undefined;
+            validCameraDeviceId = undefined;
+          }
+        }
+
         // Build AV settings from latest ref values
         const av: AVSettings = {
           audioBitrate: effectiveAVRef.current.audioBitrate,
@@ -289,8 +312,8 @@ export function useNativeCall(roomId: string | null): NativeCallEngine {
           ssResolution: effectiveAVRef.current.ssResolution,
           ssFps: effectiveAVRef.current.ssFps,
           ssAudio: userSettingsRef.current.ssAudio,
-          micDeviceId: userSettingsRef.current.micDeviceId,
-          cameraDeviceId: userSettingsRef.current.cameraDeviceId,
+          micDeviceId: validMicDeviceId,
+          cameraDeviceId: validCameraDeviceId,
           speakerDeviceId: userSettingsRef.current.speakerDeviceId,
         };
 
@@ -357,17 +380,22 @@ export function useNativeCall(roomId: string | null): NativeCallEngine {
         };
         rtcSession.joinRoomSession([livekitFocus], livekitFocus, { manageMediaKeys: true });
 
-        // Write call start time if we are the first joiner.
+        // Write call start time if we are the first joiner and have sufficient power.
         // All clients (in-call or not) read this Matrix state event for the timer.
         // activeAtJoin is read BEFORE our membership event is confirmed on the server,
         // so 0 reliably means no one else was in the call.
         if (countActiveCallMembers(mx, roomId!) === 0) {
-          void mx.sendStateEvent(
-            roomId!,
-            CALL_INFO_EVENT as any,
-            { started_at: Date.now() },
-            '',
-          );
+          const plEv = matrixRoom.currentState.getStateEvents('m.room.power_levels', '');
+          const myPower = (plEv as any)?.getContent()?.users?.[userId] ?? (plEv as any)?.getContent()?.users_default ?? 0;
+          const stateLevel = (plEv as any)?.getContent()?.state_default ?? 50;
+          if (myPower >= stateLevel) {
+            void mx.sendStateEvent(
+              roomId!,
+              CALL_INFO_EVENT as any,
+              { started_at: Date.now() },
+              '',
+            );
+          }
         }
 
         // Store refs IMMEDIATELY after joinRoomSession so the cleanup function
@@ -562,9 +590,12 @@ export function useNativeCall(roomId: string | null): NativeCallEngine {
           const isNotFound = err instanceof Error && (
             err.name === 'NotFoundError' || err.message.includes('device not found')
           );
-          if (isNotFound && av.micDeviceId) {
-            // Retry without a specific device constraint
-            await room.localParticipant.setMicrophoneEnabled(true, { deviceId: undefined });
+          if (isNotFound) {
+            // { deviceId: undefined } doesn't override room defaults via object spread —
+            // mutate audioCaptureDefaults directly so the retry uses the default mic.
+            const opts = (room as any).options;
+            if (opts?.audioCaptureDefaults) delete opts.audioCaptureDefaults.deviceId;
+            await room.localParticipant.setMicrophoneEnabled(true);
           } else {
             throw err;
           }

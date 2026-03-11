@@ -205,7 +205,6 @@ export function buildAudioCaptureDefaults(av: AudioCaptureSettings): AudioCaptur
     echoCancellation: av.echoCancellation,
     noiseSuppression: av.noiseSuppression,
     autoGainControl: av.autoGainControl,
-    voiceIsolation: false,
   };
 }
 
