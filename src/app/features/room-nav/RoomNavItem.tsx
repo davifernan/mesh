@@ -68,7 +68,6 @@ import { useCallState } from '../../pages/client/call/CallProvider';
 import { mDirectAtom } from '../../state/mDirectList';
 import { useClientConfig } from '../../hooks/useClientConfig';
 import { AccountDataEvent } from '../../../types/matrix/accountData';
-import { roomHasCallScreenShare } from '../../hooks/useCallMemberPresence';
 import { useCallMembers, useCallStartTime } from '../../hooks/useCallMemberships';
 import { useRoomNavigate } from '../../hooks/useRoomNavigate';
 import { RoomNavUser } from './RoomNavUser';
@@ -348,24 +347,22 @@ export function RoomNavItem({
     ? callMemberships
     : callMemberships.filter((id) => id !== myUserId);
 
-  // Voice state service: wraps bridge presence + feature-flag-aware resolution.
-  // Only opens the SSE connection when the room actually has an active call.
-  const voiceStateService = useVoiceStateService(room.roomId, hasActiveCall);
+  // Voice state service: bridge-backed participant state for badges and sidebar UI.
+  // Subscribe for every call room so non-active rooms still get authoritative live badges.
+  const voiceStateService = useVoiceStateService(room.roomId, room.isCallRoom());
   const bridgePresenceMap = voiceStateService.bridgeSnapshot;
 
   const hasSpeakingMember =
     room.isCallRoom() &&
     isActiveCall &&
     displayedCallMembers.some((memberId) => speakingUsers.has(memberId));
-  // Bridge map augments the call.member-based live check: if any participant in the
-  // bridge map is screensharing, show the live icon immediately for active rooms.
+  // Bridge map is authoritative for screenshare badges, including non-active rooms.
   const bridgeHasLiveMember =
     room.isCallRoom() &&
     Array.from(bridgePresenceMap.values()).some((p) => p.isScreenSharing);
   const hasLiveMember =
     room.isCallRoom() &&
-    (roomHasCallScreenShare(mx, room.roomId) ||
-      bridgeHasLiveMember ||
+    (bridgeHasLiveMember ||
       (isActiveCall &&
         (isScreenShareEnabled ||
           Array.from(remoteParticipantStates.values()).some((state) => state.isScreenSharing))));

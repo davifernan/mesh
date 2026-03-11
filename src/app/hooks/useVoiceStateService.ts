@@ -6,7 +6,7 @@
  * so consumers don't need to know which source is authoritative.
  *
  * Behaviour:
- *   - Always subscribes to the bridge SSE for the given roomId (when active).
+ *   - Subscribes to the bridge SSE for the given roomId when the caller asks for it.
  *   - Exposes the raw bridge snapshot (Map<userId, CallPresenceState>).
  *   - Exposes a helper to resolve the effective presence for a single user,
  *     delegating to resolvePresence() with the correct priority order.
@@ -15,7 +15,7 @@
  *     is the single source of truth for all participants).
  *
  * Usage:
- *   const vs = useVoiceStateService(roomId, hasActiveCall);
+ *   const vs = useVoiceStateService(roomId, shouldSubscribe);
  *   const presence = vs.resolveUserPresence(userId, { isLocalUser, ... });
  *   const rawBridge = vs.bridgeSnapshot;
  *
@@ -58,17 +58,16 @@ export type VoiceStateService = {
 
 /**
  * @param roomId  The Matrix room ID to subscribe to, or null/undefined to skip.
- * @param hasActiveCall  When false, the SSE connection is not opened (saves resources).
+ * @param shouldSubscribe  When false, the SSE connection is not opened.
  */
 export function useVoiceStateService(
   roomId: string | null | undefined,
-  hasActiveCall: boolean,
+  shouldSubscribe: boolean,
 ): VoiceStateService {
   const clientConfig = useClientConfig();
   const { authoritativeBridgeMode: isAuthoritativeMode } = resolveVoiceFeatureFlags(clientConfig);
 
-  // Only open the SSE connection when the room has an active call.
-  const bridgeSnapshot = useBridgeRoomPresence(hasActiveCall ? roomId : null);
+  const bridgeSnapshot = useBridgeRoomPresence(shouldSubscribe ? roomId : null);
 
   const resolveUserPresence = useMemo(
     () =>

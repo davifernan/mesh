@@ -25,12 +25,10 @@ import {
   toRem,
 } from 'folds';
 import { useAtom, useAtomValue } from 'jotai';
-import { ClientEvent, MatrixEvent, Room, RoomStateEvent } from 'matrix-js-sdk';
+import { Room } from 'matrix-js-sdk';
 import { Monitor, SpeakerHigh } from '@phosphor-icons/react';
-import { selectSpaceHasVoiceActivity } from '../../../state/voiceActivity';
-import { roomHasCallScreenShare } from '../../../hooks/useCallMemberPresence';
-import { useSpaceVoiceActivity } from '../../../hooks/useSpaceVoiceActivity';
-import { useSpaceLiveActivity } from '../../../hooks/useSpaceLiveActivity';
+import { selectSpaceHasLiveActivity, selectSpaceHasVoiceActivity } from '../../../state/voiceActivity';
+import { useSpaceBridgeActivity } from '../../../hooks/useSpaceBridgeActivity';
 import {
   draggable,
   dropTargetForElements,
@@ -443,52 +441,23 @@ function SpaceTab({
     [space.roomId]
   );
   const hasVoiceActivity = useAtomValue(spaceVoiceActivityAtom);
+  const spaceLiveActivityAtom = useMemo(
+    () => selectSpaceHasLiveActivity(space.roomId),
+    [space.roomId]
+  );
+  const hasBridgeLiveActivity = useAtomValue(spaceLiveActivityAtom);
   const roomToParents = useAtomValue(roomToParentsAtom);
   const { activeCallRoomId, isScreenShareEnabled, remoteParticipantStates } = useCallState();
-  const childRooms = useSpaceChildren(
-    allRoomsAtom,
-    space.roomId,
-    useRecursiveChildScopeFactory(mx, roomToParents)
-  );
-
-  // Reactive Matrix-derived screenshare state.
-  // hasLiveStreamActivity used to call roomHasCallScreenShare() inside a useMemo with no
-  // Matrix-state dependency — so it never recomputed when call.member changed in the room.
-  // This useState+useEffect pattern subscribes to RoomStateEvent.Events (fires for BOTH
-  // timeline AND state-section events) so the guild icon LIVE badge updates live without
-  // requiring a page reload.
-  const childRoomsKey = childRooms.join(',');
-  const [hasMatrixScreenShare, setHasMatrixScreenShare] = useState(() => {
-    const scopedRoomIds = [space.roomId, ...childRooms];
-    return scopedRoomIds.some((roomId) => roomHasCallScreenShare(mx, roomId));
-  });
-  useEffect(() => {
-    const scopedRoomIds = [space.roomId, ...childRoomsKey.split(',').filter(Boolean)];
-    const compute = () => {
-      setHasMatrixScreenShare(
-        [space.roomId, ...scopedRoomIds].some((roomId) => roomHasCallScreenShare(mx, roomId))
-      );
-    };
-    compute();
-    const handleStateEvent = (ev: MatrixEvent) => {
-      const type = ev.getType();
-      if (type.includes('call.member')) {
-        compute();
-      }
-    };
-    mx.on(ClientEvent.Event, handleStateEvent);
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    mx.on(RoomStateEvent.Events as any, handleStateEvent);
-    return () => {
-      mx.off(ClientEvent.Event, handleStateEvent);
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      mx.off(RoomStateEvent.Events as any, handleStateEvent);
-    };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [mx, space.roomId, childRoomsKey]);
 
   const hasLiveStreamActivity = useMemo(() => {
-    if (hasMatrixScreenShare) return true;
+    if (hasBridgeLiveActivity) {
+      const belongsToThisSpace =
+        activeCallRoomId === space.roomId ||
+        (activeCallRoomId ? roomToParents.get(activeCallRoomId)?.has(space.roomId) : false);
+      if (!activeCallRoomId || !belongsToThisSpace) {
+        return true;
+      }
+    }
 
     if (!activeCallRoomId) return false;
 
@@ -504,7 +473,7 @@ function SpaceTab({
     }
     return false;
   }, [
-    hasMatrixScreenShare,
+    hasBridgeLiveActivity,
     activeCallRoomId,
     isScreenShareEnabled,
     remoteParticipantStates,
@@ -766,8 +735,7 @@ export function SpaceTabs({ scrollRef }: SpaceTabsProps) {
   const [openedFolder, setOpenedFolder] = useAtom(useOpenedSidebarFolderAtom());
   const [draggingItem, setDraggingItem] = useState<SidebarDraggable>();
 
-  useSpaceVoiceActivity(orphanSpaces);
-  useSpaceLiveActivity(orphanSpaces);
+  useSpaceBridgeActivity(orphanSpaces);
 
   useDnDMonitor(
     scrollRef,
