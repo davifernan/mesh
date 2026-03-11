@@ -18,11 +18,32 @@ import { useOpenUserRoomProfile } from '../../state/hooks/userRoomProfile';
 import { useSpaceOptionally } from '../../hooks/useSpace';
 import styles from './RoomNavUser.module.css';
 
+/**
+ * Source of voice state for a RoomNavUser.
+ *
+ * - `'local'` (default): resolve presence via the standard priority chain
+ *   (pState > bridge > Matrix state). Backward-compatible.
+ * - `'authoritative'`: the caller has already resolved the presence externally
+ *   (e.g. via useVoiceStateService in authoritative bridge mode) and passes it
+ *   as `resolvedPresence`. The component skips its own resolution and renders
+ *   the provided state directly.
+ */
+export type VoiceStateSource =
+  | { kind: 'local' }
+  | { kind: 'authoritative'; resolvedPresence: CallPresenceState };
+
 type RoomNavUserProps = {
   room: Room;
   userId: string;
   /** Live presence from the server-side bridge (remote fallback behind pState). */
   bridgePresence?: CallPresenceState;
+  /**
+   * Optional override for the voice state source.
+   * When `kind === 'authoritative'`, the component skips its own presence
+   * resolution and renders `resolvedPresence` directly.
+   * Defaults to `{ kind: 'local' }` for full backward compatibility.
+   */
+  voiceStateSource?: VoiceStateSource;
 };
 
 type AttachableVideoTrack = {
@@ -100,7 +121,7 @@ export function resolvePresence({
   return { isMicMuted, isCameraOn, isDeafened, isScreenSharing };
 }
 
-export function RoomNavUser({ room, userId, bridgePresence }: RoomNavUserProps) {
+export function RoomNavUser({ room, userId, bridgePresence, voiceStateSource }: RoomNavUserProps) {
   const mx = useMatrixClient();
   const useAuthentication = useMediaAuthentication();
   const openProfile = useOpenUserRoomProfile();
@@ -131,21 +152,35 @@ export function RoomNavUser({ room, userId, bridgePresence }: RoomNavUserProps) 
 
   // ── Presence resolution ────────────────────────────────────────────────────
   //
-  // LOCAL USER  → use the live call state directly while this room is active.
-  //   We have perfect real-time data here. Bridge data is skipped entirely:
-  //   it can lag or be momentarily wrong (e.g. track_muted webhook during
-  //   mic-setup) and would override the correct local state, breaking the
-  //   speaking indicator and mute badge.
+  // When voiceStateSource.kind === 'authoritative', the caller has already
+  // resolved the presence (e.g. via useVoiceStateService) and we render it
+  // directly without any further resolution. This is the migration path for
+  // authoritative bridge mode.
   //
-  // REMOTE USER → priority: pState > bridge > Matrix state.
-  //   pState            — livekit-client remote participant snapshot while local client is in-call.
-  //   bridgePresence    — server-side SSE; works for all client versions.
-  //   persistedPresence — Matrix io.bettercord.call.presence state event.
+  // When voiceStateSource.kind === 'local' (default), we apply the standard
+  // priority chain:
+  //
+  //   LOCAL USER  → use the live call state directly while this room is active.
+  //     We have perfect real-time data here. Bridge data is skipped entirely:
+  //     it can lag or be momentarily wrong (e.g. track_muted webhook during
+  //     mic-setup) and would override the correct local state, breaking the
+  //     speaking indicator and mute badge.
+  //
+  //   REMOTE USER → priority: pState > bridge > Matrix state.
+  //     pState            — livekit-client remote participant snapshot while local client is in-call.
+  //     bridgePresence    — server-side SSE; works for all client versions.
+  //     persistedPresence — Matrix io.bettercord.call.presence state event.
 
   const pState = activeCallRoomId === room.roomId ? remoteParticipantStates.get(userId) : undefined;
 
-  const presenceState = useMemo(
-    () => resolvePresence({
+  const presenceState = useMemo((): CallPresenceState => {
+    // Authoritative mode: caller has pre-resolved the presence — use it directly.
+    if (voiceStateSource?.kind === 'authoritative') {
+      return voiceStateSource.resolvedPresence;
+    }
+
+    // Default (local) mode: standard priority chain.
+    return resolvePresence({
       isLocalUser,
       isActiveCall,
       pState,
@@ -155,9 +190,19 @@ export function RoomNavUser({ room, userId, bridgePresence }: RoomNavUserProps) 
       isVideoEnabled,
       isCallDeafened,
       isScreenShareEnabled,
-    }),
-    [isLocalUser, isActiveCall, pState, bridgePresence, persistedPresence, isAudioEnabled, isVideoEnabled, isCallDeafened, isScreenShareEnabled],
-  );
+    });
+  }, [
+    voiceStateSource,
+    isLocalUser,
+    isActiveCall,
+    pState,
+    bridgePresence,
+    persistedPresence,
+    isAudioEnabled,
+    isVideoEnabled,
+    isCallDeafened,
+    isScreenShareEnabled,
+  ]);
   const { isMicMuted: isAudioMuted, isCameraOn, isDeafened, isScreenSharing: isScreensharing } = presenceState;
   const badgeKinds = useMemo(() => getPresenceBadgeKinds(presenceState), [presenceState]);
 

@@ -14,17 +14,40 @@ type BridgePayload = {
   isScreenSharing: boolean;
   isDeafened: boolean;
   updatedAt: number;
+  /**
+   * Monotonic per-room sequence number from the bridge store.
+   * Present on all events from bridge v2+. Absent on legacy payloads
+   * (seq === undefined) — fall back to updatedAt comparison in that case.
+   */
+  seq?: number;
+};
+
+/**
+ * Sentinel event sent by the bridge after replaying the initial snapshot.
+ * All events with seq ≤ snapshotSeq are from the snapshot; events with
+ * seq > snapshotSeq are live updates.
+ */
+type SnapshotEndPayload = {
+  type: 'snapshot_end';
+  seq: number;
 };
 
 // Interner Zustand pro Room
 type ConnectionEntry = {
-  presence: Map<string, CallPresenceState & { updatedAt: number }>;
+  presence: Map<string, CallPresenceState & { updatedAt: number; seq: number }>;
   subscriberCount: number;
   listeners: Set<() => void>;
   es: EventSource | null;
   backoff: number;
   retryTimer: ReturnType<typeof setTimeout> | null;
   restoreAbort: AbortController | null;
+  /**
+   * The highest seq received from the snapshot_end sentinel on the current
+   * SSE connection. Live events with seq ≤ this value are duplicates from
+   * the snapshot replay and are discarded.
+   * -1 = snapshot_end not yet received (accept all events during replay).
+   */
+  snapshotSeq: number;
   // Stabiler snapshot fuer useSyncExternalStore (new Map nur wenn Daten aendern)
   snapshot: ReadonlyMap<string, CallPresenceState>;
 };
@@ -54,6 +77,7 @@ export function BridgePresenceProvider({ children }: Props) {
         backoff: 1_000,
         retryTimer: null,
         restoreAbort: null,
+        snapshotSeq: -1,
         snapshot: EMPTY_MAP,
       });
     }
@@ -66,9 +90,47 @@ export function BridgePresenceProvider({ children }: Props) {
     if (!entry) return;
     // Neue Map-Referenz damit useSyncExternalStore Aenderung erkennt
     entry.snapshot = new Map(
-      Array.from(entry.presence.entries()).map(([uid, { updatedAt: _at, ...state }]) => [uid, state])
+      Array.from(entry.presence.entries()).map(([uid, { updatedAt: _at, seq: _seq, ...state }]) => [uid, state])
     );
     for (const l of entry.listeners) l();
+  }
+
+  /**
+   * Determine whether an incoming event should be applied.
+   *
+   * Ordering rules (highest priority first):
+   *   1. If both sides have seq: use seq (strictly monotonic, no clock skew).
+   *   2. If only one side has seq: the one with seq wins (newer bridge version).
+   *   3. Neither has seq: fall back to updatedAt (legacy behaviour).
+   *
+   * During snapshot replay (snapshotSeq === -1) all events are accepted so
+   * the snapshot populates the map. After snapshot_end, live events with
+   * seq ≤ snapshotSeq are discarded (already covered by the snapshot).
+   */
+  function isNewer(
+    incoming: BridgePayload,
+    existing: (CallPresenceState & { updatedAt: number; seq: number }) | undefined,
+    snapshotSeq: number,
+  ): boolean {
+    const inSeq = incoming.seq;
+
+    // After snapshot_end: discard live events that were already in the snapshot
+    if (snapshotSeq >= 0 && inSeq !== undefined && inSeq <= snapshotSeq) {
+      return false;
+    }
+
+    if (!existing) return true;
+
+    const exSeq = existing.seq;
+
+    if (inSeq !== undefined && exSeq !== undefined && exSeq > 0) {
+      return inSeq > exSeq;
+    }
+    if (inSeq !== undefined && (exSeq === undefined || exSeq === 0)) {
+      return true; // incoming has seq, existing doesn't — incoming is newer
+    }
+    // Fallback: wall-clock comparison (legacy payloads without seq)
+    return incoming.updatedAt >= existing.updatedAt;
   }
 
   // Oeffnet SSE-Verbindung fuer roomId
@@ -80,6 +142,9 @@ export function BridgePresenceProvider({ children }: Props) {
       const e = pool.current.get(roomId);
       if (!e || e.subscriberCount === 0) return;
       e.retryTimer = null;
+      // Reset snapshotSeq for the new connection — we haven't received
+      // snapshot_end yet so accept all events during replay.
+      e.snapshotSeq = -1;
 
       const url = `${presenceBaseRef.current}/${encodeURIComponent(roomId)}/stream`;
       const es = new EventSource(url);
@@ -89,24 +154,34 @@ export function BridgePresenceProvider({ children }: Props) {
         const en = pool.current.get(roomId);
         if (!en) return;
         try {
-          const p = JSON.parse(ev.data) as BridgePayload;
+          const raw = JSON.parse(ev.data) as BridgePayload | SnapshotEndPayload;
+
+          // ── snapshot_end sentinel ─────────────────────────────────────────
+          if (raw.type === 'snapshot_end') {
+            en.snapshotSeq = (raw as SnapshotEndPayload).seq;
+            // No presence change — no notify needed
+            return;
+          }
+
+          const p = raw as BridgePayload;
           let changed = false;
+
           if (p.type === 'left') {
             const existing = en.presence.get(p.userId);
-            if (existing && p.updatedAt >= existing.updatedAt) {
+            if (existing && isNewer(p, existing, en.snapshotSeq)) {
               en.presence.delete(p.userId);
               changed = true;
             }
           } else {
             const existing = en.presence.get(p.userId);
-            // Nur updaten wenn neuer updatedAt >= vorheriger
-            if (!existing || p.updatedAt >= existing.updatedAt) {
+            if (isNewer(p, existing, en.snapshotSeq)) {
               en.presence.set(p.userId, {
                 isMicMuted: p.isMicMuted,
                 isCameraOn: p.isCameraOn,
                 isScreenSharing: p.isScreenSharing,
                 isDeafened: p.isDeafened,
                 updatedAt: p.updatedAt,
+                seq: p.seq ?? 0,
               });
               changed = true;
             }
@@ -148,9 +223,13 @@ export function BridgePresenceProvider({ children }: Props) {
     entry.restoreAbort?.abort();
     entry.restoreAbort = null;
     entry.backoff = 1_000;
+    entry.snapshotSeq = -1;
   }
 
   // REST Bootstrap: holt aktuellen Snapshot vom Server
+  // NOTE: With the subscribe-first SSE approach, the SSE stream already sends
+  // the snapshot on connect. This REST bootstrap is kept as a belt-and-suspenders
+  // fallback for cases where the SSE connection is slow to establish.
   function bootstrapREST(roomId: string): void {
     const entry = ensureEntry(roomId);
     const abort = new AbortController();
@@ -167,13 +246,15 @@ export function BridgePresenceProvider({ children }: Props) {
           const incoming = payload as BridgePayload;
           const existing = e.presence.get(userId);
           const incomingTs = typeof incoming.updatedAt === 'number' ? incoming.updatedAt : 0;
-          if (!existing || incomingTs > existing.updatedAt) {
+          const incomingSeq = typeof incoming.seq === 'number' ? incoming.seq : 0;
+          if (isNewer({ ...incoming, updatedAt: incomingTs, seq: incomingSeq }, existing, e.snapshotSeq)) {
             e.presence.set(userId, {
               isMicMuted: incoming.isMicMuted ?? false,
               isCameraOn: incoming.isCameraOn ?? false,
               isScreenSharing: incoming.isScreenSharing ?? false,
               isDeafened: incoming.isDeafened ?? false,
               updatedAt: incomingTs,
+              seq: incomingSeq,
             });
             changed = true;
           }
@@ -190,7 +271,8 @@ export function BridgePresenceProvider({ children }: Props) {
     entry.subscriberCount += 1;
 
     if (entry.subscriberCount === 1) {
-      // Erster Subscriber: Bootstrap + SSE oeffnen
+      // Erster Subscriber: SSE oeffnen (SSE stream sends snapshot on connect)
+      // REST bootstrap is belt-and-suspenders for slow SSE establishment
       bootstrapREST(roomId);
       openSSE(roomId);
     }

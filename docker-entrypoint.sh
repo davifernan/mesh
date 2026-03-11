@@ -1,14 +1,43 @@
 #!/bin/sh
 set -e
 
+read_json_string() {
+  key="$1"
+  sed -n "s/.*\"$key\": \"\([^\"]*\)\".*/\1/p" /app/config.json | sed -n '1p'
+}
+
+read_json_bool() {
+  key="$1"
+  sed -n "s/.*\"$key\": \(true\|false\).*/\1/p" /app/config.json | sed -n '1p'
+}
+
+read_first_homeserver() {
+  sed -n '/"homeserverList"[[:space:]]*:/,/]/ { s/^[[:space:]]*"\([^"]*\)".*/\1/p; }' /app/config.json | sed -n '1p'
+}
+
 # ── config.json ──────────────────────────────────────────────────────────────
-# Generate from template if any homeserver / LiveKit vars are set.
-# Otherwise the shipped config.json (with defaults) is used as-is.
-if [ -n "$BETTERCORD_HOMESERVER" ] || [ -n "$BETTERCORD_LIVEKIT_URL" ] || [ -n "$BETTERCORD_PRESENCE_URL" ]; then
+# Generate from template only when runtime config actually needs overriding.
+# The default rollout values (voiceStateMode=livekit, feature flags=false) should
+# NOT force regeneration, otherwise we'd overwrite the shipped config.json.
+if [ -n "$BETTERCORD_HOMESERVER" ] || [ -n "$BETTERCORD_LIVEKIT_URL" ] || [ -n "$BETTERCORD_PRESENCE_URL" ] || [ "$BETTERCORD_VOICE_STATE_MODE" = "bridge" ] || [ "$BETTERCORD_AUTHORITATIVE_BRIDGE_MODE" = "true" ] || [ "$BETTERCORD_DISABLE_MATRIX_PRESENCE_WRITES" = "true" ]; then
   echo "[entrypoint] Generating config.json from environment variables..."
-  BETTERCORD_HOMESERVER="${BETTERCORD_HOMESERVER:-matrix.org}" \
-  BETTERCORD_LIVEKIT_URL="${BETTERCORD_LIVEKIT_URL:-}" \
-  BETTERCORD_PRESENCE_URL="${BETTERCORD_PRESENCE_URL:-}" \
+  BETTERCORD_HOMESERVER="${BETTERCORD_HOMESERVER:-$(read_first_homeserver)}"
+  BETTERCORD_LIVEKIT_URL="${BETTERCORD_LIVEKIT_URL:-$(read_json_string livekitServiceUrl)}"
+  BETTERCORD_PRESENCE_URL="${BETTERCORD_PRESENCE_URL:-$(read_json_string presenceUrl)}"
+  BETTERCORD_VOICE_STATE_MODE="${BETTERCORD_VOICE_STATE_MODE:-$(read_json_string voiceStateMode)}"
+  BETTERCORD_AUTHORITATIVE_BRIDGE_MODE="${BETTERCORD_AUTHORITATIVE_BRIDGE_MODE:-$(read_json_bool authoritativeBridgeMode)}"
+  BETTERCORD_DISABLE_MATRIX_PRESENCE_WRITES="${BETTERCORD_DISABLE_MATRIX_PRESENCE_WRITES:-$(read_json_bool disableMatrixPresenceWrites)}"
+
+  : "${BETTERCORD_HOMESERVER:=matrix.org}"
+  : "${BETTERCORD_PRESENCE_URL:=/api/presence}"
+  : "${BETTERCORD_VOICE_STATE_MODE:=livekit}"
+  : "${BETTERCORD_AUTHORITATIVE_BRIDGE_MODE:=false}"
+  : "${BETTERCORD_DISABLE_MATRIX_PRESENCE_WRITES:=false}"
+
+  export BETTERCORD_HOMESERVER BETTERCORD_LIVEKIT_URL BETTERCORD_PRESENCE_URL \
+    BETTERCORD_VOICE_STATE_MODE BETTERCORD_AUTHORITATIVE_BRIDGE_MODE \
+    BETTERCORD_DISABLE_MATRIX_PRESENCE_WRITES
+
   envsubst < /app/config.template.json > /app/config.json
   echo "[entrypoint] Done. config.json:"
   cat /app/config.json

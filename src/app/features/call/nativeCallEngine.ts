@@ -24,7 +24,10 @@ import {
 import type { MatrixClient } from 'matrix-js-sdk';
 import { useAtomValue } from 'jotai';
 import { useMatrixClient } from '../../hooks/useMatrixClient';
-import { useClientConfig } from '../../hooks/useClientConfig';
+import {
+  useClientConfig,
+  resolveVoiceFeatureFlags,
+} from '../../hooks/useClientConfig';
 import { effectiveAVSettingsAtom } from '../../state/avQuality';
 import { settingsAtom } from '../../state/settings';
 import {
@@ -137,9 +140,18 @@ export function useNativeCall(roomId: string | null): NativeCallEngine {
   const mx = useMatrixClient();
 
   // ── Config ─────────────────────────────────────────────────────────────────
-  const { livekitServiceUrl: configServiceUrl } = useClientConfig();
+  const clientConfig = useClientConfig();
+  const { livekitServiceUrl: configServiceUrl } = clientConfig;
+  const { disableMatrixPresenceWrites } = resolveVoiceFeatureFlags(clientConfig);
   const configServiceUrlRef = useRef(configServiceUrl);
   configServiceUrlRef.current = configServiceUrl;
+
+  // Stable ref so the connect() closure always reads the latest flag value
+  // without re-running the main effect.
+  const disableMatrixPresenceWritesRef = useRef<boolean>(
+    disableMatrixPresenceWrites,
+  );
+  disableMatrixPresenceWritesRef.current = disableMatrixPresenceWrites;
 
   // ── Atoms ──────────────────────────────────────────────────────────────────
   const effectiveAV = useAtomValue(effectiveAVSettingsAtom);
@@ -214,12 +226,21 @@ export function useNativeCall(roomId: string | null): NativeCallEngine {
   // ── Presence publisher ─────────────────────────────────────────────────────
   // Best-effort: publish local AV state as a Matrix room state event so observers
   // outside the call can read mute/camera/screenshare/deafen badges.
+  //
+  // When the `disableMatrixPresenceWrites` feature flag is set, this function
+  // is a no-op — the bridge SSE stream is the sole source of truth for
+  // non-participant observers. The deafen participant-attribute update
+  // (room.localParticipant.setAttributes) is always written regardless of this
+  // flag because it is needed by the bridge webhook to propagate deafen state.
   const publishPresence = useCallback((overrides?: {
     isMicMuted?: boolean;
     isCameraOn?: boolean;
     isScreenSharing?: boolean;
     isDeafened?: boolean;
   }) => {
+    // Guard: skip Matrix state writes when the flag is enabled.
+    if (disableMatrixPresenceWritesRef.current) return;
+
     const roomId = presenceRoomIdRef.current;
     const userId = presenceUserIdRef.current;
     const deviceId = presenceDeviceIdRef.current;
@@ -246,6 +267,12 @@ export function useNativeCall(roomId: string | null): NativeCallEngine {
   }, [mx]);
 
   const clearPresence = useCallback(() => {
+    // Guard: skip Matrix state writes when the flag is enabled.
+    if (disableMatrixPresenceWritesRef.current) {
+      presenceRoomIdRef.current = null;
+      return;
+    }
+
     const roomId = presenceRoomIdRef.current;
     const userId = presenceUserIdRef.current;
     const deviceId = presenceDeviceIdRef.current;
@@ -644,36 +671,38 @@ export function useNativeCall(roomId: string | null): NativeCallEngine {
           presenceDeafRef.current = false;
 
           // ── Best-effort presence power-level repair ────────────────────────
-          // If this room is missing the required PL overrides for BetterCord
-          // presence events, non-participants will never see state badges.
-          // If the current user has permission to fix the PLs, do it once now.
-          // This is best-effort: we never block the call join on this.
-          try {
-            const plCheck = checkCallPresencePermissions(mx, roomId!);
-            if (plCheck.canRepair) {
-              const matRoomForRepair = mx.getRoom(roomId!);
-              const plEvent = matRoomForRepair?.currentState.getStateEvents('m.room.power_levels', '');
-              // eslint-disable-next-line @typescript-eslint/no-explicit-any
-              const existingPL = (plEvent as any)?.getContent?.() ?? {};
-              const repairedPL = buildCallRoomPresenceRepair(existingPL, plCheck.missingEventOverrides);
-              void mx.sendStateEvent(roomId!, 'm.room.power_levels' as any, repairedPL, '');
-              console.info(
-                '[BetterCord] Repaired call-room power levels for presence events.',
-                'Room:', roomId,
-                'Added overrides:', plCheck.missingEventOverrides,
-              );
-            } else if (!plCheck.canWrite) {
-              console.warn(
-                '[BetterCord] This voice room is missing presence power-level overrides.',
-                'Non-participants may not see mute/deafen/camera/live state.',
-                'Room:', roomId,
-                'An admin needs to set these event types to power level 0:',
-                plCheck.missingEventOverrides,
-              );
+          // Only needed when Matrix presence writes are active. When
+          // disableMatrixPresenceWrites is set, the bridge is the sole source
+          // of truth and no Matrix state events are written, so PL repair is
+          // unnecessary.
+          if (!disableMatrixPresenceWritesRef.current) {
+            try {
+              const plCheck = checkCallPresencePermissions(mx, roomId!);
+              if (plCheck.canRepair) {
+                const matRoomForRepair = mx.getRoom(roomId!);
+                const plEvent = matRoomForRepair?.currentState.getStateEvents('m.room.power_levels', '');
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                const existingPL = (plEvent as any)?.getContent?.() ?? {};
+                const repairedPL = buildCallRoomPresenceRepair(existingPL, plCheck.missingEventOverrides);
+                void mx.sendStateEvent(roomId!, 'm.room.power_levels' as any, repairedPL, '');
+                console.info(
+                  '[BetterCord] Repaired call-room power levels for presence events.',
+                  'Room:', roomId,
+                  'Added overrides:', plCheck.missingEventOverrides,
+                );
+              } else if (!plCheck.canWrite) {
+                console.warn(
+                  '[BetterCord] This voice room is missing presence power-level overrides.',
+                  'Non-participants may not see mute/deafen/camera/live state.',
+                  'Room:', roomId,
+                  'An admin needs to set these event types to power level 0:',
+                  plCheck.missingEventOverrides,
+                );
+              }
+            } catch (plErr) {
+              // PL repair is strictly best-effort — never block the call
+              console.warn('[BetterCord] Power-level repair attempt failed:', plErr);
             }
-          } catch (plErr) {
-            // PL repair is strictly best-effort — never block the call
-            console.warn('[BetterCord] Power-level repair attempt failed:', plErr);
           }
           // ── End power-level repair ─────────────────────────────────────────
 
@@ -684,22 +713,26 @@ export function useNativeCall(roomId: string | null): NativeCallEngine {
           setIsVideoEnabled(false);
           setIsScreenShareEnabled(false);
 
-          // Publish initial presence (mic live, camera/SS/deafen off)
-          publishCallPresenceState(mx, roomId!, userId, deviceId, {
-            isMicMuted: false,
-            isCameraOn: false,
-            isScreenSharing: false,
-            isDeafened: false,
-          }).catch((err: unknown) => {
-            if (!presenceWriteWarnedRef.current) {
-              presenceWriteWarnedRef.current = true;
-              console.warn(
-                '[BetterCord] Initial presence write failed.',
-                'Room:', roomId,
-                'Error:', err instanceof Error ? err.message : String(err),
-              );
-            }
-          });
+          // Publish initial presence (mic live, camera/SS/deafen off).
+          // Skipped when disableMatrixPresenceWrites is enabled — the bridge
+          // will pick up the initial state via the LiveKit webhook instead.
+          if (!disableMatrixPresenceWritesRef.current) {
+            publishCallPresenceState(mx, roomId!, userId, deviceId, {
+              isMicMuted: false,
+              isCameraOn: false,
+              isScreenSharing: false,
+              isDeafened: false,
+            }).catch((err: unknown) => {
+              if (!presenceWriteWarnedRef.current) {
+                presenceWriteWarnedRef.current = true;
+                console.warn(
+                  '[BetterCord] Initial presence write failed.',
+                  'Room:', roomId,
+                  'Error:', err instanceof Error ? err.message : String(err),
+                );
+              }
+            });
+          }
         }
       } catch (e) {
         if (!aborted) {
@@ -722,12 +755,13 @@ export function useNativeCall(roomId: string | null): NativeCallEngine {
         }
       }
 
-      // Clear persisted presence before disconnecting
+      // Clear persisted presence before disconnecting.
+      // Skipped when disableMatrixPresenceWrites is enabled.
       const leaveRoomId = presenceRoomIdRef.current;
       const leaveUserId = presenceUserIdRef.current;
       const leaveDeviceId = presenceDeviceIdRef.current;
       presenceRoomIdRef.current = null;
-      if (leaveRoomId && leaveUserId && leaveDeviceId) {
+      if (!disableMatrixPresenceWritesRef.current && leaveRoomId && leaveUserId && leaveDeviceId) {
         publishCallPresenceState(mx, leaveRoomId, leaveUserId, leaveDeviceId, null).catch((err: unknown) => {
           console.warn('[BetterCord] Presence clear on leave failed:', err instanceof Error ? err.message : String(err));
         });

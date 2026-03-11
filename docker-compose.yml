@@ -12,6 +12,12 @@ services:
       BETTERCORD_HOMESERVER: '${BETTERCORD_HOMESERVER}'
       BETTERCORD_LIVEKIT_URL: '${BETTERCORD_LIVEKIT_URL}'
       BETTERCORD_PRESENCE_URL: '${BETTERCORD_PRESENCE_URL}'
+      # Controls how the frontend resolves participant presence.
+      # "bridge" = bridge is authoritative (recommended for production).
+      # "livekit" = prefer live LiveKit client state (default for local dev).
+      BETTERCORD_VOICE_STATE_MODE: '${BETTERCORD_VOICE_STATE_MODE:-livekit}'
+      BETTERCORD_AUTHORITATIVE_BRIDGE_MODE: '${BETTERCORD_AUTHORITATIVE_BRIDGE_MODE:-false}'
+      BETTERCORD_DISABLE_MATRIX_PRESENCE_WRITES: '${BETTERCORD_DISABLE_MATRIX_PRESENCE_WRITES:-false}'
       # Optional: set these to show Polls/Whiteboard in the Activities catalog.
       # Must be publicly reachable URLs (loaded by users' browsers, not the container).
       BETTERCORD_POLLS_URL: '${BETTERCORD_POLLS_URL:-}'
@@ -31,7 +37,16 @@ services:
     environment:
       LIVEKIT_API_KEY: '${LIVEKIT_API_KEY}'
       LIVEKIT_API_SECRET: '${LIVEKIT_API_SECRET}'
+      LIVEKIT_URL: '${LIVEKIT_URL:-}'
       PORT: '3001'
+      # Feature flag: when "true" the bridge is the authoritative source of truth
+      # for voice state. Enables stricter consistency guarantees and Redis-backed
+      # state persistence (requires REDIS_URL when set to "true").
+      BRIDGE_VOICE_STATE_AUTHORITATIVE: '${BRIDGE_VOICE_STATE_AUTHORITATIVE:-false}'
+      # Redis connection URL for persistent voice state across bridge restarts.
+      # Required when BRIDGE_VOICE_STATE_AUTHORITATIVE=true in production.
+      # Leave empty to use in-memory state only (safe for local dev / single-instance).
+      REDIS_URL: '${REDIS_URL:-}'
     ports:
       - '127.0.0.1:3002:3001'
     healthcheck:
@@ -44,6 +59,34 @@ services:
       - bettercord
       - voicechat
     restart: unless-stopped
+
+  # ── Redis (optional — voice state persistence) ───────────────────────────────
+  #
+  # Enables persistent voice state across bridge restarts and supports
+  # multi-instance bridge deployments (horizontal scaling).
+  #
+  # Setup:
+  #   1. Start with: docker compose --profile redis up -d redis
+  #   2. Set REDIS_URL=redis://redis:6379 and BRIDGE_VOICE_STATE_AUTHORITATIVE=true in .env
+  #   3. Restart the bridge: docker compose restart bridge
+  #
+  # The bridge falls back to in-memory state when REDIS_URL is unset — safe for
+  # single-instance local dev without this service running.
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command: redis-server --save 60 1 --loglevel warning
+    volumes:
+      - redis_data:/data
+    networks:
+      - bettercord
+    profiles:
+      - redis
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 10s
+      timeout: 3s
+      retries: 3
 
   polls-widget:
     # nordeck/matrix-poll-widget — self-hosted polls for BetterCord rooms.
@@ -97,3 +140,6 @@ networks:
   voicechat:
     name: voicechat
     external: true
+
+volumes:
+  redis_data:

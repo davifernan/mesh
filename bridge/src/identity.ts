@@ -1,16 +1,29 @@
-import type { Room } from 'matrix-js-sdk';
-
-type LiveKitParticipantLike = {
-  identity: string;
-  name?: string;
-  metadata?: string;
-  attributes?: Record<string, string>;
-};
-
 /**
- * Attribute keys checked (in order) when resolving a Matrix user ID from a
- * LiveKit participant.  Must stay in sync with bridge/src/identity.ts.
+ * Matrix user-ID resolution from LiveKit participant identity.
+ *
+ * Aligned with the frontend's participantIdentity.ts logic so that the bridge
+ * and every client derive the same userId key from the same LiveKit identity
+ * string — critical for presence map lookups to match.
+ *
+ * Resolution order (mirrors resolveParticipantUserId in the frontend):
+ *   1. Participant attributes — checked against PARTICIPANT_USER_ID_KEYS.
+ *   2. Participant metadata   — JSON-parsed, same key list.
+ *   3. Identity string        — extractMatrixUserIdFromIdentity logic:
+ *        a. Strip leading `_@` → `@` (MSC4143 variant)
+ *        b. If the server part (after `:`) has no `_`, return as-is (bare ID)
+ *        c. Try stripping device suffix at the last `_`
+ *        d. Fall back to the full normalised string if it is a valid Matrix ID
+ *           (handles server names that legitimately contain underscores)
+ *   4. Fallback — strip leading `_@` and return as-is.
+ *
+ * Key difference from the old bridge logic:
+ *   OLD: returned bare ID early if `isMatrixUserId` passed, missing device-suffix
+ *        stripping for IDs like `@alice:server.com_DEVICEID`
+ *   NEW: checks the server part for underscores before deciding whether to strip
  */
+
+// ── Attribute key list (must stay in sync with frontend participantIdentity.ts) ──
+
 export const PARTICIPANT_USER_ID_KEYS = [
   'matrix_user_id',
   'matrixUserId',
@@ -20,9 +33,11 @@ export const PARTICIPANT_USER_ID_KEYS = [
   'claimedUserId',
   'user_id',
   'userId',
-  // Legacy Element Call key — kept for backwards compat
+  // Legacy element-call key — kept for backwards compat
   'io.element.owned_by',
 ] as const;
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
 
 function isMatrixUserId(value: string): boolean {
   return value.startsWith('@') && value.includes(':');
@@ -34,7 +49,6 @@ function readUserIdCandidate(value: unknown): string | null {
 
 function parseParticipantMetadata(metadata?: string): Record<string, unknown> | null {
   if (!metadata) return null;
-
   try {
     const parsed = JSON.parse(metadata);
     return parsed && typeof parsed === 'object' ? (parsed as Record<string, unknown>) : null;
@@ -43,22 +57,13 @@ function parseParticipantMetadata(metadata?: string): Record<string, unknown> | 
   }
 }
 
-function getMappedUserId(candidate?: Record<string, unknown> | null): string | null {
-  if (!candidate) return null;
-
-  return (
-    PARTICIPANT_USER_ID_KEYS.map((key) => readUserIdCandidate(candidate[key])).find(Boolean) ?? null
-  );
-}
-
-function matchUniqueRoomMemberByName(room: Room | null | undefined, name?: string): string | null {
-  if (!room || !name) return null;
-
-  const matches = room
-    .getJoinedMembers()
-    .filter((member) => (member.name ?? member.userId) === name);
-
-  return matches.length === 1 ? matches[0].userId : null;
+function getMappedUserId(attrs: Record<string, unknown> | undefined | null): string | null {
+  if (!attrs) return null;
+  for (const key of PARTICIPANT_USER_ID_KEYS) {
+    const candidate = readUserIdCandidate(attrs[key]);
+    if (candidate) return candidate;
+  }
+  return null;
 }
 
 /**
@@ -120,28 +125,28 @@ export function extractMatrixUserIdFromIdentity(identity: string): string | null
 /**
  * Resolve the canonical Matrix user ID for a LiveKit participant.
  *
- * Resolution order (mirrors bridge resolveMatrixUserId):
- *   1. Participant attributes — checked against PARTICIPANT_USER_ID_KEYS.
- *   2. Participant metadata  — JSON-parsed, same key list.
- *   3. Identity string       — extractMatrixUserIdFromIdentity.
- *   4. Room member name match — unique display-name lookup (frontend only).
- *   5. Fallback              — strip leading `_@` and return identity as-is.
+ * @param identity   LiveKit participant identity string
+ * @param attributes LiveKit participant attributes map (optional)
+ * @param metadata   LiveKit participant metadata string (optional, JSON)
+ * @returns          Bare Matrix user ID, or the identity string as fallback
  */
-export function resolveParticipantUserId(
-  participant: LiveKitParticipantLike,
-  room?: Room | null
+export function resolveMatrixUserId(
+  identity: string,
+  attributes?: Record<string, string>,
+  metadata?: string,
 ): string {
-  const attributeUserId = getMappedUserId(participant.attributes);
-  if (attributeUserId) return attributeUserId;
+  // 1. Attributes take priority
+  const attrUserId = getMappedUserId(attributes);
+  if (attrUserId) return attrUserId;
 
-  const metadataUserId = getMappedUserId(parseParticipantMetadata(participant.metadata));
-  if (metadataUserId) return metadataUserId;
+  // 2. Metadata (JSON-parsed) — same key list
+  const metaUserId = getMappedUserId(parseParticipantMetadata(metadata));
+  if (metaUserId) return metaUserId;
 
-  const identityUserId = extractMatrixUserIdFromIdentity(participant.identity);
+  // 3. Parse from identity string
+  const identityUserId = extractMatrixUserIdFromIdentity(identity);
   if (identityUserId) return identityUserId;
 
-  const namedMemberUserId = matchUniqueRoomMemberByName(room, participant.name);
-  if (namedMemberUserId) return namedMemberUserId;
-
-  return participant.identity.startsWith('_@') ? participant.identity.slice(1) : participant.identity;
+  // 4. Fallback: strip leading `_@` and return as-is
+  return identity.startsWith('_@') ? identity.slice(1) : identity;
 }

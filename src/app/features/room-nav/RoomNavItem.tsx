@@ -72,8 +72,9 @@ import { roomHasCallScreenShare } from '../../hooks/useCallMemberPresence';
 import { useCallMembers, useCallStartTime } from '../../hooks/useCallMemberships';
 import { useRoomNavigate } from '../../hooks/useRoomNavigate';
 import { RoomNavUser } from './RoomNavUser';
+import type { VoiceStateSource } from './RoomNavUser';
 import { useRoomName } from '../../hooks/useRoomMeta';
-import { useBridgeRoomPresence } from '../../hooks/useBridgeRoomPresence';
+import { useVoiceStateService } from '../../hooks/useVoiceStateService';
 import { useStateEvent } from '../../hooks/useStateEvent';
 import { StateEvent } from '../../../types/matrix/room';
 
@@ -300,6 +301,9 @@ export function RoomNavItem({
     setViewedCallRoomId,
     isChatOpen,
     speakingUsers,
+    isAudioEnabled,
+    isVideoEnabled,
+    isDeafened,
     isScreenShareEnabled,
     remoteParticipantStates,
     toggleChat,
@@ -344,9 +348,10 @@ export function RoomNavItem({
     ? callMemberships
     : callMemberships.filter((id) => id !== myUserId);
 
-  // Bridge presence: server-side source of truth for mute/camera/SS/deafen badges.
-  // Only open the SSE connection when the room actually has an active call.
-  const bridgePresenceMap = useBridgeRoomPresence(hasActiveCall ? room.roomId : null);
+  // Voice state service: wraps bridge presence + feature-flag-aware resolution.
+  // Only opens the SSE connection when the room actually has an active call.
+  const voiceStateService = useVoiceStateService(room.roomId, hasActiveCall);
+  const bridgePresenceMap = voiceStateService.bridgeSnapshot;
 
   const hasSpeakingMember =
     room.isCallRoom() &&
@@ -702,14 +707,41 @@ export function RoomNavItem({
       </NavItem>
       {room.isCallRoom() && displayedCallMembers.length > 0 && (
         <Box direction="Column" style={{ paddingLeft: config.space.S200 }}>
-          {displayedCallMembers.map((userId) => (
-            <RoomNavUser
-              key={userId}
-              room={room}
-              userId={userId}
-              bridgePresence={bridgePresenceMap.get(userId)}
-            />
-          ))}
+          {displayedCallMembers.map((memberId) => {
+            // In authoritative bridge mode, pre-resolve the presence here so
+            // RoomNavUser can render it directly without its own resolution chain.
+            // In default (local) mode, pass bridgePresence as before.
+            const voiceStateSource: VoiceStateSource = voiceStateService.isAuthoritativeMode
+              ? {
+                  kind: 'authoritative',
+                  resolvedPresence: voiceStateService.resolveUserPresence(memberId, {
+                    isLocalUser: memberId === mx.getUserId(),
+                    isActiveCall,
+                    pState: isActiveCall ? remoteParticipantStates.get(memberId) : undefined,
+                    persistedPresence: {
+                      isMicMuted: false,
+                      isCameraOn: false,
+                      isScreenSharing: false,
+                      isDeafened: false,
+                    },
+                    isAudioEnabled,
+                    isVideoEnabled,
+                    isCallDeafened: isDeafened,
+                    isScreenShareEnabled,
+                  }),
+                }
+              : { kind: 'local' };
+
+            return (
+              <RoomNavUser
+                key={memberId}
+                room={room}
+                userId={memberId}
+                bridgePresence={bridgePresenceMap.get(memberId)}
+                voiceStateSource={voiceStateSource}
+              />
+            );
+          })}
         </Box>
       )}
     </Box>

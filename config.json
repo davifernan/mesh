@@ -10,5 +10,12 @@
     "basename": "/"
   },
 
-  "livekitServiceUrl": "https://livekit-jwt.nilo.live"
+  "livekitServiceUrl": "https://livekit-jwt.nilo.live",
+  "presenceUrl": "/api/presence",
+
+  "voiceStateMode": "livekit",
+  "featureFlags": {
+    "authoritativeBridgeMode": false,
+    "disableMatrixPresenceWrites": false
+  }
 }

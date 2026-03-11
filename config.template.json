@@ -11,5 +11,11 @@
   },
 
   "livekitServiceUrl": "${BETTERCORD_LIVEKIT_URL}",
-  "presenceUrl": "${BETTERCORD_PRESENCE_URL}"
+  "presenceUrl": "${BETTERCORD_PRESENCE_URL}",
+
+  "voiceStateMode": "${BETTERCORD_VOICE_STATE_MODE}",
+  "featureFlags": {
+    "authoritativeBridgeMode": ${BETTERCORD_AUTHORITATIVE_BRIDGE_MODE},
+    "disableMatrixPresenceWrites": ${BETTERCORD_DISABLE_MATRIX_PRESENCE_WRITES}
+  }
 }
