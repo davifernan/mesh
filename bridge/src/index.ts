@@ -176,6 +176,24 @@ function setPresence(roomId: string, identity: string, userId: string, patch: Pa
   recomputeUserState(roomId, userId);
 }
 
+/**
+ * If the participant's attributes contain an explicit `isDeafened` key,
+ * sync the deafen state into the presence entry.
+ * Called from track-event cases as a fallback for when
+ * `participant_attributes_changed` does not fire reliably.
+ * Does NOT call setPresence when the attribute is absent — a missing key
+ * is not the same as "not deafened".
+ */
+function syncDeafenFromAttrs(
+  roomId: string,
+  identity: string,
+  userId: string,
+  attrs: Record<string, string> | undefined,
+): void {
+  if (!attrs || !('isDeafened' in attrs)) return;
+  setPresence(roomId, identity, userId, { isDeafened: attrs.isDeafened === '1' });
+}
+
 function removePresence(roomId: string, identity: string, userId: string) {
   const room = roomState.get(roomId);
   if (!room) return;
@@ -251,6 +269,7 @@ app.post('/webhook', async (c) => {
   const userId = resolveMatrixUserId(identity, p?.attributes as Record<string, string> | undefined);
   const track = event.track;
   const source = track?.source as TrackSource | undefined;
+  const pAttrs = p?.attributes as Record<string, string> | undefined;
 
   switch (event.event) {
     case 'participant_joined': {
@@ -290,6 +309,7 @@ app.post('/webhook', async (c) => {
       if (source === 'MICROPHONE' || source === 'CAMERA' || source === 'SCREEN_SHARE') {
         console.debug(`[muted] ${userId} source=${source} in ${roomId}`);
       }
+      syncDeafenFromAttrs(roomId, identity, userId, pAttrs);
       break;
 
     case 'track_unmuted':
@@ -299,16 +319,30 @@ app.post('/webhook', async (c) => {
       if (source === 'MICROPHONE' || source === 'CAMERA' || source === 'SCREEN_SHARE') {
         console.debug(`[unmuted] ${userId} source=${source} in ${roomId}`);
       }
+      syncDeafenFromAttrs(roomId, identity, userId, pAttrs);
       break;
 
     case 'track_published':
+      // stopMicTrackOnMute:false means LiveKit un-/republishes the mic track instead of
+      // sending track_muted/track_unmuted — so we must handle MICROPHONE here too.
+      if (source === 'MICROPHONE') setPresence(roomId, identity, userId, { isMicMuted: track?.muted ?? false });
       if (source === 'CAMERA') setPresence(roomId, identity, userId, { isCameraOn: !(track?.muted ?? false) });
       if (source === 'SCREEN_SHARE') setPresence(roomId, identity, userId, { isScreenSharing: !(track?.muted ?? false) });
+      if (source === 'MICROPHONE' || source === 'CAMERA' || source === 'SCREEN_SHARE') {
+        console.debug(`[published] ${userId} source=${source} muted=${track?.muted ?? false} in ${roomId}`);
+      }
+      syncDeafenFromAttrs(roomId, identity, userId, pAttrs);
       break;
 
     case 'track_unpublished':
+      // Mirror of track_published: MICROPHONE unpublish = muted.
+      if (source === 'MICROPHONE') setPresence(roomId, identity, userId, { isMicMuted: true });
       if (source === 'CAMERA') setPresence(roomId, identity, userId, { isCameraOn: false });
       if (source === 'SCREEN_SHARE') setPresence(roomId, identity, userId, { isScreenSharing: false });
+      if (source === 'MICROPHONE' || source === 'CAMERA' || source === 'SCREEN_SHARE') {
+        console.debug(`[unpublished] ${userId} source=${source} in ${roomId}`);
+      }
+      syncDeafenFromAttrs(roomId, identity, userId, pAttrs);
       break;
 
     case 'participant_attributes_changed': {
@@ -441,3 +475,6 @@ console.log(`[bridge]   GET  /health               — health + stats`);
 console.log(`[bridge] ─────────────────────────────────────────────`);
 
 export default { port: PORT, fetch: app.fetch, idleTimeout: 0 };
+
+// ── Test-only exports (tree-shaken in production) ─────────────────────────────
+export { app as _testApp, roomState as _testRoomState, identityState as _testIdentityState };

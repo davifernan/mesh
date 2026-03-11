@@ -1545,3 +1545,300 @@ describe('resolvePresence — non-participant observer scenarios', () => {
     expect(result.isMicMuted).toBe(false);
   });
 });
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Gruppe 5: bridge webhook — deafen sync via track events (fallback)
+//
+// Tests the syncDeafenFromAttrs fallback that is called from every track event
+// handler in bridge/src/index.ts.  We replicate the bridge's in-memory state
+// management here (same logic, zero network/HTTP deps) so Vitest can run these
+// purely in-process without importing Hono or livekit-server-sdk.
+//
+// The logic under test (from bridge/src/index.ts):
+//
+//   function syncDeafenFromAttrs(roomId, identity, userId, attrs) {
+//     if (!attrs || !('isDeafened' in attrs)) return;
+//     setPresence(roomId, identity, userId, { isDeafened: attrs.isDeafened === '1' });
+//   }
+//
+//   track_muted / track_unmuted / track_published / track_unpublished all call
+//   syncDeafenFromAttrs(roomId, identity, userId, pAttrs) AFTER setting the
+//   track-specific field, so both fields are updated atomically.
+// ─────────────────────────────────────────────────────────────────────────────
+
+describe('bridge webhook — deafen sync via track events (fallback)', () => {
+  // ── Minimal replica of bridge in-memory state ──────────────────────────────
+
+  type BridgePresence = {
+    isMicMuted: boolean;
+    isCameraOn: boolean;
+    isScreenSharing: boolean;
+    isDeafened: boolean;
+    updatedAt: number;
+  };
+
+  type IdentityEntry = { userId: string; presence: BridgePresence };
+
+  let roomState: Map<string, Map<string, BridgePresence>>;
+  let identityState: Map<string, Map<string, IdentityEntry>>;
+
+  function ensureRoom(roomId: string): Map<string, BridgePresence> {
+    if (!roomState.has(roomId)) roomState.set(roomId, new Map());
+    return roomState.get(roomId)!;
+  }
+
+  function ensureIdentityRoom(roomId: string): Map<string, IdentityEntry> {
+    if (!identityState.has(roomId)) identityState.set(roomId, new Map());
+    return identityState.get(roomId)!;
+  }
+
+  function recomputeUserState(roomId: string, userId: string): void {
+    const idRoom = identityState.get(roomId);
+    const candidates: BridgePresence[] = [];
+    if (idRoom) {
+      for (const entry of idRoom.values()) {
+        if (entry.userId === userId) candidates.push(entry.presence);
+      }
+    }
+    if (candidates.length === 0) {
+      const room = roomState.get(roomId);
+      if (room) {
+        room.delete(userId);
+        if (room.size === 0) roomState.delete(roomId);
+      }
+    } else {
+      const best = candidates.reduce((a, b) => (b.updatedAt > a.updatedAt ? b : a));
+      ensureRoom(roomId).set(userId, best);
+    }
+  }
+
+  function setPresence(
+    roomId: string,
+    identity: string,
+    userId: string,
+    patch: Partial<BridgePresence>,
+  ): void {
+    const idRoom = ensureIdentityRoom(roomId);
+    const existing = idRoom.get(identity);
+    const prev: BridgePresence = existing?.presence ?? {
+      isMicMuted: false,
+      isCameraOn: false,
+      isScreenSharing: false,
+      isDeafened: false,
+      updatedAt: 0,
+    };
+    const next: BridgePresence = { ...prev, ...patch, updatedAt: Date.now() };
+
+    const changed =
+      next.isMicMuted !== prev.isMicMuted ||
+      next.isCameraOn !== prev.isCameraOn ||
+      next.isScreenSharing !== prev.isScreenSharing ||
+      next.isDeafened !== prev.isDeafened;
+    if (!changed) return;
+
+    idRoom.set(identity, { userId, presence: next });
+    recomputeUserState(roomId, userId);
+  }
+
+  // Exact replica of syncDeafenFromAttrs in bridge/src/index.ts
+  function syncDeafenFromAttrs(
+    roomId: string,
+    identity: string,
+    userId: string,
+    attrs: Record<string, string> | undefined,
+  ): void {
+    if (!attrs || !('isDeafened' in attrs)) return;
+    setPresence(roomId, identity, userId, { isDeafened: attrs.isDeafened === '1' });
+  }
+
+  // ── Track-event handlers (exact logic from bridge/src/index.ts) ───────────
+
+  type TrackSource = 'MICROPHONE' | 'CAMERA' | 'SCREEN_SHARE';
+
+  function handleTrackEvent(
+    event: 'track_muted' | 'track_unmuted' | 'track_published' | 'track_unpublished',
+    roomId: string,
+    identity: string,
+    userId: string,
+    source: TrackSource,
+    trackMuted: boolean | undefined,
+    pAttrs: Record<string, string> | undefined,
+  ): void {
+    switch (event) {
+      case 'track_muted':
+        if (source === 'MICROPHONE') setPresence(roomId, identity, userId, { isMicMuted: true });
+        if (source === 'CAMERA') setPresence(roomId, identity, userId, { isCameraOn: false });
+        if (source === 'SCREEN_SHARE') setPresence(roomId, identity, userId, { isScreenSharing: false });
+        syncDeafenFromAttrs(roomId, identity, userId, pAttrs);
+        break;
+
+      case 'track_unmuted':
+        if (source === 'MICROPHONE') setPresence(roomId, identity, userId, { isMicMuted: false });
+        if (source === 'CAMERA') setPresence(roomId, identity, userId, { isCameraOn: true });
+        if (source === 'SCREEN_SHARE') setPresence(roomId, identity, userId, { isScreenSharing: true });
+        syncDeafenFromAttrs(roomId, identity, userId, pAttrs);
+        break;
+
+      case 'track_published':
+        if (source === 'MICROPHONE') setPresence(roomId, identity, userId, { isMicMuted: trackMuted ?? false });
+        if (source === 'CAMERA') setPresence(roomId, identity, userId, { isCameraOn: !(trackMuted ?? false) });
+        if (source === 'SCREEN_SHARE') setPresence(roomId, identity, userId, { isScreenSharing: !(trackMuted ?? false) });
+        syncDeafenFromAttrs(roomId, identity, userId, pAttrs);
+        break;
+
+      case 'track_unpublished':
+        if (source === 'MICROPHONE') setPresence(roomId, identity, userId, { isMicMuted: true });
+        if (source === 'CAMERA') setPresence(roomId, identity, userId, { isCameraOn: false });
+        if (source === 'SCREEN_SHARE') setPresence(roomId, identity, userId, { isScreenSharing: false });
+        syncDeafenFromAttrs(roomId, identity, userId, pAttrs);
+        break;
+    }
+  }
+
+  function participantJoined(
+    roomId: string,
+    identity: string,
+    userId: string,
+    attrs?: Record<string, string>,
+  ): void {
+    const initial: BridgePresence = {
+      isMicMuted: false,
+      isCameraOn: false,
+      isScreenSharing: false,
+      isDeafened: attrs?.isDeafened === '1',
+      updatedAt: Date.now(),
+    };
+    ensureIdentityRoom(roomId).set(identity, { userId, presence: initial });
+    ensureRoom(roomId).set(userId, initial);
+  }
+
+  // ── Helpers ───────────────────────────────────────────────────────────────
+
+  const ROOM = '!room:test.server';
+  const IDENTITY = '@alice:test.server';
+  const USER_ID = '@alice:test.server';
+
+  function getPresence(): BridgePresence | undefined {
+    return roomState.get(ROOM)?.get(USER_ID);
+  }
+
+  beforeEach(() => {
+    roomState = new Map();
+    identityState = new Map();
+  });
+
+  // ── Test 1: track_unpublished MICROPHONE + isDeafened=1 → isDeafened: true ─
+
+  it('track_unpublished MICROPHONE + isDeafened=1 in attrs → isMicMuted:true AND isDeafened:true', () => {
+    // Pre-seed: participant must exist for setPresence to find an entry to patch.
+    // We seed via a direct identityState insertion to keep setup minimal.
+    participantJoined(ROOM, IDENTITY, USER_ID);
+
+    handleTrackEvent(
+      'track_unpublished',
+      ROOM, IDENTITY, USER_ID,
+      'MICROPHONE',
+      undefined,
+      { isDeafened: '1' },
+    );
+
+    const entry = getPresence();
+    expect(entry?.isMicMuted).toBe(true);
+    expect(entry?.isDeafened).toBe(true);
+  });
+
+  // ── Test 2: track_published MICROPHONE + isDeafened=0 → isDeafened: false ─
+
+  it('track_published MICROPHONE + isDeafened=0 in attrs → isMicMuted:false AND isDeafened:false', () => {
+    // Pre-seed with deafened=true so we can verify the attr clears it
+    participantJoined(ROOM, IDENTITY, USER_ID, { isDeafened: '1' });
+
+    handleTrackEvent(
+      'track_published',
+      ROOM, IDENTITY, USER_ID,
+      'MICROPHONE',
+      false,
+      { isDeafened: '0' },
+    );
+
+    const entry = getPresence();
+    expect(entry?.isMicMuted).toBe(false);
+    expect(entry?.isDeafened).toBe(false);
+  });
+
+  // ── Test 3: track_muted MICROPHONE + isDeafened=1 → isDeafened: true ──────
+
+  it('track_muted MICROPHONE + isDeafened=1 → isMicMuted:true AND isDeafened:true', () => {
+    participantJoined(ROOM, IDENTITY, USER_ID);
+
+    handleTrackEvent(
+      'track_muted',
+      ROOM, IDENTITY, USER_ID,
+      'MICROPHONE',
+      undefined,
+      { isDeafened: '1' },
+    );
+
+    const entry = getPresence();
+    expect(entry?.isMicMuted).toBe(true);
+    expect(entry?.isDeafened).toBe(true);
+  });
+
+  // ── Test 4: track_unmuted MICROPHONE + isDeafened=0 → isDeafened: false ───
+
+  it('track_unmuted MICROPHONE + isDeafened=0 → isMicMuted:false AND isDeafened:false', () => {
+    participantJoined(ROOM, IDENTITY, USER_ID, { isDeafened: '1' });
+
+    handleTrackEvent(
+      'track_unmuted',
+      ROOM, IDENTITY, USER_ID,
+      'MICROPHONE',
+      undefined,
+      { isDeafened: '0' },
+    );
+
+    const entry = getPresence();
+    expect(entry?.isMicMuted).toBe(false);
+    expect(entry?.isDeafened).toBe(false);
+  });
+
+  // ── Test 5: track_unpublished MICROPHONE without isDeafened attr → isDeafened NOT overridden ──
+
+  it('track_unpublished MICROPHONE without isDeafened attr → isDeafened remains true (absent key ≠ false)', () => {
+    // First: join with isDeafened=true
+    participantJoined(ROOM, IDENTITY, USER_ID, { isDeafened: '1' });
+
+    // Then: track_unpublished with NO isDeafened attribute at all
+    handleTrackEvent(
+      'track_unpublished',
+      ROOM, IDENTITY, USER_ID,
+      'MICROPHONE',
+      undefined,
+      undefined, // no isDeafened key in attrs
+    );
+
+    const entry = getPresence();
+    // isMicMuted should be set to true by track_unpublished
+    expect(entry?.isMicMuted).toBe(true);
+    // isDeafened must NOT be overridden — absence of key leaves it as-is
+    expect(entry?.isDeafened).toBe(true);
+  });
+
+  // ── Test 6: track_unmuted CAMERA + isDeafened=1 → isDeafened updated even for non-mic track ──
+
+  it('track_unmuted CAMERA + isDeafened=1 → isCameraOn:true AND isDeafened:true', () => {
+    participantJoined(ROOM, IDENTITY, USER_ID);
+
+    handleTrackEvent(
+      'track_unmuted',
+      ROOM, IDENTITY, USER_ID,
+      'CAMERA',
+      undefined,
+      { isDeafened: '1' },
+    );
+
+    const entry = getPresence();
+    expect(entry?.isCameraOn).toBe(true);
+    expect(entry?.isDeafened).toBe(true);
+  });
+});
