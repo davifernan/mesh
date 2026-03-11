@@ -43,7 +43,7 @@ const copyFiles = {
       dest: 'public/',
     },
     {
-      src: 'public/sound',
+      src: 'public/sound/*',
       dest: 'sound',
     },
   ],
