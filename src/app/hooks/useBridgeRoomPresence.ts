@@ -14,6 +14,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import type { CallPresenceState } from '../features/call/callPresenceState';
+import { useClientConfig } from './useClientConfig';
 
 // Shape of a single bridge SSE / REST message
 type BridgePresencePayload = {
@@ -39,6 +40,7 @@ const MAX_BACKOFF_MS = 30_000;
 export function useBridgeRoomPresence(
   roomId: string | null | undefined,
 ): Map<string, CallPresenceState> {
+  const { presenceUrl } = useClientConfig();
   const [presence, setPresence] = useState<Map<string, CallPresenceState>>(
     () => new Map(),
   );
@@ -61,7 +63,8 @@ export function useBridgeRoomPresence(
     function connect() {
       if (destroyed) return;
 
-      const url = `/api/presence/${encodeURIComponent(roomId!)}/stream`;
+      const presenceBase = presenceUrl ?? '/api/presence';
+      const url = `${presenceBase}/${encodeURIComponent(roomId!)}/stream`;
       const es = new EventSource(url);
       esRef.current = es;
 

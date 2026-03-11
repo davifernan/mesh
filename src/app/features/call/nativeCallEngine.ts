@@ -489,7 +489,20 @@ export function useNativeCall(roomId: string | null): NativeCallEngine {
         }
 
         // 9. Publish microphone (camera stays off by default)
-        await room.localParticipant.setMicrophoneEnabled(true);
+        // If the stored deviceId doesn't exist in this browser, fall back to default device.
+        try {
+          await room.localParticipant.setMicrophoneEnabled(true);
+        } catch (err) {
+          const isNotFound = err instanceof Error && (
+            err.name === 'NotFoundError' || err.message.includes('device not found')
+          );
+          if (isNotFound && av.micDeviceId) {
+            // Retry without a specific device constraint
+            await room.localParticipant.setMicrophoneEnabled(true, { deviceId: undefined });
+          } else {
+            throw err;
+          }
+        }
 
         if (!aborted) {
           // Store identity refs for presence publishing

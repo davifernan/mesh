@@ -29,6 +29,14 @@ export type ClientConfig = {
    * Example: "https://livekit-jwt.example.com"
    */
   livekitServiceUrl?: string;
+
+  /**
+   * Presence bridge base URL for SSE streams.
+   * Set via BETTERCORD_PRESENCE_URL env var (Docker) or directly in config.json.
+   * Defaults to "/api/presence" (proxied through nginx) if not set.
+   * Example: "https://presence.example.com/presence"
+   */
+  presenceUrl?: string;
 };
 
 const ClientConfigContext = createContext<ClientConfig | null>(null);

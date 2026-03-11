@@ -11,9 +11,12 @@ services:
     environment:
       BETTERCORD_HOMESERVER: '${BETTERCORD_HOMESERVER}'
       BETTERCORD_LIVEKIT_URL: '${BETTERCORD_LIVEKIT_URL}'
+      BETTERCORD_PRESENCE_URL: '${BETTERCORD_PRESENCE_URL}'
     depends_on:
       bridge:
         condition: service_healthy
+    networks:
+      - bettercord
     restart: unless-stopped
 
   # ── Presence bridge (Bun + Hono) ──────────────────────────────────────────────
@@ -25,12 +28,22 @@ services:
       LIVEKIT_API_KEY: '${LIVEKIT_API_KEY}'
       LIVEKIT_API_SECRET: '${LIVEKIT_API_SECRET}'
       PORT: '3001'
-    expose:
-      - '3001'
+    ports:
+      - '127.0.0.1:3002:3001'
     healthcheck:
       test: ['CMD-SHELL', 'wget -qO- http://localhost:3001/health || exit 1']
       interval: 10s
       timeout: 5s
       retries: 3
       start_period: 5s
+    networks:
+      - bettercord
+      - voicechat
     restart: unless-stopped
+
+networks:
+  bettercord:
+    name: bettercord
+  voicechat:
+    name: voicechat
+    external: true

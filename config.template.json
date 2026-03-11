@@ -10,5 +10,6 @@
     "basename": "/"
   },
 
-  "livekitServiceUrl": "${BETTERCORD_LIVEKIT_URL}"
+  "livekitServiceUrl": "${BETTERCORD_LIVEKIT_URL}",
+  "presenceUrl": "${BETTERCORD_PRESENCE_URL}"
 }
