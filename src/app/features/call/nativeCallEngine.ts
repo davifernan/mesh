@@ -297,9 +297,17 @@ export function useNativeCall(roomId: string | null): NativeCallEngine {
           );
         }
 
-        // 2. E2EE setup — disabled, LiveKit uses DTLS-SRTP transport encryption
+        // 2. E2EE setup (only for encrypted rooms)
+        const isEncrypted = !!matrixRoom.currentState.getStateEvents('m.room.encryption', '');
         let e2eeWorker: Worker | null = null;
+        let keyProvider: MatrixKeyProvider | null = null;
         let e2eeOptions: any;
+
+        if (isEncrypted) {
+          e2eeWorker = new E2EEWorker();
+          keyProvider = new MatrixKeyProvider();
+          e2eeOptions = { keyProvider, worker: e2eeWorker };
+        }
 
         if (aborted) {
           e2eeWorker?.terminate();
