@@ -15,7 +15,6 @@
 
   "voiceStateMode": "livekit",
   "featureFlags": {
-    "authoritativeBridgeMode": false,
-    "disableMatrixPresenceWrites": false
+    "authoritativeBridgeMode": false
   }
 }

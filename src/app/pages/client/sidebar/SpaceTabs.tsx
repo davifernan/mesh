@@ -29,7 +29,6 @@ import { ClientEvent, MatrixEvent, Room, RoomStateEvent } from 'matrix-js-sdk';
 import { Monitor, SpeakerHigh } from '@phosphor-icons/react';
 import { selectSpaceHasVoiceActivity } from '../../../state/voiceActivity';
 import { roomHasCallScreenShare } from '../../../hooks/useCallMemberPresence';
-import { BETTERCORD_CALL_PRESENCE_EVENT } from '../../../features/call/callPresenceState';
 import { useSpaceVoiceActivity } from '../../../hooks/useSpaceVoiceActivity';
 import { useSpaceLiveActivity } from '../../../hooks/useSpaceLiveActivity';
 import {
@@ -454,10 +453,10 @@ function SpaceTab({
 
   // Reactive Matrix-derived screenshare state.
   // hasLiveStreamActivity used to call roomHasCallScreenShare() inside a useMemo with no
-  // Matrix-state dependency — so it never recomputed when io.bettercord.call.presence or
-  // call.member changed in the room. This useState+useEffect pattern subscribes to
-  // RoomStateEvent.Events (fires for BOTH timeline AND state-section events) so the
-  // guild icon LIVE badge updates live without requiring a page reload.
+  // Matrix-state dependency — so it never recomputed when call.member changed in the room.
+  // This useState+useEffect pattern subscribes to RoomStateEvent.Events (fires for BOTH
+  // timeline AND state-section events) so the guild icon LIVE badge updates live without
+  // requiring a page reload.
   const childRoomsKey = childRooms.join(',');
   const [hasMatrixScreenShare, setHasMatrixScreenShare] = useState(() => {
     const scopedRoomIds = [space.roomId, ...childRooms];
@@ -473,7 +472,7 @@ function SpaceTab({
     compute();
     const handleStateEvent = (ev: MatrixEvent) => {
       const type = ev.getType();
-      if (type.includes('call.member') || type === BETTERCORD_CALL_PRESENCE_EVENT) {
+      if (type.includes('call.member')) {
         compute();
       }
     };

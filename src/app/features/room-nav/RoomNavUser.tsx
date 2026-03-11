@@ -6,7 +6,6 @@ import { Track } from 'livekit-client';
 import { NavButton, NavItem, NavItemContent } from '../../components/nav';
 import { UserAvatar } from '../../components/user-avatar';
 import { useMatrixClient } from '../../hooks/useMatrixClient';
-import { useCallMemberPresence } from '../../hooks/useCallMemberPresence';
 import { useCallState } from '../../pages/client/call/CallProvider';
 import { resolveParticipantUserId } from '../call/participantIdentity';
 import { getPresenceBadgeKinds, getPresenceSummary, PRESENCE_BADGE_LABEL } from '../call/presenceBadges';
@@ -22,7 +21,7 @@ import styles from './RoomNavUser.module.css';
  * Source of voice state for a RoomNavUser.
  *
  * - `'local'` (default): resolve presence via the standard priority chain
- *   (pState > bridge > Matrix state). Backward-compatible.
+ *   (pState > bridge > all-false). Backward-compatible.
  * - `'authoritative'`: the caller has already resolved the presence externally
  *   (e.g. via useVoiceStateService in authoritative bridge mode) and passes it
  *   as `resolvedPresence`. The component skips its own resolution and renders
@@ -56,7 +55,6 @@ export type ResolvePresenceArgs = {
   isActiveCall: boolean;
   pState?: { audioEnabled: boolean; videoEnabled: boolean; isScreenSharing: boolean };
   remoteBridge?: CallPresenceState;
-  persistedPresence: CallPresenceState;
   /** Nur relevant wenn isLocalUser && isActiveCall */
   isAudioEnabled: boolean;
   /** Nur relevant wenn isLocalUser && isActiveCall */
@@ -73,50 +71,45 @@ export type ResolvePresenceArgs = {
  * Prioritaetsreihenfolge fuer Remote-User:
  *   1. LiveKit-Client-State (pState) – nur verfuegbar wenn lokaler Client im selben Call
  *   2. Bridge-Presence (remoteBridge) – server-seitig, funktioniert fuer alle Clients
- *   3. Matrix-State (persistedPresence) – langsamer Fallback via State-Events
  *
- * Lokaler User liest immer direkt aus dem Call-State.
+ * Lokaler User liest immer direkt aus dem live Call-State wenn aktiv, sonst alles false.
  */
 export function resolvePresence({
   isLocalUser,
   isActiveCall,
   pState,
   remoteBridge,
-  persistedPresence,
   isAudioEnabled,
   isVideoEnabled,
   isCallDeafened,
   isScreenShareEnabled,
 }: ResolvePresenceArgs): CallPresenceState {
-  const isMicMuted = isLocalUser
-    ? (isActiveCall ? !isAudioEnabled : persistedPresence.isMicMuted)
-    : pState !== undefined
-      ? !(pState?.audioEnabled ?? true)
-      : remoteBridge !== undefined
-        ? remoteBridge.isMicMuted
-        : persistedPresence.isMicMuted;
+  if (isLocalUser) {
+    if (!isActiveCall) {
+      return { isMicMuted: false, isCameraOn: false, isDeafened: false, isScreenSharing: false };
+    }
+    return {
+      isMicMuted: !isAudioEnabled,
+      isCameraOn: isVideoEnabled,
+      isDeafened: isCallDeafened,
+      isScreenSharing: isScreenShareEnabled,
+    };
+  }
 
-  const isCameraOn = isLocalUser
-    ? (isActiveCall ? isVideoEnabled : persistedPresence.isCameraOn)
-    : pState !== undefined
-      ? (pState?.videoEnabled ?? false)
-      : remoteBridge !== undefined
-        ? remoteBridge.isCameraOn
-        : persistedPresence.isCameraOn;
+  // Remote user: pState > bridge > all-false
+  const isMicMuted = pState !== undefined
+    ? !pState.audioEnabled
+    : remoteBridge?.isMicMuted ?? false;
 
-  const isDeafened = isLocalUser
-    ? (isActiveCall ? isCallDeafened : persistedPresence.isDeafened)
-    : remoteBridge !== undefined
-      ? remoteBridge.isDeafened
-      : persistedPresence.isDeafened;
+  const isCameraOn = pState !== undefined
+    ? pState.videoEnabled
+    : remoteBridge?.isCameraOn ?? false;
 
-  const isScreenSharing = isLocalUser
-    ? (isActiveCall ? isScreenShareEnabled : persistedPresence.isScreenSharing)
-    : pState !== undefined
-      ? (pState?.isScreenSharing ?? false)
-      : remoteBridge !== undefined
-        ? remoteBridge.isScreenSharing
-        : persistedPresence.isScreenSharing;
+  const isDeafened = remoteBridge?.isDeafened ?? false;
+
+  const isScreenSharing = pState !== undefined
+    ? pState.isScreenSharing
+    : remoteBridge?.isScreenSharing ?? false;
 
   return { isMicMuted, isCameraOn, isDeafened, isScreenSharing };
 }
@@ -147,7 +140,6 @@ export function RoomNavUser({ room, userId, bridgePresence, voiceStateSource }: 
     ? mx.mxcUrlToHttp(avatarMxcUrl, 32, 32, 'crop', undefined, false, useAuthentication)
     : undefined;
   const getName = getMemberDisplayName(room, userId) ?? getMxIdLocalPart(userId);
-  const persistedPresence = useCallMemberPresence(mx, room.roomId, userId);
   const isSpeaking = isActiveCall && speakingUsers.has(userId);
 
   // ── Presence resolution ────────────────────────────────────────────────────
@@ -160,16 +152,15 @@ export function RoomNavUser({ room, userId, bridgePresence, voiceStateSource }: 
   // When voiceStateSource.kind === 'local' (default), we apply the standard
   // priority chain:
   //
-  //   LOCAL USER  → use the live call state directly while this room is active.
-  //     We have perfect real-time data here. Bridge data is skipped entirely:
-  //     it can lag or be momentarily wrong (e.g. track_muted webhook during
-  //     mic-setup) and would override the correct local state, breaking the
-  //     speaking indicator and mute badge.
+  //   LOCAL USER  → use the live call state directly while this room is active,
+  //     otherwise all-false. Bridge data is skipped entirely: it can lag or be
+  //     momentarily wrong (e.g. track_muted webhook during mic-setup) and would
+  //     override the correct local state, breaking the speaking indicator and
+  //     mute badge.
   //
-  //   REMOTE USER → priority: pState > bridge > Matrix state.
-  //     pState            — livekit-client remote participant snapshot while local client is in-call.
-  //     bridgePresence    — server-side SSE; works for all client versions.
-  //     persistedPresence — Matrix io.bettercord.call.presence state event.
+  //   REMOTE USER → priority: pState > bridge > all-false.
+  //     pState         — livekit-client remote participant snapshot while local client is in-call.
+  //     bridgePresence — server-side SSE; works for all client versions.
 
   const pState = activeCallRoomId === room.roomId ? remoteParticipantStates.get(userId) : undefined;
 
@@ -179,13 +170,12 @@ export function RoomNavUser({ room, userId, bridgePresence, voiceStateSource }: 
       return voiceStateSource.resolvedPresence;
     }
 
-    // Default (local) mode: standard priority chain.
+    // Default (local) mode: pState > bridge > all-false.
     return resolvePresence({
       isLocalUser,
       isActiveCall,
       pState,
       remoteBridge: isLocalUser ? undefined : bridgePresence,
-      persistedPresence,
       isAudioEnabled,
       isVideoEnabled,
       isCallDeafened,
@@ -197,7 +187,6 @@ export function RoomNavUser({ room, userId, bridgePresence, voiceStateSource }: 
     isActiveCall,
     pState,
     bridgePresence,
-    persistedPresence,
     isAudioEnabled,
     isVideoEnabled,
     isCallDeafened,

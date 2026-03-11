@@ -4,7 +4,6 @@ import { useSetAtom } from 'jotai';
 import { useMatrixClient } from './useMatrixClient';
 import { spaceLiveActivityAtom } from '../state/voiceActivity';
 import { roomHasCallScreenShare } from './useCallMemberPresence';
-import { BETTERCORD_CALL_PRESENCE_EVENT } from '../features/call/callPresenceState';
 
 /** Returns the direct child rooms of a space (one level deep). */
 function getSpaceChildRooms(space: Room, allRooms: Room[]): Room[] {
@@ -18,7 +17,7 @@ function getSpaceChildRooms(space: Room, allRooms: Room[]): Room[] {
  * Monitors a list of space IDs for live stream (screenshare) activity in their child rooms.
  * Updates `spaceLiveActivityAtom` with a Map<spaceId, boolean>.
  *
- * Re-evaluates whenever a `call.member` or `io.bettercord.call.presence` event fires.
+ * Re-evaluates whenever a `call.member` event fires.
  */
 export function useSpaceLiveActivity(spaceIds: string[]): void {
   const mx = useMatrixClient();
@@ -48,7 +47,7 @@ export function useSpaceLiveActivity(spaceIds: string[]): void {
     compute();
 
     const handleEvent = (ev: MatrixEvent) => {
-      if (ev.getType().includes('call.member') || ev.getType() === BETTERCORD_CALL_PRESENCE_EVENT) {
+      if (ev.getType().includes('call.member')) {
         compute();
       }
     };

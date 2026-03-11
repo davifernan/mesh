@@ -45,7 +45,7 @@ export type VoiceStateService = {
 
   /**
    * Resolves the effective presence for a single user, applying the correct
-   * priority order (pState > bridge > Matrix state) and honouring the
+   * priority order (pState > bridge > all-false) and honouring the
    * authoritativeBridgeMode flag.
    */
   resolveUserPresence: (userId: string, args: VoiceStateResolveArgs) => CallPresenceState;

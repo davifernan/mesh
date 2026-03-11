@@ -62,18 +62,6 @@ export type ClientConfig = {
      * bridge is a fallback for remote users).
      */
     authoritativeBridgeMode?: boolean;
-
-    /**
-     * When true, Matrix presence state events (io.bettercord.call.presence) are
-     * NOT written during a call. The bridge SSE stream becomes the sole source of
-     * truth for non-participant observers.
-     *
-     * The deafen participant-attribute update (setAttributes) is always written
-     * regardless of this flag — it is needed by the bridge webhook.
-     *
-     * Default: false (backward-compatible — Matrix presence writes are kept).
-     */
-    disableMatrixPresenceWrites?: boolean;
   };
 };
 
@@ -83,7 +71,6 @@ export const ClientConfigProvider = ClientConfigContext.Provider;
 
 export type ResolvedVoiceFeatureFlags = {
   authoritativeBridgeMode: boolean;
-  disableMatrixPresenceWrites: boolean;
 };
 
 export function useClientConfig(): ClientConfig {
@@ -100,8 +87,6 @@ export const resolveVoiceFeatureFlags = (
   return {
     authoritativeBridgeMode:
       clientConfig.featureFlags?.authoritativeBridgeMode ?? mode === 'bridge',
-    disableMatrixPresenceWrites:
-      clientConfig.featureFlags?.disableMatrixPresenceWrites ?? false,
   };
 };
 

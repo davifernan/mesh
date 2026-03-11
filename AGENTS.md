@@ -144,9 +144,9 @@ LiveKit Webhook
 Priorität für Remote-User (höchste zuerst):
 1. **LiveKit-Client-State** (`pState`) — nur wenn lokaler Client im selben Call ist
 2. **Bridge-Presence** (`remoteBridge`) — server-seitig, funktioniert für alle Clients
-3. **Matrix-State** (`persistedPresence`) — langsamer Fallback via `io.bettercord.call.presence`
 
 Lokaler User liest immer direkt aus dem live Call-State (CallProvider context).
+Wenn weder `pState` noch Bridge-Daten vorhanden sind, fallen Remote-User auf all-false zurück.
 
 ### Regeln — NICHT tun
 

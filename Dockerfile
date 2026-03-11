@@ -33,8 +33,6 @@ RUN chmod +x /docker-entrypoint.sh \
 #                                Set to "bridge" in production when the bridge is authoritative.
 #   BETTERCORD_AUTHORITATIVE_BRIDGE_MODE
 #                                Explicit feature flag mirror for authoritative bridge mode.
-#   BETTERCORD_DISABLE_MATRIX_PRESENCE_WRITES
-#                                Disable Matrix call presence writes once the bridge is authoritative.
 #   BETTERCORD_POLLS_URL         Public URL of nordeck/matrix-poll-widget (optional)
 #                                e.g. https://polls.your-domain.com
 #                                Leave empty to hide Polls from the Activities catalog.
@@ -46,7 +44,6 @@ ENV BETTERCORD_HOMESERVER="" \
     BETTERCORD_PRESENCE_URL="" \
     BETTERCORD_VOICE_STATE_MODE="livekit" \
     BETTERCORD_AUTHORITATIVE_BRIDGE_MODE="false" \
-    BETTERCORD_DISABLE_MATRIX_PRESENCE_WRITES="false" \
     BETTERCORD_POLLS_URL="" \
     BETTERCORD_WHITEBOARD_URL=""
 

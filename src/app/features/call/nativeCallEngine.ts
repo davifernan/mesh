@@ -11,6 +11,12 @@
  *   4. Fetch LiveKit JWT via OpenID token exchange
  *   5. Connect Room, publish mic
  *   6. On cleanup: disconnect → leaveRoomSession → terminate worker
+ *
+ * Presence model:
+ *   The bridge SSE stream (BridgePresenceProvider) is the sole source of truth
+ *   for non-participant observers. Matrix io.bettercord.call.presence state events
+ *   are NOT written by this engine. Deafen state is propagated via the LiveKit
+ *   participant attribute `isDeafened` so the bridge webhook can pick it up.
  */
 
 import { useEffect, useRef, useState, useCallback } from 'react';
@@ -24,10 +30,7 @@ import {
 import type { MatrixClient } from 'matrix-js-sdk';
 import { useAtomValue } from 'jotai';
 import { useMatrixClient } from '../../hooks/useMatrixClient';
-import {
-  useClientConfig,
-  resolveVoiceFeatureFlags,
-} from '../../hooks/useClientConfig';
+import { useClientConfig } from '../../hooks/useClientConfig';
 import { effectiveAVSettingsAtom } from '../../state/avQuality';
 import { settingsAtom } from '../../state/settings';
 import {
@@ -42,11 +45,6 @@ import {
 } from './avPresets';
 import { MatrixKeyProvider } from './matrixKeyProvider';
 import { resolveParticipantUserId } from './participantIdentity';
-import {
-  publishCallPresenceState,
-  checkCallPresencePermissions,
-  buildCallRoomPresenceRepair,
-} from './callPresenceState';
 import { CALL_INFO_EVENT } from '../../hooks/useCallMemberships';
 import { getSFUConfigWithOpenID } from './sfuToken';
 import { useAudioWinsOverVideo } from './callQualityFallback';
@@ -142,16 +140,8 @@ export function useNativeCall(roomId: string | null): NativeCallEngine {
   // ── Config ─────────────────────────────────────────────────────────────────
   const clientConfig = useClientConfig();
   const { livekitServiceUrl: configServiceUrl } = clientConfig;
-  const { disableMatrixPresenceWrites } = resolveVoiceFeatureFlags(clientConfig);
   const configServiceUrlRef = useRef(configServiceUrl);
   configServiceUrlRef.current = configServiceUrl;
-
-  // Stable ref so the connect() closure always reads the latest flag value
-  // without re-running the main effect.
-  const disableMatrixPresenceWritesRef = useRef<boolean>(
-    disableMatrixPresenceWrites,
-  );
-  disableMatrixPresenceWritesRef.current = disableMatrixPresenceWrites;
 
   // ── Atoms ──────────────────────────────────────────────────────────────────
   const effectiveAV = useAtomValue(effectiveAVSettingsAtom);
@@ -202,19 +192,6 @@ export function useNativeCall(roomId: string | null): NativeCallEngine {
   // Created when the mic track is first obtained; torn down on cleanup/hangUp.
   const mixerRef = useRef<SoundboardMixer | null>(null);
 
-  // Refs for publishing call presence to Matrix state (io.bettercord.call.presence)
-  // These mirror the latest local AV state so the publish helper always has fresh values.
-  const presenceRoomIdRef = useRef<string | null>(null);
-  const presenceUserIdRef = useRef<string>('');
-  const presenceDeviceIdRef = useRef<string>('');
-  const presenceAudioRef = useRef(true);    // mic enabled
-  const presenceVideoRef = useRef(false);   // camera enabled
-  const presenceSSRef = useRef(false);      // screenshare enabled
-  const presenceDeafRef = useRef(false);    // deafened
-
-  // Latch: warn at most once per call session if presence writes fail due to permissions.
-  const presenceWriteWarnedRef = useRef(false);
-
   const prevAudioQualityRef = useRef<{
     audioBitrate: number;
     echoCancellation: boolean;
@@ -222,66 +199,6 @@ export function useNativeCall(roomId: string | null): NativeCallEngine {
     autoGainControl: boolean;
   } | null>(null);
   const audioQualityUpdateRef = useRef<Promise<void>>(Promise.resolve());
-
-  // ── Presence publisher ─────────────────────────────────────────────────────
-  // Best-effort: publish local AV state as a Matrix room state event so observers
-  // outside the call can read mute/camera/screenshare/deafen badges.
-  //
-  // When the `disableMatrixPresenceWrites` feature flag is set, this function
-  // is a no-op — the bridge SSE stream is the sole source of truth for
-  // non-participant observers. The deafen participant-attribute update
-  // (room.localParticipant.setAttributes) is always written regardless of this
-  // flag because it is needed by the bridge webhook to propagate deafen state.
-  const publishPresence = useCallback((overrides?: {
-    isMicMuted?: boolean;
-    isCameraOn?: boolean;
-    isScreenSharing?: boolean;
-    isDeafened?: boolean;
-  }) => {
-    // Guard: skip Matrix state writes when the flag is enabled.
-    if (disableMatrixPresenceWritesRef.current) return;
-
-    const roomId = presenceRoomIdRef.current;
-    const userId = presenceUserIdRef.current;
-    const deviceId = presenceDeviceIdRef.current;
-    if (!roomId || !userId || !deviceId) return;
-
-    const state = {
-      isMicMuted: overrides?.isMicMuted ?? !presenceAudioRef.current,
-      isCameraOn: overrides?.isCameraOn ?? presenceVideoRef.current,
-      isScreenSharing: overrides?.isScreenSharing ?? presenceSSRef.current,
-      isDeafened: overrides?.isDeafened ?? presenceDeafRef.current,
-    };
-
-    publishCallPresenceState(mx, roomId, userId, deviceId, state).catch((err: unknown) => {
-      if (!presenceWriteWarnedRef.current) {
-        presenceWriteWarnedRef.current = true;
-        console.warn(
-          '[BetterCord] Presence write failed — non-participants may not see state badges.',
-          'Room:', roomId,
-          'Error:', err instanceof Error ? err.message : String(err),
-          'Tip: voice room may be missing power-level overrides for io.bettercord.call.presence.',
-        );
-      }
-    });
-  }, [mx]);
-
-  const clearPresence = useCallback(() => {
-    // Guard: skip Matrix state writes when the flag is enabled.
-    if (disableMatrixPresenceWritesRef.current) {
-      presenceRoomIdRef.current = null;
-      return;
-    }
-
-    const roomId = presenceRoomIdRef.current;
-    const userId = presenceUserIdRef.current;
-    const deviceId = presenceDeviceIdRef.current;
-    presenceRoomIdRef.current = null;
-    if (!roomId || !userId || !deviceId) return;
-    publishCallPresenceState(mx, roomId, userId, deviceId, null).catch((err: unknown) => {
-      console.warn('[BetterCord] Presence clear failed:', err instanceof Error ? err.message : String(err));
-    });
-  }, [mx]);
 
   // ── Main Effect ────────────────────────────────────────────────────────────
   useEffect(() => {
@@ -661,78 +578,12 @@ export function useNativeCall(roomId: string | null): NativeCallEngine {
         }
 
         if (!aborted) {
-          // Store identity refs for presence publishing
-          presenceRoomIdRef.current = roomId!;
-          presenceUserIdRef.current = userId;
-          presenceDeviceIdRef.current = deviceId;
-          presenceAudioRef.current = true;
-          presenceVideoRef.current = false;
-          presenceSSRef.current = false;
-          presenceDeafRef.current = false;
-
-          // ── Best-effort presence power-level repair ────────────────────────
-          // Only needed when Matrix presence writes are active. When
-          // disableMatrixPresenceWrites is set, the bridge is the sole source
-          // of truth and no Matrix state events are written, so PL repair is
-          // unnecessary.
-          if (!disableMatrixPresenceWritesRef.current) {
-            try {
-              const plCheck = checkCallPresencePermissions(mx, roomId!);
-              if (plCheck.canRepair) {
-                const matRoomForRepair = mx.getRoom(roomId!);
-                const plEvent = matRoomForRepair?.currentState.getStateEvents('m.room.power_levels', '');
-                // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                const existingPL = (plEvent as any)?.getContent?.() ?? {};
-                const repairedPL = buildCallRoomPresenceRepair(existingPL, plCheck.missingEventOverrides);
-                void mx.sendStateEvent(roomId!, 'm.room.power_levels' as any, repairedPL, '');
-                console.info(
-                  '[BetterCord] Repaired call-room power levels for presence events.',
-                  'Room:', roomId,
-                  'Added overrides:', plCheck.missingEventOverrides,
-                );
-              } else if (!plCheck.canWrite) {
-                console.warn(
-                  '[BetterCord] This voice room is missing presence power-level overrides.',
-                  'Non-participants may not see mute/deafen/camera/live state.',
-                  'Room:', roomId,
-                  'An admin needs to set these event types to power level 0:',
-                  plCheck.missingEventOverrides,
-                );
-              }
-            } catch (plErr) {
-              // PL repair is strictly best-effort — never block the call
-              console.warn('[BetterCord] Power-level repair attempt failed:', plErr);
-            }
-          }
-          // ── End power-level repair ─────────────────────────────────────────
-
           setLivekitRoom(room);
           setStatus('connected');
           setIsAudioEnabled(true);
           setCallJoinTime(new Date());
           setIsVideoEnabled(false);
           setIsScreenShareEnabled(false);
-
-          // Publish initial presence (mic live, camera/SS/deafen off).
-          // Skipped when disableMatrixPresenceWrites is enabled — the bridge
-          // will pick up the initial state via the LiveKit webhook instead.
-          if (!disableMatrixPresenceWritesRef.current) {
-            publishCallPresenceState(mx, roomId!, userId, deviceId, {
-              isMicMuted: false,
-              isCameraOn: false,
-              isScreenSharing: false,
-              isDeafened: false,
-            }).catch((err: unknown) => {
-              if (!presenceWriteWarnedRef.current) {
-                presenceWriteWarnedRef.current = true;
-                console.warn(
-                  '[BetterCord] Initial presence write failed.',
-                  'Room:', roomId,
-                  'Error:', err instanceof Error ? err.message : String(err),
-                );
-              }
-            });
-          }
         }
       } catch (e) {
         if (!aborted) {
@@ -753,18 +604,6 @@ export function useNativeCall(roomId: string | null): NativeCallEngine {
         if (countActiveCallMembers(mx, roomId) <= 1) {
           mx.sendStateEvent(roomId, CALL_INFO_EVENT as any, {}, '').catch(() => {});
         }
-      }
-
-      // Clear persisted presence before disconnecting.
-      // Skipped when disableMatrixPresenceWrites is enabled.
-      const leaveRoomId = presenceRoomIdRef.current;
-      const leaveUserId = presenceUserIdRef.current;
-      const leaveDeviceId = presenceDeviceIdRef.current;
-      presenceRoomIdRef.current = null;
-      if (!disableMatrixPresenceWritesRef.current && leaveRoomId && leaveUserId && leaveDeviceId) {
-        publishCallPresenceState(mx, leaveRoomId, leaveUserId, leaveDeviceId, null).catch((err: unknown) => {
-          console.warn('[BetterCord] Presence clear on leave failed:', err instanceof Error ? err.message : String(err));
-        });
       }
 
       // Tear down the soundboard mixer before disconnecting the room.
@@ -878,14 +717,11 @@ export function useNativeCall(roomId: string | null): NativeCallEngine {
 
   const hangUp = useCallback(() => {
     playCallSound(CallSoundType.VoiceDisconnect, { enabled: callSoundsEnabledRef.current });
-    // Capture room id before clearPresence() nulls presenceRoomIdRef.
-    const leaveRoomId = presenceRoomIdRef.current;
     // If we're the last member, clear the server-stored call start time.
+    const leaveRoomId = roomRef.current ? (rtcSessionRef.current ? roomId : null) : null;
     if (leaveRoomId && countActiveCallMembers(mx, leaveRoomId) <= 1) {
       mx.sendStateEvent(leaveRoomId, CALL_INFO_EVENT as any, {}, '').catch(() => {});
     }
-    presenceWriteWarnedRef.current = false;
-    clearPresence();
     // Tear down the soundboard mixer before disconnecting the room.
     destroySoundboardMixerSingleton();
     mixerRef.current = null;
@@ -900,31 +736,27 @@ export function useNativeCall(roomId: string | null): NativeCallEngine {
     setLivekitRoom(null);
     setSpeakingUsers(new Set());
     setRemoteParticipantStates(new Map());
-  }, [clearPresence]);
+  }, [mx, roomId]);
 
   const toggleAudio = useCallback(async () => {
     if (!roomRef.current) return;
     const lp = roomRef.current.localParticipant;
     const newEnabled = !lp.isMicrophoneEnabled;
-    presenceAudioRef.current = newEnabled;
     setIsAudioEnabled(newEnabled);
     playCallSound(newEnabled ? CallSoundType.Unmute : CallSoundType.Mute, { enabled: callSoundsEnabledRef.current });
     // Gate the mic branch in the Web Audio graph (clips continue unaffected).
     mixerRef.current?.setMicEnabled(newEnabled);
     await lp.setMicrophoneEnabled(newEnabled);
-    publishPresence({ isMicMuted: !newEnabled });
-  }, [publishPresence]);
+  }, []);
 
   const toggleVideo = useCallback(async () => {
     if (!roomRef.current) return;
     const lp = roomRef.current.localParticipant;
     const newEnabled = !lp.isCameraEnabled;
-    presenceVideoRef.current = newEnabled;
     setIsVideoEnabled(newEnabled);
     playCallSound(newEnabled ? CallSoundType.CameraOn : CallSoundType.CameraOff, { enabled: callSoundsEnabledRef.current });
     await lp.setCameraEnabled(newEnabled);
-    publishPresence({ isCameraOn: newEnabled });
-  }, [publishPresence]);
+  }, []);
 
   /** Flip between front and rear camera on mobile devices */
   const flipCamera = useCallback(async () => {
@@ -1001,28 +833,23 @@ export function useNativeCall(roomId: string | null): NativeCallEngine {
       const publishOpts = buildSSPublishOptions(ssRes, ssFps);
       await roomRef.current.localParticipant.setScreenShareEnabled(true, captureOpts, publishOpts);
       await enforceScreenShareConstraints(ssRes, ssFps);
-      presenceSSRef.current = true;
       setIsScreenShareEnabled(true);
       playCallSound(CallSoundType.ScreenShareStart, { enabled: callSoundsEnabledRef.current });
-      publishPresence({ isScreenSharing: true });
     },
-    [enforceScreenShareConstraints, publishPresence],
+    [enforceScreenShareConstraints],
   );
 
   const stopScreenShare = useCallback(async () => {
     if (!roomRef.current) return;
     await roomRef.current.localParticipant.setScreenShareEnabled(false);
-    presenceSSRef.current = false;
     setIsScreenShareEnabled(false);
     playCallSound(CallSoundType.ScreenShareStop, { enabled: callSoundsEnabledRef.current });
-    publishPresence({ isScreenSharing: false });
-  }, [publishPresence]);
+  }, []);
 
   const toggleDeafen = useCallback(async () => {
     if (!roomRef.current) return;
     const next = !isDeafenedRef.current;
     isDeafenedRef.current = next;
-    presenceDeafRef.current = next;
     setIsDeafened(next);
     playCallSound(next ? CallSoundType.Deaf : CallSoundType.Undeaf, { enabled: callSoundsEnabledRef.current });
 
@@ -1041,30 +868,25 @@ export function useNativeCall(roomId: string | null): NativeCallEngine {
     if (next) {
       if (lp.isMicrophoneEnabled) {
         mutedByDeafenRef.current = true;
-        presenceAudioRef.current = false;
         setIsAudioEnabled(false);
         // Also silence the mic branch in the Web Audio graph.
         mixerRef.current?.setMicEnabled(false);
         await lp.setMicrophoneEnabled(false);
-        publishPresence({ isMicMuted: true });
       }
     } else {
       if (mutedByDeafenRef.current) {
         mutedByDeafenRef.current = false;
-        presenceAudioRef.current = true;
         setIsAudioEnabled(true);
         // Restore mic branch in the Web Audio graph.
         mixerRef.current?.setMicEnabled(true);
         await lp.setMicrophoneEnabled(true);
-        publishPresence({ isMicMuted: false });
       }
     }
 
     // Propagate deafen state as a participant attribute so the presence bridge
     // receives a participant_attributes_changed webhook and can update the SSE stream.
     void roomRef.current.localParticipant.setAttributes({ isDeafened: next ? '1' : '0' });
-    publishPresence({ isDeafened: next });
-  }, [publishPresence]);
+  }, []);
 
   // ── Return ─────────────────────────────────────────────────────────────────
 

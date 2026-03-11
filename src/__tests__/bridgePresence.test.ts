@@ -54,12 +54,7 @@ vi.mock('../app/components/nav', () => ({
 vi.mock('../app/components/user-avatar', () => ({ UserAvatar: () => null }));
 vi.mock('../app/hooks/useMatrixClient', () => ({ useMatrixClient: () => ({}) }));
 vi.mock('../app/hooks/useCallMemberPresence', () => ({
-  useCallMemberPresence: () => ({
-    isMicMuted: false,
-    isCameraOn: false,
-    isScreenSharing: false,
-    isDeafened: false,
-  }),
+  roomHasCallScreenShare: () => false,
 }));
 vi.mock('../app/pages/client/call/CallProvider', () => ({
   useCallState: () => ({
@@ -108,7 +103,7 @@ import { EMPTY_CALL_PRESENCE_STATE } from '../app/features/call/callPresenceStat
 // ─────────────────────────────────────────────────────────────────────────────
 
 describe('resolvePresence', () => {
-  const basePersisted: CallPresenceState = {
+  const basePresence: CallPresenceState = {
     isMicMuted: false,
     isCameraOn: false,
     isScreenSharing: false,
@@ -120,40 +115,33 @@ describe('resolvePresence', () => {
     isActiveCall: false,
     pState: undefined,
     remoteBridge: undefined,
-    persistedPresence: basePersisted,
     isAudioEnabled: true,
     isVideoEnabled: false,
     isCallDeafened: false,
     isScreenShareEnabled: false,
   };
 
-  // ── Remote, kein Call, kein Bridge → nur persistedPresence ──────────────
+  // ── Remote, kein Call, kein Bridge → all-false (no Matrix-state fallback) ──
 
-  it('remote user not in call, no bridge: returns persistedPresence as-is', () => {
+  it('remote user not in call, no bridge: returns all-false', () => {
     const result = resolvePresence(baseArgs);
-    expect(result).toEqual(basePersisted);
+    expect(result).toEqual({ isMicMuted: false, isCameraOn: false, isScreenSharing: false, isDeafened: false });
   });
 
-  it('remote user not in call, no bridge, persisted muted: returns isMicMuted=true', () => {
-    const result = resolvePresence({
-      ...baseArgs,
-      persistedPresence: { ...basePersisted, isMicMuted: true },
-    });
-    expect(result.isMicMuted).toBe(true);
+  it('remote user not in call, no bridge: isMicMuted=false (no Matrix-state fallback)', () => {
+    const result = resolvePresence(baseArgs);
+    expect(result.isMicMuted).toBe(false);
     expect(result.isCameraOn).toBe(false);
   });
 
-  it('remote user not in call, no bridge, persisted cameraOn: returns isCameraOn=true', () => {
-    const result = resolvePresence({
-      ...baseArgs,
-      persistedPresence: { ...basePersisted, isCameraOn: true },
-    });
-    expect(result.isCameraOn).toBe(true);
+  it('remote user not in call, no bridge: isCameraOn=false (no Matrix-state fallback)', () => {
+    const result = resolvePresence(baseArgs);
+    expect(result.isCameraOn).toBe(false);
   });
 
   // ── Remote, mit Bridge ──────────────────────────────────────────────────
 
-  it('remote user with bridge muted: returns isMicMuted=true (bridge=true, persisted=false)', () => {
+  it('remote user with bridge muted: returns isMicMuted=true (bridge=true)', () => {
     const result = resolvePresence({
       ...baseArgs,
       remoteBridge: { isMicMuted: true, isCameraOn: false, isScreenSharing: false, isDeafened: false },
@@ -161,11 +149,10 @@ describe('resolvePresence', () => {
     expect(result.isMicMuted).toBe(true);
   });
 
-  it('remote user bridge isMicMuted=false overrides stale persisted muted=true', () => {
+  it('remote user bridge isMicMuted=false: returns false', () => {
     const result = resolvePresence({
       ...baseArgs,
       remoteBridge: { isMicMuted: false, isCameraOn: false, isScreenSharing: false, isDeafened: false },
-      persistedPresence: { ...basePersisted, isMicMuted: true },
     });
     expect(result.isMicMuted).toBe(false);
   });
@@ -174,7 +161,6 @@ describe('resolvePresence', () => {
     const result = resolvePresence({
       ...baseArgs,
       remoteBridge: { isMicMuted: false, isCameraOn: false, isScreenSharing: false, isDeafened: false },
-      persistedPresence: { ...basePersisted, isMicMuted: false },
     });
     expect(result.isMicMuted).toBe(false);
   });
@@ -187,11 +173,10 @@ describe('resolvePresence', () => {
     expect(result.isCameraOn).toBe(true);
   });
 
-  it('remote user bridge cameraOn=false overrides stale persisted cameraOn=true', () => {
+  it('remote user bridge cameraOn=false: returns false', () => {
     const result = resolvePresence({
       ...baseArgs,
       remoteBridge: { isMicMuted: false, isCameraOn: false, isScreenSharing: false, isDeafened: false },
-      persistedPresence: { ...basePersisted, isCameraOn: true },
     });
     expect(result.isCameraOn).toBe(false);
   });
@@ -228,12 +213,12 @@ describe('resolvePresence', () => {
     expect(result.isCameraOn).toBe(true);
   });
 
-  it('remote user with pState ignores stale persisted screenSharing=true', () => {
+  it('remote user with pState: pState screenSharing=false wins over bridge', () => {
     const result = resolvePresence({
       ...baseArgs,
       isActiveCall: true,
       pState: { audioEnabled: true, videoEnabled: false, isScreenSharing: false },
-      persistedPresence: { ...basePersisted, isScreenSharing: true },
+      remoteBridge: { isMicMuted: false, isCameraOn: false, isScreenSharing: true, isDeafened: false },
     });
     expect(result.isScreenSharing).toBe(false);
   });
@@ -328,13 +313,12 @@ describe('resolvePresence', () => {
     expect(result.isScreenSharing).toBe(true);
   });
 
-  it('local user in active call ignores stale persisted screenshare=true', () => {
+  it('local user in active call: screenshare=false when isScreenShareEnabled=false', () => {
     const result = resolvePresence({
       ...baseArgs,
       isLocalUser: true,
       isActiveCall: true,
       isScreenShareEnabled: false,
-      persistedPresence: { ...basePersisted, isScreenSharing: true },
     });
     expect(result.isScreenSharing).toBe(false);
   });
@@ -351,20 +335,13 @@ describe('resolvePresence', () => {
 
   // ── Lokaler User, nicht im Call ──────────────────────────────────────────
 
-  it('local user not in call: falls back to persistedPresence exactly', () => {
-    const persisted: CallPresenceState = {
-      isMicMuted: true,
-      isCameraOn: true,
-      isScreenSharing: false,
-      isDeafened: true,
-    };
+  it('local user not in call: returns all-false (no Matrix-state fallback)', () => {
     const result = resolvePresence({
       ...baseArgs,
       isLocalUser: true,
       isActiveCall: false,
-      persistedPresence: persisted,
     });
-    expect(result).toEqual(persisted);
+    expect(result).toEqual({ isMicMuted: false, isCameraOn: false, isScreenSharing: false, isDeafened: false });
   });
 
   it('local user not in call: ignores isAudioEnabled/isVideoEnabled', () => {
@@ -372,21 +349,19 @@ describe('resolvePresence', () => {
       ...baseArgs,
       isLocalUser: true,
       isActiveCall: false,
-      isAudioEnabled: false,  // wuerde muted bedeuten wenn im Call
-      isVideoEnabled: true,   // wuerde camera-on bedeuten wenn im Call
-      persistedPresence: { ...basePersisted, isMicMuted: false, isCameraOn: false },
+      isAudioEnabled: false,  // ignoriert weil nicht im Call
+      isVideoEnabled: true,   // ignoriert weil nicht im Call
     });
     expect(result.isMicMuted).toBe(false);
     expect(result.isCameraOn).toBe(false);
   });
 
-  it('local user not in call: screenshare from persisted only', () => {
+  it('local user not in call: screenshare=false regardless of isScreenShareEnabled', () => {
     const r1 = resolvePresence({
       ...baseArgs,
       isLocalUser: true,
       isActiveCall: false,
       isScreenShareEnabled: true,  // ignoriert weil nicht im Call
-      persistedPresence: { ...basePersisted, isScreenSharing: false },
     });
     expect(r1.isScreenSharing).toBe(false);
 
@@ -394,14 +369,14 @@ describe('resolvePresence', () => {
       ...baseArgs,
       isLocalUser: true,
       isActiveCall: false,
-      persistedPresence: { ...basePersisted, isScreenSharing: true },
+      isScreenShareEnabled: false,
     });
-    expect(r2.isScreenSharing).toBe(true);
+    expect(r2.isScreenSharing).toBe(false);
   });
 
   // ── isDeafened Bridge vs persisted Prioritaet ────────────────────────────
 
-  it('remote user: deafen bridge=true, persisted=false → true', () => {
+  it('remote user: deafen bridge=true → true', () => {
     const result = resolvePresence({
       ...baseArgs,
       remoteBridge: { isMicMuted: false, isCameraOn: false, isScreenSharing: false, isDeafened: true },
@@ -409,16 +384,7 @@ describe('resolvePresence', () => {
     expect(result.isDeafened).toBe(true);
   });
 
-  it('remote user bridge deafen=false overrides stale persisted deafen=true', () => {
-    const result = resolvePresence({
-      ...baseArgs,
-      remoteBridge: { isMicMuted: false, isCameraOn: false, isScreenSharing: false, isDeafened: false },
-      persistedPresence: { ...basePersisted, isDeafened: true },
-    });
-    expect(result.isDeafened).toBe(false);
-  });
-
-  it('remote user: deafen bridge=false, persisted=false → false', () => {
+  it('remote user bridge deafen=false → false', () => {
     const result = resolvePresence({
       ...baseArgs,
       remoteBridge: { isMicMuted: false, isCameraOn: false, isScreenSharing: false, isDeafened: false },
@@ -426,16 +392,23 @@ describe('resolvePresence', () => {
     expect(result.isDeafened).toBe(false);
   });
 
-  it('remote user without bridge: deafen reads only from persistedPresence', () => {
+  it('remote user: deafen bridge=false → false', () => {
+    const result = resolvePresence({
+      ...baseArgs,
+      remoteBridge: { isMicMuted: false, isCameraOn: false, isScreenSharing: false, isDeafened: false },
+    });
+    expect(result.isDeafened).toBe(false);
+  });
+
+  it('remote user without bridge: deafen=false (no Matrix-state fallback)', () => {
     const result = resolvePresence({
       ...baseArgs,
       remoteBridge: undefined,
-      persistedPresence: { ...basePersisted, isDeafened: true },
     });
-    expect(result.isDeafened).toBe(true);
+    expect(result.isDeafened).toBe(false);
   });
 
-  it('remote user without bridge: deafen=false from persisted', () => {
+  it('remote user without bridge: deafen=false from all-false default', () => {
     const result = resolvePresence({ ...baseArgs });
     expect(result.isDeafened).toBe(false);
   });
@@ -450,21 +423,20 @@ describe('resolvePresence', () => {
     expect(result.isScreenSharing).toBe(true);
   });
 
-  it('remote user bridge screenSharing=false overrides stale persisted screenSharing=true', () => {
+  it('remote user bridge screenSharing=false: isScreenSharing=false', () => {
     const result = resolvePresence({
       ...baseArgs,
       remoteBridge: { isMicMuted: false, isCameraOn: false, isScreenSharing: false, isDeafened: false },
-      persistedPresence: { ...basePersisted, isScreenSharing: true },
     });
     expect(result.isScreenSharing).toBe(false);
   });
 
-  it('remote user no bridge, no pState: screenSharing true from persisted', () => {
-    const result = resolvePresence({ ...baseArgs, persistedPresence: { ...basePersisted, isScreenSharing: true } });
-    expect(result.isScreenSharing).toBe(true);
+  it('remote user no bridge, no pState: screenSharing=false (no Matrix-state fallback)', () => {
+    const result = resolvePresence({ ...baseArgs });
+    expect(result.isScreenSharing).toBe(false);
   });
 
-  it('remote user no bridge, no pState: screenSharing false from persisted', () => {
+  it('remote user no bridge, no pState: screenSharing=false always', () => {
     const result = resolvePresence({ ...baseArgs });
     expect(result.isScreenSharing).toBe(false);
   });
@@ -478,9 +450,9 @@ describe('resolvePresence', () => {
     );
   });
 
-  it('result is a plain object (not the same reference as persistedPresence)', () => {
+  it('result is a plain object (not the same reference as the baseline object)', () => {
     const result = resolvePresence(baseArgs);
-    expect(result).not.toBe(basePersisted);
+    expect(result).not.toBe(basePresence);
   });
 
   it('all false inputs → all false outputs', () => {
@@ -1475,7 +1447,6 @@ describe('resolvePresence — non-participant observer scenarios', () => {
     isActiveCall: false,
     pState: undefined,
     remoteBridge: undefined,
-    persistedPresence: EMPTY_CALL_PRESENCE_STATE,
     isAudioEnabled: true,
     isVideoEnabled: false,
     isCallDeafened: false,
@@ -1483,11 +1454,10 @@ describe('resolvePresence — non-participant observer scenarios', () => {
   };
 
   // 1. Non-participant sees bridge state (no pState)
-  it('non-participant: bridge isMicMuted=true wins over persistedPresence isMicMuted=false', () => {
+  it('non-participant: bridge isMicMuted=true is reflected in result', () => {
     const result = resolvePresence({
       ...baseNonParticipantArgs,
       remoteBridge: { isMicMuted: true, isCameraOn: false, isScreenSharing: false, isDeafened: false },
-      persistedPresence: { isMicMuted: false, isCameraOn: false, isScreenSharing: false, isDeafened: false },
     });
     expect(result.isMicMuted).toBe(true);
   });
@@ -1497,27 +1467,24 @@ describe('resolvePresence — non-participant observer scenarios', () => {
     const result = resolvePresence({
       ...baseNonParticipantArgs,
       remoteBridge: { isMicMuted: false, isCameraOn: false, isScreenSharing: false, isDeafened: true },
-      persistedPresence: EMPTY_CALL_PRESENCE_STATE,
     });
     expect(result.isDeafened).toBe(true);
   });
 
-  // 3. Non-participant falls back to Matrix persisted when bridge is absent
-  it('non-participant: falls back to persistedPresence when remoteBridge is undefined', () => {
+  // 3. Non-participant with no bridge → all-false (no Matrix-state fallback)
+  it('non-participant: all-false when remoteBridge is undefined', () => {
     const result = resolvePresence({
       ...baseNonParticipantArgs,
       remoteBridge: undefined,
-      persistedPresence: { isMicMuted: true, isCameraOn: false, isScreenSharing: false, isDeafened: false },
     });
-    expect(result.isMicMuted).toBe(true);
+    expect(result.isMicMuted).toBe(false);
   });
 
-  // 4. Non-participant sees empty state when both bridge and persisted are empty
-  it('non-participant: all false when both bridge and persisted are EMPTY_CALL_PRESENCE_STATE', () => {
+  // 4. Non-participant sees empty state when bridge is absent
+  it('non-participant: all false when remoteBridge is undefined', () => {
     const result = resolvePresence({
       ...baseNonParticipantArgs,
       remoteBridge: undefined,
-      persistedPresence: EMPTY_CALL_PRESENCE_STATE,
     });
     expect(result.isMicMuted).toBe(false);
     expect(result.isCameraOn).toBe(false);
@@ -1525,22 +1492,20 @@ describe('resolvePresence — non-participant observer scenarios', () => {
     expect(result.isDeafened).toBe(false);
   });
 
-  // 5. Non-participant: bridge takes priority over persisted for screensharing
-  it('non-participant: bridge isScreenSharing=true wins over persistedPresence isScreenSharing=false', () => {
+  // 5. Non-participant: bridge takes priority for screensharing
+  it('non-participant: bridge isScreenSharing=true is reflected in result', () => {
     const result = resolvePresence({
       ...baseNonParticipantArgs,
       remoteBridge: { isMicMuted: false, isCameraOn: false, isScreenSharing: true, isDeafened: false },
-      persistedPresence: { isMicMuted: false, isCameraOn: false, isScreenSharing: false, isDeafened: false },
     });
     expect(result.isScreenSharing).toBe(true);
   });
 
-  // 6. Non-participant: bridge false wins over persisted true (bridge is authoritative, not OR)
-  it('non-participant: bridge isMicMuted=false overrides persistedPresence isMicMuted=true', () => {
+  // 6. Non-participant: bridge false → false
+  it('non-participant: bridge isMicMuted=false → false', () => {
     const result = resolvePresence({
       ...baseNonParticipantArgs,
       remoteBridge: { isMicMuted: false, isCameraOn: false, isScreenSharing: false, isDeafened: false },
-      persistedPresence: { isMicMuted: true, isCameraOn: false, isScreenSharing: false, isDeafened: false },
     });
     expect(result.isMicMuted).toBe(false);
   });

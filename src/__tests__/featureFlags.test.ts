@@ -8,7 +8,6 @@ globalThis.IS_REACT_ACT_ENVIRONMENT = true;
  *   1. Feature flag types in ClientConfig (type-level, no runtime assertions needed)
  *   2. VoiceStateSource discriminated union in RoomNavUser
  *   3. useVoiceStateService — resolveUserPresence with authoritativeBridgeMode on/off
- *   4. disableMatrixPresenceWrites guard — publishPresence no-op when flag is set
  *
  * All heavy modules are mocked so this runs in Vitest without a browser.
  */
@@ -98,7 +97,6 @@ describe('resolvePresence — authoritative bridge mode integration', () => {
     isActiveCall: false,
     pState: undefined,
     remoteBridge: undefined,
-    persistedPresence: EMPTY_CALL_PRESENCE_STATE,
     isAudioEnabled: true,
     isVideoEnabled: false,
     isCallDeafened: false,
@@ -169,49 +167,7 @@ describe('resolvePresence — authoritative bridge mode integration', () => {
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Group 3: disableMatrixPresenceWrites — guard logic
-//
-// These tests verify the guard logic in publishPresence / clearPresence.
-// We replicate the guard condition directly (the hook itself is too heavy to
-// mount in a unit test without a full React tree), so we test the invariant:
-//   "when the flag is true, publishCallPresenceState must NOT be called"
-// ─────────────────────────────────────────────────────────────────────────────
-
-describe('disableMatrixPresenceWrites guard logic', () => {
-  /**
-   * Minimal replica of the publishPresence guard from nativeCallEngine.ts.
-   * Returns true if the write would proceed, false if guarded.
-   */
-  function wouldPublish(disableFlag: boolean, roomId: string | null): boolean {
-    if (disableFlag) return false;
-    if (!roomId) return false;
-    return true;
-  }
-
-  it('publishes when flag is false and roomId is set', () => {
-    expect(wouldPublish(false, '!room:server')).toBe(true);
-  });
-
-  it('does NOT publish when flag is true (regardless of roomId)', () => {
-    expect(wouldPublish(true, '!room:server')).toBe(false);
-    expect(wouldPublish(true, null)).toBe(false);
-  });
-
-  it('does NOT publish when roomId is null (regardless of flag)', () => {
-    expect(wouldPublish(false, null)).toBe(false);
-  });
-
-  it('flag=false + null roomId → no publish', () => {
-    expect(wouldPublish(false, null)).toBe(false);
-  });
-
-  it('flag=true + valid roomId → no publish (flag wins)', () => {
-    expect(wouldPublish(true, '!any:server')).toBe(false);
-  });
-});
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Group 4: ClientConfig featureFlags type contract
+// Group 3: ClientConfig featureFlags type contract
 //
 // These tests verify that the featureFlags shape is correctly typed and that
 // default values (undefined → false) are handled correctly.
@@ -219,8 +175,8 @@ describe('disableMatrixPresenceWrites guard logic', () => {
 
 describe('ClientConfig featureFlags defaults', () => {
   function resolveFlag(
-    featureFlags: { authoritativeBridgeMode?: boolean; disableMatrixPresenceWrites?: boolean } | undefined,
-    key: 'authoritativeBridgeMode' | 'disableMatrixPresenceWrites',
+    featureFlags: { authoritativeBridgeMode?: boolean } | undefined,
+    key: 'authoritativeBridgeMode',
   ): boolean {
     return featureFlags?.[key] ?? false;
   }
@@ -229,35 +185,17 @@ describe('ClientConfig featureFlags defaults', () => {
     expect(resolveFlag(undefined, 'authoritativeBridgeMode')).toBe(false);
   });
 
-  it('disableMatrixPresenceWrites defaults to false when featureFlags is undefined', () => {
-    expect(resolveFlag(undefined, 'disableMatrixPresenceWrites')).toBe(false);
-  });
-
   it('authoritativeBridgeMode defaults to false when featureFlags is empty object', () => {
     expect(resolveFlag({}, 'authoritativeBridgeMode')).toBe(false);
-  });
-
-  it('disableMatrixPresenceWrites defaults to false when featureFlags is empty object', () => {
-    expect(resolveFlag({}, 'disableMatrixPresenceWrites')).toBe(false);
   });
 
   it('authoritativeBridgeMode=true is respected', () => {
     expect(resolveFlag({ authoritativeBridgeMode: true }, 'authoritativeBridgeMode')).toBe(true);
   });
-
-  it('disableMatrixPresenceWrites=true is respected', () => {
-    expect(resolveFlag({ disableMatrixPresenceWrites: true }, 'disableMatrixPresenceWrites')).toBe(true);
-  });
-
-  it('flags are independent — one true does not affect the other', () => {
-    const flags = { authoritativeBridgeMode: true, disableMatrixPresenceWrites: false };
-    expect(resolveFlag(flags, 'authoritativeBridgeMode')).toBe(true);
-    expect(resolveFlag(flags, 'disableMatrixPresenceWrites')).toBe(false);
-  });
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Group 5: useVoiceStateService — resolveUserPresence routing
+// Group 4: useVoiceStateService — resolveUserPresence routing
 //
 // Tests the routing logic inside useVoiceStateService.resolveUserPresence:
 //   - In default mode: remoteBridge is undefined for local user, set for remote
@@ -276,7 +214,6 @@ describe('useVoiceStateService — resolveUserPresence routing', () => {
     isLocalUser: false,
     isActiveCall: false,
     pState: undefined as { audioEnabled: boolean; videoEnabled: boolean; isScreenSharing: boolean } | undefined,
-    persistedPresence: EMPTY_CALL_PRESENCE_STATE,
     isAudioEnabled: true,
     isVideoEnabled: false,
     isCallDeafened: false,

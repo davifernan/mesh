@@ -17,7 +17,6 @@ services:
       # "livekit" = prefer live LiveKit client state (default for local dev).
       BETTERCORD_VOICE_STATE_MODE: '${BETTERCORD_VOICE_STATE_MODE:-livekit}'
       BETTERCORD_AUTHORITATIVE_BRIDGE_MODE: '${BETTERCORD_AUTHORITATIVE_BRIDGE_MODE:-false}'
-      BETTERCORD_DISABLE_MATRIX_PRESENCE_WRITES: '${BETTERCORD_DISABLE_MATRIX_PRESENCE_WRITES:-false}'
       # Optional: set these to show Polls/Whiteboard in the Activities catalog.
       # Must be publicly reachable URLs (loaded by users' browsers, not the container).
       BETTERCORD_POLLS_URL: '${BETTERCORD_POLLS_URL:-}'
