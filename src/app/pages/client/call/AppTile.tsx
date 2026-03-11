@@ -1,6 +1,6 @@
 /**
  * AppTile — renders a microapp widget as a full-width tile inside the call participant grid,
- * alongside real participants (Discord Activities–style).
+ * alongside real participants (Discord Activities-style).
  *
  * Uses SmallWidget / ClientWidgetApi to relay Matrix room events to the widget iframe
  * so apps like YouTube Together can receive sync commands in real time.
@@ -76,7 +76,7 @@ export function AppTile({ widget, onPin, isPinned, className }: AppTileProps) {
       room.roomId,
     );
 
-    const sw = new SmallWidget(app);
+    const sw = new SmallWidget(app, mx);
     smallWidgetRef.current = sw;
     // MUST call startMessaging before setting iframe.src (ContentLoaded sequence)
     sw.startMessaging(iframe);
@@ -122,6 +122,12 @@ export function AppTile({ widget, onPin, isPinned, className }: AppTileProps) {
         className={styles.appIframe}
       />
 
+      {/* Compact widget badge */}
+      <div className={styles.appBadge} aria-label={widget.name}>
+        <span className={styles.appBadgeIcon} aria-hidden="true">{icon}</span>
+        <span className={styles.appBadgeName}>{widget.name}</span>
+      </div>
+
       {/* Action buttons — revealed on hover */}
       <div className={styles.appActions}>
         <button
@@ -146,22 +152,6 @@ export function AppTile({ widget, onPin, isPinned, className }: AppTileProps) {
               ? <ArrowsInSimple size={14} weight="bold" />
               : <ArrowsOutSimple size={14} weight="bold" />
             }
-          </button>
-        )}
-      </div>
-
-      {/* Bottom label bar — same gradient style as screenshare tiles */}
-      <div className={styles.appTileLabel}>
-        <span className={styles.appTileIcon} aria-hidden="true">{icon}</span>
-        {widget.name}
-
-        {onPin && (
-          <button
-            type="button"
-            className={styles.focusBtn}
-            onClick={(e) => { e.stopPropagation(); handlePin(); }}
-          >
-            {isPinned ? 'Unpin' : 'Focus'}
           </button>
         )}
       </div>

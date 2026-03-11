@@ -88,7 +88,7 @@ function WidgetView({ room, widget }: WidgetViewProps) {
       room.roomId
     );
 
-    const smallWidget = new SmallWidget(app);
+    const smallWidget = new SmallWidget(app, mx);
     smallWidgetRef.current = smallWidget;
     smallWidget.startMessaging(iframe);
     iframe.src = resolvedUrl.toString();

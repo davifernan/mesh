@@ -35,6 +35,10 @@ const copyFiles = {
       dest: '',
     },
     {
+      src: 'public/config-microapps.js',
+      dest: '',
+    },
+    {
       src: 'public/res/android',
       dest: 'public/',
     },

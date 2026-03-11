@@ -18,12 +18,21 @@ export function getEffectiveTimestamp(state: YoutubeState): number {
   return state.timestamp + (Date.now() - state.issuedAt) / 1000;
 }
 
+function sanitizeCommand(cmd: YoutubeCommand): YoutubeCommand {
+  if (cmd.timestamp === undefined) return cmd;
+
+  return {
+    ...cmd,
+    timestamp: Math.round(cmd.timestamp),
+  };
+}
+
 function toYoutubeState(content: Partial<YoutubeState> | undefined): YoutubeState | null {
   if (!content?.videoId) return null;
   return {
     videoId: content.videoId,
     playing: content.playing ?? false,
-    timestamp: content.timestamp ?? 0,
+    timestamp: content.timestamp === undefined ? 0 : Math.round(content.timestamp),
     issuedAt: content.issuedAt ?? Date.now(),
   };
 }
@@ -134,9 +143,10 @@ export function useYoutubeSync(widgetApi: WidgetApi) {
 
   const sendCommand = useCallback(
     async (cmd: YoutubeCommand) => {
-      const nextState = applyCommand(stateRef.current, cmd);
+      const sanitizedCmd = sanitizeCommand(cmd);
+      const nextState = applyCommand(stateRef.current, sanitizedCmd);
 
-      await widgetApi.sendRoomEvent('eu.bettercord.apps.youtube.cmd', cmd);
+      await widgetApi.sendRoomEvent('eu.bettercord.apps.youtube.cmd', sanitizedCmd);
 
       if (nextState) {
         applyState(nextState);
