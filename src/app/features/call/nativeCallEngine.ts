@@ -39,7 +39,11 @@ import {
 } from './avPresets';
 import { MatrixKeyProvider } from './matrixKeyProvider';
 import { resolveParticipantUserId } from './participantIdentity';
-import { publishCallPresenceState } from './callPresenceState';
+import {
+  publishCallPresenceState,
+  checkCallPresencePermissions,
+  buildCallRoomPresenceRepair,
+} from './callPresenceState';
 import { CALL_INFO_EVENT } from '../../hooks/useCallMemberships';
 import { getSFUConfigWithOpenID } from './sfuToken';
 import { useAudioWinsOverVideo } from './callQualityFallback';
@@ -196,6 +200,9 @@ export function useNativeCall(roomId: string | null): NativeCallEngine {
   const presenceSSRef = useRef(false);      // screenshare enabled
   const presenceDeafRef = useRef(false);    // deafened
 
+  // Latch: warn at most once per call session if presence writes fail due to permissions.
+  const presenceWriteWarnedRef = useRef(false);
+
   const prevAudioQualityRef = useRef<{
     audioBitrate: number;
     echoCancellation: boolean;
@@ -225,8 +232,16 @@ export function useNativeCall(roomId: string | null): NativeCallEngine {
       isDeafened: overrides?.isDeafened ?? presenceDeafRef.current,
     };
 
-    publishCallPresenceState(mx, roomId, userId, deviceId, state).catch(() => {
-      // Network or permissions error — not fatal
+    publishCallPresenceState(mx, roomId, userId, deviceId, state).catch((err: unknown) => {
+      if (!presenceWriteWarnedRef.current) {
+        presenceWriteWarnedRef.current = true;
+        console.warn(
+          '[BetterCord] Presence write failed — non-participants may not see state badges.',
+          'Room:', roomId,
+          'Error:', err instanceof Error ? err.message : String(err),
+          'Tip: voice room may be missing power-level overrides for io.bettercord.call.presence.',
+        );
+      }
     });
   }, [mx]);
 
@@ -236,7 +251,9 @@ export function useNativeCall(roomId: string | null): NativeCallEngine {
     const deviceId = presenceDeviceIdRef.current;
     presenceRoomIdRef.current = null;
     if (!roomId || !userId || !deviceId) return;
-    publishCallPresenceState(mx, roomId, userId, deviceId, null).catch(() => {});
+    publishCallPresenceState(mx, roomId, userId, deviceId, null).catch((err: unknown) => {
+      console.warn('[BetterCord] Presence clear failed:', err instanceof Error ? err.message : String(err));
+    });
   }, [mx]);
 
   // ── Main Effect ────────────────────────────────────────────────────────────
@@ -595,6 +612,40 @@ export function useNativeCall(roomId: string | null): NativeCallEngine {
           presenceSSRef.current = false;
           presenceDeafRef.current = false;
 
+          // ── Best-effort presence power-level repair ────────────────────────
+          // If this room is missing the required PL overrides for BetterCord
+          // presence events, non-participants will never see state badges.
+          // If the current user has permission to fix the PLs, do it once now.
+          // This is best-effort: we never block the call join on this.
+          try {
+            const plCheck = checkCallPresencePermissions(mx, roomId!);
+            if (plCheck.canRepair) {
+              const matRoomForRepair = mx.getRoom(roomId!);
+              const plEvent = matRoomForRepair?.currentState.getStateEvents('m.room.power_levels', '');
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              const existingPL = (plEvent as any)?.getContent?.() ?? {};
+              const repairedPL = buildCallRoomPresenceRepair(existingPL, plCheck.missingEventOverrides);
+              void mx.sendStateEvent(roomId!, 'm.room.power_levels' as any, repairedPL, '');
+              console.info(
+                '[BetterCord] Repaired call-room power levels for presence events.',
+                'Room:', roomId,
+                'Added overrides:', plCheck.missingEventOverrides,
+              );
+            } else if (!plCheck.canWrite) {
+              console.warn(
+                '[BetterCord] This voice room is missing presence power-level overrides.',
+                'Non-participants may not see mute/deafen/camera/live state.',
+                'Room:', roomId,
+                'An admin needs to set these event types to power level 0:',
+                plCheck.missingEventOverrides,
+              );
+            }
+          } catch (plErr) {
+            // PL repair is strictly best-effort — never block the call
+            console.warn('[BetterCord] Power-level repair attempt failed:', plErr);
+          }
+          // ── End power-level repair ─────────────────────────────────────────
+
           setLivekitRoom(room);
           setStatus('connected');
           setIsAudioEnabled(true);
@@ -608,7 +659,16 @@ export function useNativeCall(roomId: string | null): NativeCallEngine {
             isCameraOn: false,
             isScreenSharing: false,
             isDeafened: false,
-          }).catch(() => {});
+          }).catch((err: unknown) => {
+            if (!presenceWriteWarnedRef.current) {
+              presenceWriteWarnedRef.current = true;
+              console.warn(
+                '[BetterCord] Initial presence write failed.',
+                'Room:', roomId,
+                'Error:', err instanceof Error ? err.message : String(err),
+              );
+            }
+          });
         }
       } catch (e) {
         if (!aborted) {
@@ -637,7 +697,9 @@ export function useNativeCall(roomId: string | null): NativeCallEngine {
       const leaveDeviceId = presenceDeviceIdRef.current;
       presenceRoomIdRef.current = null;
       if (leaveRoomId && leaveUserId && leaveDeviceId) {
-        publishCallPresenceState(mx, leaveRoomId, leaveUserId, leaveDeviceId, null).catch(() => {});
+        publishCallPresenceState(mx, leaveRoomId, leaveUserId, leaveDeviceId, null).catch((err: unknown) => {
+          console.warn('[BetterCord] Presence clear on leave failed:', err instanceof Error ? err.message : String(err));
+        });
       }
 
       // Tear down the soundboard mixer before disconnecting the room.
@@ -757,6 +819,7 @@ export function useNativeCall(roomId: string | null): NativeCallEngine {
     if (leaveRoomId && countActiveCallMembers(mx, leaveRoomId) <= 1) {
       mx.sendStateEvent(leaveRoomId, CALL_INFO_EVENT as any, {}, '').catch(() => {});
     }
+    presenceWriteWarnedRef.current = false;
     clearPresence();
     // Tear down the soundboard mixer before disconnecting the room.
     destroySoundboardMixerSingleton();

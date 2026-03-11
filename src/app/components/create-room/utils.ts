@@ -163,6 +163,11 @@ export const createRoom = async (mx: MatrixClient, data: CreateRoomData): Promis
           events: {
             'org.matrix.msc3401.call': 100,
             'org.matrix.msc3401.call.member': 0,
+            // All BetterCord custom state events must be writable by every user (PL 0).
+            // Without these entries, normal users can't publish presence/deafen/mute
+            // state, so non-participants never see badge updates.
+            'io.bettercord.call.presence': 0,
+            'org.bettercord.call.info': 0,
           },
         })
       : data.powerLevelContentOverrides;

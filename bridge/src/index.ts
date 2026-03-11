@@ -86,6 +86,15 @@ const roomState = new Map<string, Map<string, ParticipantPresence>>();
 type SendFn = (payload: string) => void;
 const sseSubscribers = new Map<string, Set<SendFn>>();
 
+// ── Stats (observable via /health) ────────────────────────────────────────────
+const stats = {
+  webhooksReceived: 0,
+  webhooksRejected: 0,
+  webhookEventCounts: {} as Record<string, number>,
+  sseConnectionsTotal: 0,
+  sseConnectionsActive: 0,
+};
+
 function ensureRoom(roomId: string): Map<string, ParticipantPresence> {
   if (!roomState.has(roomId)) roomState.set(roomId, new Map());
   return roomState.get(roomId)!;
@@ -219,9 +228,18 @@ app.post('/webhook', async (c) => {
   try {
     event = await receiver.receive(body, authHeader);
   } catch (err) {
-    console.warn('[webhook] signature verification failed:', (err as Error).message);
+    stats.webhooksRejected += 1;
+    console.warn(
+      '[webhook] Signature verification FAILED — LiveKit credentials may be wrong.',
+      'Error:', (err as Error).message,
+      'Tip: check LIVEKIT_API_KEY and LIVEKIT_API_SECRET match your LiveKit dashboard.',
+    );
     return c.text('Unauthorized', 401);
   }
+
+  stats.webhooksReceived += 1;
+  const eventName = event.event ?? 'unknown';
+  stats.webhookEventCounts[eventName] = (stats.webhookEventCounts[eventName] ?? 0) + 1;
 
   const roomId = event.room?.name;
   if (!roomId) return c.text('ok');
@@ -255,26 +273,32 @@ app.post('/webhook', async (c) => {
       ensureRoom(roomId).set(userId, initial);
       // Fix A-bridge: broadcast with type: 'update'
       broadcast(roomId, userId, initial, 'update');
-      console.log(`[+] ${userId} (${identity}) joined ${roomId}`);
+      console.log(`[join] ${userId} in ${roomId} (identity: ${identity})`);
       break;
     }
 
     case 'participant_left':
       // Fix F: pass identity for multi-device tracking
       removePresence(roomId, identity, userId);
-      console.log(`[-] ${userId} (${identity}) left ${roomId}`);
+      console.log(`[left] ${userId} in ${roomId} (identity: ${identity})`);
       break;
 
     case 'track_muted':
       if (source === 'MICROPHONE') setPresence(roomId, identity, userId, { isMicMuted: true });
       if (source === 'CAMERA') setPresence(roomId, identity, userId, { isCameraOn: false });
       if (source === 'SCREEN_SHARE') setPresence(roomId, identity, userId, { isScreenSharing: false });
+      if (source === 'MICROPHONE' || source === 'CAMERA' || source === 'SCREEN_SHARE') {
+        console.debug(`[muted] ${userId} source=${source} in ${roomId}`);
+      }
       break;
 
     case 'track_unmuted':
       if (source === 'MICROPHONE') setPresence(roomId, identity, userId, { isMicMuted: false });
       if (source === 'CAMERA') setPresence(roomId, identity, userId, { isCameraOn: true });
       if (source === 'SCREEN_SHARE') setPresence(roomId, identity, userId, { isScreenSharing: true });
+      if (source === 'MICROPHONE' || source === 'CAMERA' || source === 'SCREEN_SHARE') {
+        console.debug(`[unmuted] ${userId} source=${source} in ${roomId}`);
+      }
       break;
 
     case 'track_published':
@@ -290,10 +314,14 @@ app.post('/webhook', async (c) => {
     case 'participant_attributes_changed': {
       const attrs = (p?.attributes ?? {}) as Record<string, string>;
       setPresence(roomId, identity, userId, { isDeafened: attrs.isDeafened === '1' });
+      console.debug(`[attrs] ${userId} isDeafened=${attrs.isDeafened} in ${roomId}`);
       break;
     }
 
     default:
+      if (event.event) {
+        console.debug(`[webhook] Unhandled event type: ${event.event}`);
+      }
       break;
   }
 
@@ -340,6 +368,9 @@ app.get('/presence/:roomId/stream', (c) => {
       // Register subscriber
       if (!sseSubscribers.has(roomId)) sseSubscribers.set(roomId, new Set());
       sseSubscribers.get(roomId)!.add(localSend);
+      stats.sseConnectionsTotal += 1;
+      stats.sseConnectionsActive += 1;
+      console.debug(`[sse] Client connected to ${roomId} (active: ${stats.sseConnectionsActive})`);
 
       // Heartbeat every 25s to keep connection alive through proxies
       // Fix B: assign to outer-scope variable so cancel() can clear it
@@ -355,12 +386,15 @@ app.get('/presence/:roomId/stream', (c) => {
           sseSubscribers.get(roomId)?.delete(localSend);
           if (sseSubscribers.get(roomId)?.size === 0) sseSubscribers.delete(roomId);
         }
+        stats.sseConnectionsActive = Math.max(0, stats.sseConnectionsActive - 1);
+        console.debug(`[sse] Client disconnected from ${roomId} (active: ${stats.sseConnectionsActive})`);
         try { controller.close(); } catch { /* already closed */ }
       });
     },
     cancel() {
       // Fix B: clear heartbeat timer on stream cancel
       if (heartbeatId !== null) { clearInterval(heartbeatId); heartbeatId = null; }
+      stats.sseConnectionsActive = Math.max(0, stats.sseConnectionsActive - 1);
       if (localSend) {
         sseSubscribers.get(roomId)?.delete(localSend);
         if (sseSubscribers.get(roomId)?.size === 0) sseSubscribers.delete(roomId);
@@ -381,13 +415,29 @@ app.get('/presence/:roomId/stream', (c) => {
 // ── Health check ───────────────────────────────────────────────────────────────
 
 app.get('/health', (c) =>
-  c.json({ status: 'ok', rooms: roomState.size })
+  c.json({
+    status: 'ok',
+    rooms: roomState.size,
+    sseConnectionsActive: stats.sseConnectionsActive,
+    sseConnectionsTotal: stats.sseConnectionsTotal,
+    webhooksReceived: stats.webhooksReceived,
+    webhooksRejected: stats.webhooksRejected,
+    webhookEventCounts: stats.webhookEventCounts,
+  })
 );
 
 // ── Start ──────────────────────────────────────────────────────────────────────
 
 const PORT = Number(process.env.PORT ?? 3001);
-console.log(`[bridge] Presence Bridge running on port ${PORT}`);
-console.log(`[bridge] LiveKit API key: ${LIVEKIT_API_KEY ? '✓ set' : '✗ MISSING'}`);
+console.log(`[bridge] ─────────────────────────────────────────────`);
+console.log(`[bridge] BetterCord Presence Bridge starting on port ${PORT}`);
+console.log(`[bridge] LiveKit API key:    ${LIVEKIT_API_KEY ? '✓ set' : '✗ MISSING — webhooks will be rejected!'}`);
+console.log(`[bridge] LiveKit API secret: ${LIVEKIT_API_SECRET ? '✓ set' : '✗ MISSING — webhooks will be rejected!'}`);
+console.log(`[bridge] Endpoints:`);
+console.log(`[bridge]   POST /webhook              — LiveKit webhook receiver`);
+console.log(`[bridge]   GET  /presence/:roomId     — full room snapshot`);
+console.log(`[bridge]   GET  /presence/:roomId/stream — SSE stream`);
+console.log(`[bridge]   GET  /health               — health + stats`);
+console.log(`[bridge] ─────────────────────────────────────────────`);
 
 export default { port: PORT, fetch: app.fetch, idleTimeout: 0 };
