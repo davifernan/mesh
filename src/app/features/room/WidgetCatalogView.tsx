@@ -16,11 +16,10 @@ const CATEGORY_ORDER: AppCategory[] = ['media', 'collaborate', 'decide'];
 
 type WidgetCatalogViewProps = {
   catalog: AppCatalogEntry[];
-  canManageWidgets: boolean;
   onAdd: (entry: AppCatalogEntry) => Promise<void>;
 };
 
-export function WidgetCatalogView({ catalog, canManageWidgets, onAdd }: WidgetCatalogViewProps) {
+export function WidgetCatalogView({ catalog, onAdd }: WidgetCatalogViewProps) {
   const [adding, setAdding] = React.useState<string | null>(null);
 
   const handleAdd = React.useCallback(
@@ -35,7 +34,6 @@ export function WidgetCatalogView({ catalog, canManageWidgets, onAdd }: WidgetCa
     [onAdd],
   );
 
-  // Group entries by category — must be called before any early returns (rules of hooks)
   const byCategory = React.useMemo(() => {
     const map = new Map<AppCategory, AppCatalogEntry[]>();
     for (const entry of catalog) {
@@ -58,7 +56,7 @@ export function WidgetCatalogView({ catalog, canManageWidgets, onAdd }: WidgetCa
       >
         <Text size="T300" priority="300" style={{ textAlign: 'center' }}>
           No apps configured. Enable YouTube and Spotify by default, or configure Polls and
-          Whiteboard URLs in build.config.ts.
+          Whiteboard URLs via runtime config or your local Docker setup.
         </Text>
       </Box>
     );
@@ -82,7 +80,6 @@ export function WidgetCatalogView({ catalog, canManageWidgets, onAdd }: WidgetCa
             direction="Column"
             style={{ marginBottom: config.space.S300 }}
           >
-            {/* Category label */}
             <Text
               size="L400"
               style={{
@@ -95,7 +92,6 @@ export function WidgetCatalogView({ catalog, canManageWidgets, onAdd }: WidgetCa
               {CATEGORY_LABELS[cat]}
             </Text>
 
-            {/* App cards */}
             {entries.map((entry) => (
               <Box
                 key={entry.id}
@@ -107,7 +103,6 @@ export function WidgetCatalogView({ catalog, canManageWidgets, onAdd }: WidgetCa
                   margin: `0 ${config.space.S200}`,
                 }}
               >
-                {/* Icon */}
                 <Box
                   justifyContent="Center"
                   alignItems="Center"
@@ -125,7 +120,6 @@ export function WidgetCatalogView({ catalog, canManageWidgets, onAdd }: WidgetCa
                   {entry.icon}
                 </Box>
 
-                {/* Name + description */}
                 <Box direction="Column" gap="100" style={{ flexGrow: 1, minWidth: 0 }}>
                   <Text size="H6" truncate>
                     {entry.name}
@@ -135,24 +129,18 @@ export function WidgetCatalogView({ catalog, canManageWidgets, onAdd }: WidgetCa
                   </Text>
                 </Box>
 
-                {/* Add button */}
                 <Box shrink="No">
-                  <span
-                    title={!canManageWidgets ? 'Need moderator permissions' : undefined}
-                    style={{ display: 'inline-flex' }}
+                  <Button
+                    size="300"
+                    variant="Secondary"
+                    fill="Soft"
+                    disabled={adding === entry.id}
+                    onClick={() => handleAdd(entry)}
                   >
-                    <Button
-                      size="300"
-                      variant="Secondary"
-                      fill="Soft"
-                      disabled={!canManageWidgets || adding === entry.id}
-                      onClick={() => handleAdd(entry)}
-                    >
-                      <Text size="B300">
-                        {adding === entry.id ? 'Adding…' : 'Add to Room'}
-                      </Text>
-                    </Button>
-                  </span>
+                    <Text size="B300">
+                      {adding === entry.id ? 'Adding…' : 'Add to Room'}
+                    </Text>
+                  </Button>
                 </Box>
               </Box>
             ))}

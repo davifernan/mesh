@@ -3,14 +3,10 @@
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  background: rgba(20, 21, 24, 0.88);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
-  border-radius: 9999px;
+  background: rgba(20, 21, 24, 0.96);
+  border-radius: 8px;
   padding: 8px 12px;
-  box-shadow:
-    0 4px 24px rgba(0, 0, 0, 0.55),
-    inset 0 0 0 1px rgba(255, 255, 255, 0.07);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
 }
 .leftSection {
   display: flex;
@@ -47,12 +43,12 @@
   justify-content: center;
   width: 40px;
   height: 40px;
-  border-radius: 9999px;
+  border-radius: 8px;
   background: rgba(255, 255, 255, 0.06);
   border: none;
   cursor: pointer;
   color: var(--text-primary);
-  transition: background 80ms, color 80ms;
+  transition: background 100ms, color 100ms;
   flex-shrink: 0;
 }
 .btn:hover { background: rgba(255, 255, 255, 0.12); }
@@ -84,7 +80,7 @@
   right: -4px;
   width: 20px;
   height: 20px;
-  border-radius: 9999px;
+  border-radius: 6px;
   background: var(--voice-surface-1);
   border: 2px solid var(--voice-surface-0);
   cursor: pointer;
@@ -129,19 +125,6 @@
   border-radius: 8px;
   padding: 4px;
   min-width: 160px;
-  z-index: 100;
-}
-
-.mediaMenu {
-  position: absolute;
-  bottom: calc(100% + 8px);
-  left: 50%;
-  transform: translateX(-50%);
-  background: var(--voice-surface-1);
-  border: 1px solid var(--voice-surface-2);
-  border-radius: 10px;
-  padding: 4px;
-  min-width: 170px;
   z-index: 100;
 }
 
@@ -190,8 +173,7 @@
   /* Dropdowns: keep them inside the viewport on mobile.
      Override centered positioning — anchor to left edge of trigger instead. */
   .deviceMenu,
-  .ssMenu,
-  .mediaMenu {
+  .ssMenu {
     left: 0;
     right: auto;
     transform: none;

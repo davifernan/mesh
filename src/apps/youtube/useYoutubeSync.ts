@@ -5,7 +5,7 @@ export type YoutubeState = {
   videoId: string;
   playing: boolean;
   timestamp: number;
-  issuedAt: number; // Date.now() when the state was sent
+  issuedAt: number;
 };
 
 export type YoutubeCommand = {
@@ -14,47 +14,97 @@ export type YoutubeCommand = {
   timestamp?: number;
 };
 
-/**
- * Returns state.timestamp + elapsed seconds since issuedAt,
- * compensating for the time it takes for state to propagate.
- */
 export function getEffectiveTimestamp(state: YoutubeState): number {
   return state.timestamp + (Date.now() - state.issuedAt) / 1000;
+}
+
+function toYoutubeState(content: Partial<YoutubeState> | undefined): YoutubeState | null {
+  if (!content?.videoId) return null;
+  return {
+    videoId: content.videoId,
+    playing: content.playing ?? false,
+    timestamp: content.timestamp ?? 0,
+    issuedAt: content.issuedAt ?? Date.now(),
+  };
+}
+
+function applyCommand(cur: YoutubeState | null, cmd: YoutubeCommand): YoutubeState | null {
+  if (!cur && cmd.action !== 'load') return null;
+
+  if (cmd.action === 'play' && cur) {
+    return {
+      ...cur,
+      playing: true,
+      timestamp: cmd.timestamp ?? cur.timestamp,
+      issuedAt: Date.now(),
+    };
+  }
+
+  if (cmd.action === 'pause' && cur) {
+    return {
+      ...cur,
+      playing: false,
+      timestamp: cmd.timestamp ?? cur.timestamp,
+      issuedAt: Date.now(),
+    };
+  }
+
+  if (cmd.action === 'seek' && cur) {
+    return {
+      ...cur,
+      timestamp: cmd.timestamp ?? cur.timestamp,
+      issuedAt: Date.now(),
+    };
+  }
+
+  if (cmd.action === 'load' && cmd.videoId) {
+    return {
+      videoId: cmd.videoId,
+      playing: true,
+      timestamp: 0,
+      issuedAt: Date.now(),
+    };
+  }
+
+  return null;
 }
 
 export function useYoutubeSync(widgetApi: WidgetApi) {
   const [state, setState] = useState<YoutubeState | null>(null);
   const stateRef = useRef<YoutubeState | null>(null);
 
-  // Load initial state from room on mount
+  const applyState = useCallback((nextState: YoutubeState) => {
+    stateRef.current = nextState;
+    setState(nextState);
+  }, []);
+
+  const persistStateBestEffort = useCallback(
+    (nextState: YoutubeState) => {
+      void widgetApi.sendStateEvent('eu.bettercord.apps.youtube', '', nextState).catch(() => undefined);
+    },
+    [widgetApi]
+  );
+
   useEffect(() => {
     let cancelled = false;
+
     async function load() {
       try {
         const events = await widgetApi.readStateEvents('eu.bettercord.apps.youtube', 1);
         if (cancelled) return;
-        if (events && events.length > 0) {
-          const content = events[0]?.content as Partial<YoutubeState> | undefined;
-          if (content?.videoId) {
-            const s: YoutubeState = {
-              videoId: content.videoId,
-              playing: content.playing ?? false,
-              timestamp: content.timestamp ?? 0,
-              issuedAt: content.issuedAt ?? Date.now(),
-            };
-            stateRef.current = s;
-            setState(s);
-          }
-        }
+        const nextState = toYoutubeState(events[0]?.content as Partial<YoutubeState> | undefined);
+        if (nextState) applyState(nextState);
       } catch {
-        // No state yet — that's fine, the room is empty
+        // No state yet — that's fine.
       }
     }
-    load();
-    return () => { cancelled = true; };
-  }, [widgetApi]);
 
-  // Subscribe to live SendEvent updates (state changes + commands)
+    load();
+    return () => {
+      cancelled = true;
+    };
+  }, [widgetApi, applyState]);
+
   useEffect(() => {
     const eventName = `action:${WidgetApiToWidgetAction.SendEvent}`;
 
@@ -62,94 +112,39 @@ export function useYoutubeSync(widgetApi: WidgetApi) {
       const event = actionEv?.detail?.data ?? actionEv;
       if (!event?.type) return;
 
-      // State event: sync play state
-      if (event.type === 'eu.bettercord.apps.youtube' && event.state_key === '') {
-        const content = event.content as Partial<YoutubeState> | undefined;
-        if (content?.videoId) {
-          const s: YoutubeState = {
-            videoId: content.videoId,
-            playing: content.playing ?? false,
-            timestamp: content.timestamp ?? 0,
-            issuedAt: content.issuedAt ?? Date.now(),
-          };
-          stateRef.current = s;
-          setState(s);
-        }
-      }
-
-      // Timeline command event
       if (event.type === 'eu.bettercord.apps.youtube.cmd') {
         const cmd = event.content as YoutubeCommand | undefined;
         if (!cmd?.action) return;
-        const cur = stateRef.current;
-        // 'load' can initialize state even if no prior state exists
-        if (!cur && cmd.action !== 'load') return;
-        let updated: YoutubeState | null = null;
-        if (cmd.action === 'play' && cur) {
-          updated = { ...cur, playing: true, timestamp: cmd.timestamp ?? cur.timestamp, issuedAt: Date.now() };
-        } else if (cmd.action === 'pause' && cur) {
-          updated = { ...cur, playing: false, timestamp: cmd.timestamp ?? cur.timestamp, issuedAt: Date.now() };
-        } else if (cmd.action === 'seek' && cur) {
-          updated = { ...cur, timestamp: cmd.timestamp ?? cur.timestamp, issuedAt: Date.now() };
-        } else if (cmd.action === 'load' && cmd.videoId) {
-          updated = { videoId: cmd.videoId, playing: true, timestamp: 0, issuedAt: Date.now() };
-        }
-        if (updated) {
-          stateRef.current = updated;
-          setState(updated);
-        }
+        const nextState = applyCommand(stateRef.current, cmd);
+        if (nextState) applyState(nextState);
+        return;
+      }
+
+      if (event.type === 'eu.bettercord.apps.youtube' && event.state_key === '') {
+        const nextState = toYoutubeState(event.content as Partial<YoutubeState> | undefined);
+        if (nextState) applyState(nextState);
       }
     };
 
     widgetApi.on(eventName, handler);
-    return () => { widgetApi.off(eventName, handler); };
-  }, [widgetApi]);
+    return () => {
+      widgetApi.off(eventName, handler);
+    };
+  }, [widgetApi, applyState]);
 
-  /**
-   * Send a command to all room members. Also updates shared room state for
-   * load/play/pause so new joiners get the current position.
-   */
-  const sendCommand = useCallback(async (cmd: YoutubeCommand) => {
-    // Send timeline event for real-time sync
-    await widgetApi.sendRoomEvent('eu.bettercord.apps.youtube.cmd', cmd);
+  const sendCommand = useCallback(
+    async (cmd: YoutubeCommand) => {
+      const nextState = applyCommand(stateRef.current, cmd);
 
-    // For load/play/pause also persist state so late joiners catch up
-    if (cmd.action === 'load' || cmd.action === 'play' || cmd.action === 'pause') {
-      const cur = stateRef.current;
-      const videoId = cmd.videoId ?? cur?.videoId ?? '';
-      if (!videoId) return;
-      const playing = cmd.action === 'play' || cmd.action === 'load';
-      const timestamp = cmd.action === 'pause'
-        ? (cmd.timestamp ?? cur?.timestamp ?? 0)
-        : cmd.action === 'play'
-          ? (cmd.timestamp ?? cur?.timestamp ?? 0)
-          : 0; // load always starts from beginning
-      const newState: YoutubeState = {
-        videoId,
-        playing,
-        timestamp,
-        issuedAt: Date.now(),
-      };
-      await widgetApi.sendStateEvent('eu.bettercord.apps.youtube', '', newState);
-      stateRef.current = newState;
-      setState(newState);
-    }
+      await widgetApi.sendRoomEvent('eu.bettercord.apps.youtube.cmd', cmd);
 
-    // For seek, also update state timestamp
-    if (cmd.action === 'seek' && cmd.timestamp !== undefined) {
-      const cur = stateRef.current;
-      if (cur) {
-        const newState: YoutubeState = {
-          ...cur,
-          timestamp: cmd.timestamp,
-          issuedAt: Date.now(),
-        };
-        await widgetApi.sendStateEvent('eu.bettercord.apps.youtube', '', newState);
-        stateRef.current = newState;
-        setState(newState);
+      if (nextState) {
+        applyState(nextState);
+        persistStateBestEffort(nextState);
       }
-    }
-  }, [widgetApi]);
+    },
+    [widgetApi, applyState, persistStateBestEffort]
+  );
 
   return {
     state,

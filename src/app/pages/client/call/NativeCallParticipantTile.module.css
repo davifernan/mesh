@@ -104,7 +104,7 @@
   font-size: 11px;
   font-weight: 600;
   padding: 2px 6px;
-  border-radius: 9999px;
+  border-radius: 4px;
   pointer-events: none;
   z-index: 10;
 }
@@ -117,14 +117,13 @@
   right: calc(0.5rem + 32px + 6px);
   color: var(--text-on-solid-primary, #fff);
   background: var(--voice-status-danger, #f23f43);
-  border-radius: 9999px;
+  border-radius: 4px;
   padding: 4px 8px;
   display: flex;
   align-items: center;
   gap: 4px;
   font-size: 11px;
   font-weight: 600;
-  letter-spacing: 0.04em;
   z-index: 10;
   animation: livePulse 1.5s ease-in-out infinite;
 }
@@ -140,7 +139,7 @@
   align-items: center;
   justify-content: center;
   background: var(--voice-overlay-strong);
-  border-radius: 9999px;
+  border-radius: 6px;
   border: none;
   cursor: pointer;
   color: white;
@@ -191,10 +190,9 @@
   gap: 4px;
   padding: 3px 8px;
   background: rgba(0, 0, 0, 0.68);
-  border-radius: 9999px;
+  border-radius: 4px;
   min-width: 0;
   max-width: 100%;
-  backdrop-filter: blur(4px);
 }
 
 .metaName {

@@ -14,7 +14,7 @@ import {
   SpeakerHigh,
   SpeakerSlash,
   CaretDown,
-  SlidersHorizontal,
+  ArrowsClockwise,
   MusicNote,
   Rocket,
 } from '@phosphor-icons/react';
@@ -103,7 +103,6 @@ export function NativeCallControlBar() {
   const [camDevices, setCamDevices] = useState<MediaDeviceInfo[]>([]);
   const [showMicMenu, setShowMicMenu] = useState(false);
   const [showCamMenu, setShowCamMenu] = useState(false);
-  const [showMediaMenu, setShowMediaMenu] = useState(false);
 
   // ── Screen share context menu ──────────────────────────────────────────────
   const [showSSMenu, setShowSSMenu] = useState(false);
@@ -114,11 +113,10 @@ export function NativeCallControlBar() {
   const micMenuRef = useRef<HTMLDivElement>(null);
   const camMenuRef = useRef<HTMLDivElement>(null);
   const ssMenuRef = useRef<HTMLDivElement>(null);
-  const mediaMenuRef = useRef<HTMLDivElement>(null);
   const soundboardMenuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    if (!showMicMenu && !showCamMenu && !showSSMenu && !showMediaMenu && !isSoundboardOpen) return;
+    if (!showMicMenu && !showCamMenu && !showSSMenu && !isSoundboardOpen) return;
     const handler = (e: MouseEvent) => {
       if (showMicMenu && micMenuRef.current && !micMenuRef.current.contains(e.target as Node)) {
         setShowMicMenu(false);
@@ -129,23 +127,19 @@ export function NativeCallControlBar() {
       if (showSSMenu && ssMenuRef.current && !ssMenuRef.current.contains(e.target as Node)) {
         setShowSSMenu(false);
       }
-      if (showMediaMenu && mediaMenuRef.current && !mediaMenuRef.current.contains(e.target as Node)) {
-        setShowMediaMenu(false);
-      }
       if (isSoundboardOpen && soundboardMenuRef.current && !soundboardMenuRef.current.contains(e.target as Node)) {
         setSoundboardOpen(false);
       }
     };
     document.addEventListener('mousedown', handler);
     return () => document.removeEventListener('mousedown', handler);
-  }, [showMicMenu, showCamMenu, showSSMenu, showMediaMenu, isSoundboardOpen, setSoundboardOpen]);
+  }, [showMicMenu, showCamMenu, showSSMenu, isSoundboardOpen, setSoundboardOpen]);
 
   const toggleActivities = useCallback(() => {
     setShowActivities((v) => !v);
     setShowMicMenu(false);
     setShowCamMenu(false);
     setShowSSMenu(false);
-    setShowMediaMenu(false);
   }, []);
 
   const openMicMenu = useCallback(async (e: React.MouseEvent) => {
@@ -155,7 +149,6 @@ export function NativeCallControlBar() {
     setShowMicMenu((v) => !v);
     setShowCamMenu(false);
     setShowSSMenu(false);
-    setShowMediaMenu(false);
   }, []);
 
   const openCamMenu = useCallback(async (e: React.MouseEvent) => {
@@ -165,7 +158,6 @@ export function NativeCallControlBar() {
     setShowCamMenu((v) => !v);
     setShowMicMenu(false);
     setShowSSMenu(false);
-    setShowMediaMenu(false);
   }, []);
 
   const selectMicDevice = useCallback(
@@ -198,7 +190,6 @@ export function NativeCallControlBar() {
       setShowSSMenu((v) => !v);
       setShowMicMenu(false);
       setShowCamMenu(false);
-      setShowMediaMenu(false);
     } else {
       setShowQualityModal(true);
     }
@@ -211,7 +202,6 @@ export function NativeCallControlBar() {
 
   const handleShareSettings = useCallback(() => {
     setShowSSMenu(false);
-    setShowMediaMenu(false);
     setShowQualityModal(true);
   }, []);
 
@@ -228,19 +218,6 @@ export function NativeCallControlBar() {
     },
     [setUserSettings, startScreenShare, userSettings],
   );
-
-  const toggleMediaMenu = useCallback(() => {
-    setShowMediaMenu((v) => !v);
-    setShowMicMenu(false);
-    setShowCamMenu(false);
-    setShowSSMenu(false);
-  }, []);
-
-  const mediaButtonIcon = isScreenShareEnabled
-    ? <Monitor size={20} />
-    : isVideoEnabled
-      ? <VideoCamera size={20} />
-      : <SlidersHorizontal size={20} />;
 
   const handleToggleNoiseSup = useCallback(() => {
     const next = !userSettings.noiseSuppression;
@@ -329,68 +306,41 @@ export function NativeCallControlBar() {
           </button>
 
           {isMobile ? (
-            <div className={styles.btnWrap} ref={mediaMenuRef}>
+            <>
               <button
-                className={`${styles.btn} ${(isVideoEnabled || isScreenShareEnabled) ? styles.btnActive : ''}`}
-                onClick={toggleMediaMenu}
-                title="Media options"
-                aria-label="Open media options"
-                aria-pressed={showMediaMenu}
+                className={`${styles.btn} ${!isVideoEnabled ? styles.btnMuted : ''}`}
+                onClick={() => void toggleVideo()}
+                title={isVideoEnabled ? 'Disable camera' : 'Enable camera'}
+                aria-label={isVideoEnabled ? 'Disable camera' : 'Enable camera'}
+                aria-pressed={!isVideoEnabled}
               >
-                {mediaButtonIcon}
+                {isVideoEnabled ? <VideoCamera size={20} /> : <VideoCameraSlash size={20} />}
               </button>
-              {showMediaMenu && (
-                <div className={styles.mediaMenu}>
-                  <div
-                    className={styles.deviceItem}
-                    onClick={() => {
-                      void toggleVideo();
-                      setShowMediaMenu(false);
-                    }}
-                    role="button"
-                    tabIndex={0}
-                    onKeyDown={(e) => e.key === 'Enter' && (void toggleVideo())}
-                  >
-                    {isVideoEnabled ? 'Disable Camera' : 'Enable Camera'}
-                  </div>
-                  {isVideoEnabled && (
-                    <div
-                      className={styles.deviceItem}
-                      onClick={() => {
-                        void flipCamera();
-                        setShowMediaMenu(false);
-                      }}
-                      role="button"
-                      tabIndex={0}
-                      onKeyDown={(e) => e.key === 'Enter' && (void flipCamera())}
-                    >
-                      Flip Camera
-                    </div>
-                  )}
-                  <div
-                    className={styles.deviceItem}
-                    onClick={() => {
-                      if (isScreenShareEnabled) {
-                        handleStopSharing();
-                      } else {
-                        handleScreenShare();
-                      }
-                      setShowMediaMenu(false);
-                    }}
-                    role="button"
-                    tabIndex={0}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter') {
-                        if (isScreenShareEnabled) handleStopSharing();
-                        else handleScreenShare();
-                      }
-                    }}
-                  >
-                    {isScreenShareEnabled ? 'Stop Sharing' : 'Share Screen'}
-                  </div>
-                </div>
-              )}
-            </div>
+
+              <button
+                className={styles.btn}
+                onClick={() => void flipCamera()}
+                title="Flip camera"
+                aria-label="Flip camera"
+              >
+                <ArrowsClockwise size={20} />
+              </button>
+
+              <div className={styles.btnWrap} ref={soundboardMenuRef}>
+                <button
+                  className={`${styles.btn} ${isSoundboardOpen ? styles.btnActive : ''}`}
+                  onClick={() => setSoundboardOpen(!isSoundboardOpen)}
+                  title="Soundboard"
+                  aria-label="Toggle soundboard"
+                  aria-pressed={isSoundboardOpen}
+                >
+                  <MusicNote size={20} />
+                </button>
+                {isSoundboardOpen && (
+                  <SoundboardPanel onClose={() => setSoundboardOpen(false)} />
+                )}
+              </div>
+            </>
           ) : (
             <>
               {/* Camera + device caret (desktop) */}

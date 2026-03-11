@@ -6,11 +6,7 @@ import { MatrixClient } from 'matrix-js-sdk';
 import { useAtomValue } from 'jotai';
 import { GifItem as GifItemType } from '../../plugins/gif/types';
 import { getGiphyFetch, mapGif, GIPHY_RATING_DEFAULT } from '../../plugins/gif/giphyApi';
-import {
-  useFavoriteGifs,
-  addFavoriteGif,
-  removeFavoriteGif,
-} from '../../plugins/gif/favoriteGifs';
+import { useFavoriteGifs, addFavoriteGif, removeFavoriteGif } from '../../plugins/gif/favoriteGifs';
 import { useSpaceGifCollections } from '../../plugins/gif/gifCollectionPlugin';
 import { useDebounce } from '../../hooks/useDebounce';
 import { roomToParentsAtom } from '../../state/room/roomToParents';
@@ -26,16 +22,27 @@ type GifPickerProps = {
 const GRID_COLUMNS = 3;
 const GRID_GUTTER = 4;
 
+const sectionHeaderStyle: React.CSSProperties = {
+  padding: '12px 0 6px',
+  color: 'var(--text-secondary)',
+};
+
+const searchBarStyle: React.CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  gap: '8px',
+  background: 'var(--background-secondary)',
+  border: '1px solid rgba(255, 255, 255, 0.06)',
+  borderRadius: '8px',
+  padding: '8px 10px',
+};
+
 function SectionHeader({ icon, label }: { icon: React.ReactNode; label: string }) {
   return (
-    <Box
-      alignItems="Center"
-      gap="200"
-      style={{ padding: '8px 0 4px', color: 'var(--text-secondary, #b5bac1)' }}
-    >
+    <Box alignItems="Center" gap="100" style={sectionHeaderStyle}>
       {icon}
-      <Text size="L400" as="span">
-        <b>{label}</b>
+      <Text size="T200" as="span">
+        {label}
       </Text>
     </Box>
   );
@@ -163,47 +170,48 @@ export function GifPicker({ mx, roomId, onSelect, requestClose }: GifPickerProps
     []
   );
 
-  // --- Search input autofocus ---
+  // --- Search input autofocus (desktop only — avoids triggering mobile keyboard on open) ---
   const inputRef = useRef<HTMLInputElement>(null);
   useEffect(() => {
-    inputRef.current?.focus();
+    if (window.innerWidth > 768) {
+      inputRef.current?.focus();
+    }
   }, []);
 
   return (
     <Box
       direction="Column"
-      style={{ width: '100%', height: '100%', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}
+      style={{
+        width: '100%',
+        height: '100%',
+        overflow: 'hidden',
+        display: 'flex',
+        flexDirection: 'column',
+        background: 'var(--background-primary)',
+      }}
     >
-      {/* Search bar */}
       <Box
         style={{
           padding: '8px 12px 6px',
-          borderBottom: '1px solid var(--bg-surface-border, rgba(255,255,255,0.06))',
+          borderBottom: '1px solid rgba(255, 255, 255, 0.06)',
           flexShrink: 0,
+          background: 'var(--background-primary)',
         }}
       >
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '8px',
-            background: 'var(--bg-surface-low, #1e1f22)',
-            borderRadius: '6px',
-            padding: '6px 10px',
-          }}
-        >
+        <div style={searchBarStyle}>
           <Icon src={Icons.Search} size="100" style={{ color: 'var(--text-secondary)' }} />
           <input
             ref={inputRef}
             type="text"
             placeholder="Search GIFs..."
+            aria-label="Search GIFs"
             value={searchQuery}
             onChange={handleSearchChange}
             style={{
               background: 'transparent',
               border: 'none',
               outline: 'none',
-              color: 'var(--text-primary, #dbdee1)',
+              color: 'var(--text-primary)',
               fontSize: '14px',
               width: '100%',
             }}
@@ -212,7 +220,14 @@ export function GifPicker({ mx, roomId, onSelect, requestClose }: GifPickerProps
             <button
               type="button"
               onClick={clearSearch}
-              style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-secondary)', padding: 0, display: 'flex' }}
+              style={{
+                background: 'none',
+                border: 'none',
+                cursor: 'pointer',
+                color: 'var(--text-secondary)',
+                padding: 0,
+                display: 'flex',
+              }}
               aria-label="Clear search"
             >
               <Icon src={Icons.Cross} size="100" />
@@ -221,10 +236,15 @@ export function GifPicker({ mx, roomId, onSelect, requestClose }: GifPickerProps
         </div>
       </Box>
 
-      {/* Scrollable content */}
-      <div ref={contentRef} style={{ flex: 1, overflowY: 'auto', padding: '0 12px 12px' }}>
-
-        {/* Search results — SDK Grid with infinite scroll + masonry */}
+      <div
+        ref={contentRef}
+        style={{
+          flex: 1,
+          overflowY: 'auto',
+          padding: '0 12px 12px',
+          background: 'var(--background-primary)',
+        }}
+      >
         {searchActive && gridWidth > 0 && (
           <>
             <SectionHeader icon={<Icon src={Icons.Search} size="100" />} label="Search Results" />
@@ -235,28 +255,32 @@ export function GifPicker({ mx, roomId, onSelect, requestClose }: GifPickerProps
               columns={GRID_COLUMNS}
               gutter={GRID_GUTTER}
               onGifClick={handleGifClick}
-              noResultsMessage={<Text size="T300" style={{ color: 'var(--text-secondary)' }}>No GIFs found</Text>}
+              noResultsMessage={
+                <Text size="T300" style={{ color: 'var(--text-secondary)' }}>
+                  No GIFs found
+                </Text>
+              }
             />
           </>
         )}
 
-        {/* Default view */}
         {!searchActive && (
           <>
-            {/* Favorites — our own data, custom grid */}
             {favoriteItems.length > 0 && (
               <>
                 <SectionHeader icon={<Icon src={Icons.Star} size="100" />} label="Favorites" />
                 <GifGrid
                   gifs={favoriteItems}
                   favoriteIds={favoriteIds}
-                  onSelect={(gif) => { onSelect(gif); requestClose(); }}
+                  onSelect={(gif) => {
+                    onSelect(gif);
+                    requestClose();
+                  }}
                   onToggleFavorite={handleToggleFavorite}
                 />
               </>
             )}
 
-            {/* Trending — SDK Grid with infinite scroll + masonry */}
             {gridWidth > 0 && (
               <>
                 <SectionHeader icon={<Icon src={Icons.Heart} size="100" />} label="Trending" />
@@ -271,7 +295,6 @@ export function GifPicker({ mx, roomId, onSelect, requestClose }: GifPickerProps
               </>
             )}
 
-            {/* Community collections — our own data, custom grid */}
             {communityCollections.map((col) => {
               const gifs = Object.values(col.content.gifs);
               if (gifs.length === 0) return null;
@@ -284,7 +307,10 @@ export function GifPicker({ mx, roomId, onSelect, requestClose }: GifPickerProps
                   <GifGrid
                     gifs={gifs}
                     favoriteIds={favoriteIds}
-                    onSelect={(gif) => { onSelect(gif); requestClose(); }}
+                    onSelect={(gif) => {
+                      onSelect(gif);
+                      requestClose();
+                    }}
                     onToggleFavorite={handleToggleFavorite}
                   />
                 </div>

@@ -12,6 +12,7 @@ import { useMatrixClient } from '../../../hooks/useMatrixClient';
 import { useCallState } from './CallProvider';
 import { SmallWidget, createVirtualWidget } from '../../../features/call/SmallWidget';
 import { getAppCatalog } from '../../../state/microappCatalog';
+import { addFullscreenListeners, exitFullscreen, isElementFullscreen, requestElementFullscreen } from './fullscreenUtils';
 import styles from './AppTile.module.css';
 
 /** Prefix used in the voiceCallLayoutAtom to distinguish widget pins from participant pins. */
@@ -89,17 +90,16 @@ export function AppTile({ widget, onPin, isPinned, className }: AppTileProps) {
 
   // Track fullscreen state
   useEffect(() => {
-    const handler = () => setIsFullscreen(document.fullscreenElement === tileRef.current);
-    document.addEventListener('fullscreenchange', handler);
-    return () => document.removeEventListener('fullscreenchange', handler);
+    const handler = () => setIsFullscreen(isElementFullscreen(tileRef.current));
+    return addFullscreenListeners(document, handler);
   }, []);
 
   const toggleFullscreen = useCallback(async () => {
     if (!tileRef.current) return;
-    if (document.fullscreenElement === tileRef.current) {
-      await document.exitFullscreen();
+    if (isElementFullscreen(tileRef.current)) {
+      await exitFullscreen();
     } else {
-      await tileRef.current.requestFullscreen();
+      await requestElementFullscreen(tileRef.current);
     }
   }, []);
 

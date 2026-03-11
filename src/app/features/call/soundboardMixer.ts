@@ -4,10 +4,15 @@
  * Outbound audio mixer that blends the local microphone with soundboard clips
  * and exposes a single mixed MediaStreamTrack for LiveKit to publish.
  *
+ * Local monitoring:
+ * - Soundboard clips are also monitored locally through the user's speakers.
+ * - The microphone is NOT locally monitored here.
+ *
  * Graph:
- *   micSource (MediaStreamSource)  ──► micGain ──┐
- *                                                 ├──► destination (MediaStreamDestination)
- *   clipSource (BufferSource/MediaSource) ──► clipGain ──┘
+ *   micSource (MediaStreamSource)  ──► micGain ───────────────► destination (MediaStreamDestination)
+ *
+ *   clipSource (BufferSource/MediaSource) ──► clipGain ───────► destination (MediaStreamDestination)
+ *                                                   └─────────► audioContext.destination
  *
  * The destination's stream contains one mixed track which LiveKit publishes
  * instead of the raw mic track, so all call participants hear both mic and clips.
@@ -54,6 +59,7 @@ export class SoundboardMixer {
     this.destination = this.ctx.createMediaStreamDestination();
 
     // Mic gain — starts at 1 (pass-through). Set to 0 when muted.
+    // Only routed to the outbound mix, never to local speakers.
     this.micGain = this.ctx.createGain();
     this.micGain.gain.value = 1;
     this.micGain.connect(this.destination);
@@ -117,7 +123,7 @@ export class SoundboardMixer {
     // mxc://<server>/<mediaId>
     const withoutScheme = url.slice('mxc://'.length);
     const slashIdx = withoutScheme.indexOf('/');
-    if (slashIdx === -1) return url; // Malformed — return as-is and let fetch fail
+    if (slashIdx === -1) return url;
 
     const serverName = withoutScheme.slice(0, slashIdx);
     const mediaId = withoutScheme.slice(slashIdx + 1);
@@ -135,16 +141,18 @@ export class SoundboardMixer {
    *   2. HTMLAudioElement + createMediaElementSource (streaming fallback for large files
    *      or when the fetch fails due to CORS on the initial attempt).
    *
-   * @param url          - Clip URL: mxc:// or https://.
-   * @param volume       - Gain [0–1], default 1.
+   * Clips are also monitored locally through the current AudioContext destination.
+   * The mic branch is not locally monitored.
+   *
+   * @param url           - Clip URL: mxc:// or https://.
+   * @param volume        - Gain [0–1], default 1.
    * @param homeserverUrl - Optional homeserver base URL for mxc:// resolution.
-   * @returns            Unique clip ID (pass to stopSoundboardClip to cancel early).
+   * @returns             Unique clip ID (pass to stopSoundboardClip to cancel early).
    */
   playSoundboardClip(url: string, volume = 1, homeserverUrl?: string): string {
     const clipId = `clip-${++this.clipSeq}`;
     const resolvedUrl = this.resolveUrl(url, homeserverUrl);
 
-    // Resume context if suspended (may have been suspended since construction)
     if (this.ctx.state === 'suspended') {
       void this.ctx.resume();
     }
@@ -152,11 +160,11 @@ export class SoundboardMixer {
     const clipGain = this.ctx.createGain();
     clipGain.gain.value = Math.max(0, Math.min(1, volume));
     clipGain.connect(this.destination);
+    clipGain.connect(this.ctx.destination);
 
     const clip: ActiveClip = { id: clipId, gainNode: clipGain };
     this.clips.set(clipId, clip);
 
-    // Attempt fetch + decodeAudioData first for low-latency playback
     fetch(resolvedUrl)
       .then((res) => {
         if (!res.ok) throw new Error(`HTTP ${res.status} fetching clip`);
@@ -164,28 +172,29 @@ export class SoundboardMixer {
       })
       .then((buf) => this.ctx.decodeAudioData(buf))
       .then((audioBuffer) => {
-        // Clip may have been stopped while we were fetching
         if (!this.clips.has(clipId)) return;
 
         const source = this.ctx.createBufferSource();
         source.buffer = audioBuffer;
         source.connect(clipGain);
-        source.onended = () => { this.clips.delete(clipId); };
+        source.onended = () => {
+          this.clips.delete(clipId);
+        };
         source.start(0);
 
-        // Store source ref so it can be stopped early
         const stored = this.clips.get(clipId);
         if (stored) stored.bufferSource = source;
       })
       .catch(() => {
-        // Fallback: HTMLAudioElement-based streaming source
         if (!this.clips.has(clipId)) return;
 
         const audio = new Audio(resolvedUrl);
         audio.crossOrigin = 'anonymous';
         const mediaSource = this.ctx.createMediaElementSource(audio);
         mediaSource.connect(clipGain);
-        audio.onended = () => { this.clips.delete(clipId); };
+        audio.onended = () => {
+          this.clips.delete(clipId);
+        };
         audio.play().catch((err: unknown) => {
           console.warn('[SoundboardMixer] Fallback playback failed for clip', clipId, err);
           this.clips.delete(clipId);
@@ -246,7 +255,6 @@ export class SoundboardMixer {
    */
   setMicEnabled(enabled: boolean): void {
     this.micEnabled = enabled;
-    // Use setTargetAtTime for a ~5 ms ramp to avoid click artifacts
     this.micGain.gain.setTargetAtTime(enabled ? 1 : 0, this.ctx.currentTime, 0.005);
   }
 
@@ -276,14 +284,13 @@ export class SoundboardMixer {
       this.micSource = null;
     }
     this.micGain.disconnect();
-    // Close AudioContext — ignoring the promise is intentional (best-effort cleanup)
     void this.ctx.close();
   }
 
   // ── Private disposal helper ─────────────────────────────────────────────────
 
   private fadeOutAndDispose(clip: ActiveClip): void {
-    const FADE_S = 0.08; // 80 ms linear fade
+    const FADE_S = 0.08;
     const now = this.ctx.currentTime;
     clip.gainNode.gain.setValueAtTime(clip.gainNode.gain.value, now);
     clip.gainNode.gain.linearRampToValueAtTime(0, now + FADE_S);
@@ -309,8 +316,7 @@ let _instance: SoundboardMixer | null = null;
  * Get (or lazily create) the process-wide SoundboardMixer singleton.
  *
  * The singleton is intentionally separate from React state so it can survive
- * re-renders and be accessed imperatively from non-React code (e.g. a future
- * soundboard UI panel).
+ * re-renders and be accessed imperatively from non-React code.
  *
  * Call teardown() on the instance when the call ends, then getSoundboardMixer()
  * will create a fresh instance on the next call join.
@@ -327,8 +333,6 @@ export function getSoundboardMixer(micTrack?: MediaStreamTrack | null): Soundboa
 /**
  * Returns the existing singleton without creating a new one.
  * Returns null if no call is active or the mixer has been torn down.
- *
- * Use this from UI code that should not spin up a mixer on its own.
  */
 export function getSoundboardMixerIfActive(): SoundboardMixer | null {
   if (_instance && _instance.isActive()) return _instance;
@@ -336,7 +340,7 @@ export function getSoundboardMixerIfActive(): SoundboardMixer | null {
 }
 
 /**
- * Destroy and nullify the singleton.  Called by nativeCallEngine on cleanup.
+ * Destroy and nullify the singleton. Called by nativeCallEngine on cleanup.
  */
 export function destroySoundboardMixerSingleton(): void {
   if (_instance) {

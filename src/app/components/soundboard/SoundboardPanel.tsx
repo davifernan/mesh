@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useCallback, useRef } from 'react';
+import React, { useState, useMemo, useCallback, useRef, useEffect } from 'react';
 import { X, MagnifyingGlass, CaretDown, CaretRight } from '@phosphor-icons/react';
 import { useMatrixClient } from '../../hooks/useMatrixClient';
 import { useCallState } from '../../pages/client/call/CallProvider';
@@ -9,75 +9,6 @@ import { SoundboardGrid } from './SoundboardGrid';
 import { SoundboardSourceRail, type SoundboardSource } from './SoundboardSourceRail';
 import { VolumeButton } from './SoundItem';
 import styles from './SoundboardPanel.module.css';
-
-// ── Built-in BetterCord sounds (from public/sound/) ──────────────────────────
-// These are UI / call sounds that happen to also be playable as soundboard clips.
-const DEFAULT_SOUNDS: SoundItemType[] = [
-  {
-    id: 'bc-mute',
-    title: 'Mute',
-    emoji: '🔇',
-    sourceType: 'url',
-    url: '/sound/mute.mp3',
-    volume: 0.8,
-    addedBy: 'system',
-    addedAt: 0,
-  },
-  {
-    id: 'bc-unmute',
-    title: 'Unmute',
-    emoji: '🔊',
-    sourceType: 'url',
-    url: '/sound/unmute.mp3',
-    volume: 0.8,
-    addedBy: 'system',
-    addedAt: 0,
-  },
-  {
-    id: 'bc-user-join',
-    title: 'User Join',
-    emoji: '👋',
-    sourceType: 'url',
-    url: '/sound/user-join.mp3',
-    volume: 0.8,
-    addedBy: 'system',
-    addedAt: 0,
-  },
-  {
-    id: 'bc-user-leave',
-    title: 'User Leave',
-    emoji: '🚪',
-    sourceType: 'url',
-    url: '/sound/user-leave.mp3',
-    volume: 0.8,
-    addedBy: 'system',
-    addedAt: 0,
-  },
-  {
-    id: 'bc-stream-start',
-    title: 'Stream Start',
-    emoji: '📺',
-    sourceType: 'url',
-    url: '/sound/stream-start.mp3',
-    volume: 0.8,
-    addedBy: 'system',
-    addedAt: 0,
-  },
-  {
-    id: 'bc-disconnect',
-    title: 'Disconnect',
-    emoji: '📴',
-    sourceType: 'url',
-    url: '/sound/voice-disconnect.mp3',
-    volume: 0.8,
-    addedBy: 'system',
-    addedAt: 0,
-  },
-];
-
-const DEFAULTS_SOURCE_ID = 'defaults';
-
-// ── Section component ─────────────────────────────────────────────────────────
 
 type SectionProps = {
   title: string;
@@ -131,8 +62,6 @@ function SoundboardSection({
   );
 }
 
-// ── Main panel ────────────────────────────────────────────────────────────────
-
 type SoundboardPanelProps = {
   onClose: () => void;
 };
@@ -145,17 +74,13 @@ export function SoundboardPanel({ onClose }: SoundboardPanelProps) {
   const favoriteSounds = useFavoriteSounds() ?? [];
 
   const [search, setSearch] = useState('');
-  const [selectedSourceId, setSelectedSourceId] = useState<string>(DEFAULTS_SOURCE_ID);
+  const [selectedSourceId, setSelectedSourceId] = useState('');
   const [showVolumeSlider, setShowVolumeSlider] = useState(false);
   const [volume, setVolume] = useState(0.8);
-
-  // Track playing clips: Map<soundUrl, clipId>
   const [playingByUrl, setPlayingByUrl] = useState<Map<string, string>>(new Map());
 
   const panelRef = useRef<HTMLDivElement>(null);
 
-  // ── Sources ─────────────────────────────────────────────────────────────────
-  // Group community soundboards by spaceId
   const spaceMap = useMemo(() => {
     const map = new Map<string, ResolvedSoundboard[]>();
     for (const board of allSpaceSoundboards) {
@@ -166,9 +91,7 @@ export function SoundboardPanel({ onClose }: SoundboardPanelProps) {
   }, [allSpaceSoundboards]);
 
   const sources: SoundboardSource[] = useMemo(() => {
-    const result: SoundboardSource[] = [
-      { id: DEFAULTS_SOURCE_ID, label: 'BetterCord Sounds', emoji: '🎵' },
-    ];
+    const result: SoundboardSource[] = [];
     for (const [spaceId] of spaceMap) {
       const room = mx.getRoom(spaceId);
       const label = room?.name ?? spaceId;
@@ -179,52 +102,58 @@ export function SoundboardPanel({ onClose }: SoundboardPanelProps) {
     return result;
   }, [spaceMap, mx]);
 
-  // ── All sounds flat list (filtered by selected source) ──────────────────────
+  useEffect(() => {
+    if (sources.length === 0) {
+      setSelectedSourceId('');
+      return;
+    }
+    setSelectedSourceId((prev) => (
+      prev && sources.some((source) => source.id === prev) ? prev : sources[0].id
+    ));
+  }, [sources]);
+
   const soundsForSource = useMemo((): SoundItemType[] => {
-    if (selectedSourceId === DEFAULTS_SOURCE_ID) return DEFAULT_SOUNDS;
+    if (!selectedSourceId) return [];
     const boards = spaceMap.get(selectedSourceId) ?? [];
-    return boards.flatMap((b) => Object.values(b.content.sounds));
+    return boards.flatMap((board) => Object.values(board.content.sounds));
   }, [selectedSourceId, spaceMap]);
 
-  // ── Search filter (across all sources when search is non-empty) ─────────────
+  const allCommunitySounds = useMemo(
+    (): SoundItemType[] => allSpaceSoundboards.flatMap((board) => Object.values(board.content.sounds)),
+    [allSpaceSoundboards]
+  );
+
   const allSounds = useMemo((): SoundItemType[] => {
     if (!search) return soundsForSource;
     const q = search.toLowerCase();
-    const all: SoundItemType[] = [
-      ...DEFAULT_SOUNDS,
-      ...allSpaceSoundboards.flatMap((b) => Object.values(b.content.sounds)),
-    ];
-    return all.filter(
-      (s) =>
-        s.title.toLowerCase().includes(q) ||
-        (s.emoji ?? '').toLowerCase().includes(q) ||
-        (s.tags ?? []).some((t) => t.toLowerCase().includes(q))
+    return allCommunitySounds.filter(
+      (sound) =>
+        sound.title.toLowerCase().includes(q) ||
+        (sound.emoji ?? '').toLowerCase().includes(q) ||
+        (sound.tags ?? []).some((tag) => tag.toLowerCase().includes(q))
     );
-  }, [search, soundsForSource, allSpaceSoundboards]);
+  }, [search, soundsForSource, allCommunitySounds]);
 
-  // ── Favorite sound IDs ───────────────────────────────────────────────────────
   const favoriteIds = useMemo(
-    () => new Set(favoriteSounds.map((f) => f.soundId)),
+    () => new Set(favoriteSounds.map((favorite) => favorite.soundId)),
     [favoriteSounds]
   );
 
-  // ── Playing URL set ─────────────────────────────────────────────────────────
   const playingUrls = useMemo(() => new Set(playingByUrl.keys()), [playingByUrl]);
 
-  // ── Favorite sounds resolved ────────────────────────────────────────────────
   const favoriteSoundItems = useMemo((): SoundItemType[] => {
     if (favoriteSounds.length === 0) return [];
     const allSoundsMap = new Map<string, SoundItemType>();
-    for (const s of DEFAULT_SOUNDS) allSoundsMap.set(s.id, s);
-    for (const b of allSpaceSoundboards) {
-      for (const [id, s] of Object.entries(b.content.sounds)) allSoundsMap.set(id, s);
+    for (const board of allSpaceSoundboards) {
+      for (const [id, sound] of Object.entries(board.content.sounds)) {
+        allSoundsMap.set(id, sound);
+      }
     }
     return favoriteSounds
-      .map((f) => allSoundsMap.get(f.soundId))
-      .filter((s): s is SoundItemType => s !== undefined);
+      .map((favorite) => allSoundsMap.get(favorite.soundId))
+      .filter((sound): sound is SoundItemType => sound !== undefined);
   }, [favoriteSounds, allSpaceSoundboards]);
 
-  // ── URL resolver: converts mxc:// URIs to authenticated HTTP URLs ────────────
   const resolveUrl = useCallback(
     (url: string): string => {
       if (!url.startsWith('mxc://')) return url;
@@ -233,13 +162,11 @@ export function SoundboardPanel({ onClose }: SoundboardPanelProps) {
     [mx]
   );
 
-  // ── Handlers ────────────────────────────────────────────────────────────────
   const handlePlay = useCallback(
     (sound: SoundItemType) => {
       const resolvedUrl = resolveUrl(sound.url);
       const clipId = playSoundboardClip(resolvedUrl, sound.volume * volume);
       if (clipId) {
-        // Track by original URL so stop/playing-state lookup stays consistent
         setPlayingByUrl((prev) => new Map(prev).set(sound.url, clipId));
       }
     },
@@ -263,10 +190,6 @@ export function SoundboardPanel({ onClose }: SoundboardPanelProps) {
 
   const handleToggleFavorite = useCallback(
     async (sound: SoundItemType) => {
-      // Find which board this sound belongs to
-      const isDefaultSound = DEFAULT_SOUNDS.some((s) => s.id === sound.id);
-      if (isDefaultSound) return; // Default sounds can't be favorited via Matrix account data
-
       for (const board of allSpaceSoundboards) {
         if (board.content.sounds[sound.id]) {
           if (favoriteIds.has(sound.id)) {
@@ -281,27 +204,22 @@ export function SoundboardPanel({ onClose }: SoundboardPanelProps) {
     [mx, allSpaceSoundboards, favoriteIds]
   );
 
-  // ── Sections to render ───────────────────────────────────────────────────────
   const isSearching = search.trim().length > 0;
 
-  // When searching, show one flat section. Otherwise show sections per source.
   const sections = useMemo(() => {
     if (isSearching) {
-      return [{ title: `Ergebnisse für "${search}"`, sounds: allSounds }];
+      return [{ title: `Ergebnisse fur "${search}"`, sounds: allSounds }];
     }
-    if (selectedSourceId === DEFAULTS_SOURCE_ID) {
-      return [{ title: 'BetterCord Sounds', sounds: DEFAULT_SOUNDS }];
-    }
+    if (!selectedSourceId) return [];
     const boards = spaceMap.get(selectedSourceId) ?? [];
-    return boards.map((b) => ({
-      title: b.content.name,
-      sounds: Object.values(b.content.sounds),
+    return boards.map((board) => ({
+      title: board.content.name,
+      sounds: Object.values(board.content.sounds),
     }));
   }, [isSearching, search, allSounds, selectedSourceId, spaceMap]);
 
   return (
     <div className={styles.panel} ref={panelRef}>
-      {/* Header */}
       <div className={styles.header}>
         <div className={styles.searchWrap}>
           <MagnifyingGlass size={14} className={styles.searchIcon} />
@@ -316,7 +234,6 @@ export function SoundboardPanel({ onClose }: SoundboardPanelProps) {
         </div>
 
         <div className={styles.headerActions}>
-          {/* Volume control */}
           <div className={styles.volumeWrap}>
             <VolumeButton onClick={() => setShowVolumeSlider((v) => !v)} active={showVolumeSlider} />
             {showVolumeSlider && (
@@ -336,14 +253,12 @@ export function SoundboardPanel({ onClose }: SoundboardPanelProps) {
             )}
           </div>
 
-          {/* Close */}
-          <button className={styles.closeBtn} onClick={onClose} aria-label="Soundboard schließen">
+          <button className={styles.closeBtn} onClick={onClose} aria-label="Soundboard schliessen">
             <X size={14} />
           </button>
         </div>
       </div>
 
-      {/* Body: rail + content */}
       <div className={styles.body}>
         <SoundboardSourceRail
           sources={sources}
@@ -352,7 +267,6 @@ export function SoundboardPanel({ onClose }: SoundboardPanelProps) {
         />
 
         <div className={styles.content}>
-          {/* Favorites section (always shown at top, outside source filter) */}
           {!isSearching && favoriteSoundItems.length > 0 && (
             <SoundboardSection
               title="Meine Favoriten"
@@ -366,11 +280,11 @@ export function SoundboardPanel({ onClose }: SoundboardPanelProps) {
             />
           )}
 
-          {sections.map((sec) => (
+          {sections.map((section) => (
             <SoundboardSection
-              key={sec.title}
-              title={sec.title}
-              sounds={sec.sounds}
+              key={section.title}
+              title={section.title}
+              sounds={section.sounds}
               playingUrls={playingUrls}
               favoriteIds={favoriteIds}
               onPlay={handlePlay}
@@ -380,7 +294,7 @@ export function SoundboardPanel({ onClose }: SoundboardPanelProps) {
             />
           ))}
 
-          {sections.every((s) => s.sounds.length === 0) && !favoriteSoundItems.length && (
+          {sections.every((section) => section.sounds.length === 0) && !favoriteSoundItems.length && (
             <div className={styles.emptyState}>Keine Sounds</div>
           )}
         </div>

@@ -1,5 +1,5 @@
 import React from 'react';
-import { Badge, Box, Text, config } from 'folds';
+import { Box, Text, config } from 'folds';
 import { useAtomValue } from 'jotai';
 import { useMatrixClient } from '../../../hooks/useMatrixClient';
 import { roomToParentsAtom } from '../../../state/room/roomToParents';
@@ -21,8 +21,8 @@ export function ActiveCallsSection() {
   return (
     <NavCategory>
       <NavCategoryHeader>
-        <Text size="O400" style={{ textTransform: 'uppercase', letterSpacing: '0.06em' }}>
-          Voice Active
+        <Text size="O400">
+          Active calls
         </Text>
       </NavCategoryHeader>
       {activeCallRooms.map((room) => {
@@ -45,11 +45,9 @@ export function ActiveCallsSection() {
                   paddingTop: config.space.S100,
                 }}
               >
-                <Badge size="200" variant="Secondary" fill="Soft" radii="Pill" outlined={false}>
-                  <Text as="span" size="L400" style={{ fontSize: '10px', fontWeight: 600 }}>
-                    {parentSpace.name}
-                  </Text>
-                </Badge>
+                <Text as="span" size="T200" style={{ color: 'var(--text-muted)' }}>
+                  {parentSpace.name}
+                </Text>
               </Box>
             )}
             <RoomNavItem

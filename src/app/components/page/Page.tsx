@@ -66,6 +66,7 @@ export function PageNavContent({
   return (
     <Box grow="Yes" direction="Column">
       <Scroll
+        className={css.PageNavScroll}
         ref={scrollRef}
         variant="Background"
         direction="Vertical"

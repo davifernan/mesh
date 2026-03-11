@@ -64,6 +64,21 @@ export const PageNavContent = style({
   paddingBottom: config.space.S700,
 });
 
+export const PageNavScroll = style({
+  flexGrow: 1,
+  minHeight: 0,
+  '@media': {
+    '(max-width: 750px)': {
+      scrollbarWidth: 'none',
+      selectors: {
+        '&::-webkit-scrollbar': {
+          display: 'none',
+        },
+      },
+    },
+  },
+});
+
 export const PageNavDock = style({
   position: 'relative',
   zIndex: 90,

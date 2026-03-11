@@ -116,7 +116,7 @@
   width: 30px;
   height: 30px;
   border: none;
-  border-radius: 9999px;
+  border-radius: 6px;
   background: rgba(0, 0, 0, 0.68);
   color: var(--text-primary);
   display: inline-flex;
@@ -149,8 +149,8 @@
   bottom: 0;
   left: 0;
   right: 0;
-  padding: 20px 10px 7px;
-  background: linear-gradient(transparent, rgba(0, 0, 0, 0.75));
+  padding: 8px 10px 7px;
+  background: rgba(0, 0, 0, 0.75);
   font-size: 12px;
   color: var(--text-primary);
   display: flex;
@@ -161,7 +161,7 @@
 .watchBtn {
   margin-left: auto;
   border: none;
-  border-radius: 9999px;
+  border-radius: 6px;
   background: rgba(255, 255, 255, 0.18);
   color: var(--text-primary);
   font-size: 11px;
@@ -184,13 +184,12 @@
   font-size: 11px;
   font-weight: 600;
   padding: 3px 8px;
-  border-radius: 9999px;
+  border-radius: 6px;
   display: flex;
   align-items: center;
   gap: 4px;
   z-index: 11;
   pointer-events: none;
-  backdrop-filter: blur(4px);
 }
 
 /* ── Two-participant vertical split ───────────────────────────────────────── */
@@ -254,7 +253,7 @@
   transform: translateX(-50%);
   background: var(--voice-surface-1);
   border: none;
-  border-radius: 9999px;
+  border-radius: 6px;
   padding: 4px 12px;
   cursor: pointer;
   color: var(--text-secondary);
@@ -262,4 +261,9 @@
   align-items: center;
   gap: 4px;
   font-size: 12px;
+}
+
+.carouselToggle:focus-visible {
+  outline: 2px solid var(--brand-primary);
+  outline-offset: 2px;
 }

@@ -1,8 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { WidgetApi } from 'matrix-widget-api';
-import { WidgetApiToWidgetAction } from 'matrix-widget-api';
-
-// ── Types ──────────────────────────────────────────────────────────────────────
+import { WidgetApi, WidgetApiToWidgetAction } from 'matrix-widget-api';
 
 interface Props {
   widgetApi: WidgetApi;
@@ -14,9 +11,11 @@ interface SpotifyStateContent {
   updatedAt: number;
 }
 
-type SpotifyContentType = 'track' | 'album' | 'playlist' | 'episode' | 'artist' | null;
+interface SpotifyCommandContent extends SpotifyStateContent {
+  action: 'load';
+}
 
-// ── URL normalization ──────────────────────────────────────────────────────────
+type SpotifyContentType = 'track' | 'album' | 'playlist' | 'episode' | 'artist' | null;
 
 const SPOTIFY_TYPES = ['track', 'album', 'playlist', 'episode', 'artist'] as const;
 
@@ -24,7 +23,6 @@ function toSpotifyEmbedUrl(input: string): string | null {
   try {
     const trimmed = input.trim();
 
-    // Handle spotify: URI scheme e.g. spotify:track:ID
     if (trimmed.startsWith('spotify:')) {
       const parts = trimmed.slice('spotify:'.length).split(':');
       if (parts.length >= 2) {
@@ -42,12 +40,10 @@ function toSpotifyEmbedUrl(input: string): string | null {
 
     let parts = url.pathname.split('/').filter(Boolean);
 
-    // Strip localization prefix like intl-de, intl-fr, etc.
     if (parts.length > 0 && /^intl-[a-z]+$/i.test(parts[0])) {
       parts = parts.slice(1);
     }
 
-    // Already an embed URL: /embed/track/ID
     if (parts[0] === 'embed' && parts.length >= 3) {
       const type = parts[1];
       if (SPOTIFY_TYPES.includes(type as (typeof SPOTIFY_TYPES)[number])) {
@@ -55,17 +51,27 @@ function toSpotifyEmbedUrl(input: string): string | null {
       }
       return null;
     }
-    // Regular URL: /track/ID
+
     if (parts.length >= 2) {
       const type = parts[0];
       if (SPOTIFY_TYPES.includes(type as (typeof SPOTIFY_TYPES)[number])) {
         return `https://open.spotify.com/embed/${parts[0]}/${parts[1]}`;
       }
     }
+
     return null;
   } catch {
     return null;
   }
+}
+
+function toSpotifyState(content: Partial<SpotifyStateContent> | undefined): SpotifyStateContent | null {
+  if (!content?.embedUrl) return null;
+  return {
+    embedUrl: content.embedUrl,
+    addedBy: content.addedBy ?? '',
+    updatedAt: content.updatedAt ?? Date.now(),
+  };
 }
 
 function getContentType(embedUrl: string | null): SpotifyContentType {
@@ -73,7 +79,6 @@ function getContentType(embedUrl: string | null): SpotifyContentType {
   try {
     const url = new URL(embedUrl);
     const parts = url.pathname.split('/').filter(Boolean);
-    // /embed/track/ID → parts[1]
     if (parts[0] === 'embed' && parts.length >= 2) {
       return parts[1] as SpotifyContentType;
     }
@@ -93,8 +98,6 @@ function formatContentLabel(type: SpotifyContentType): string {
     default: return 'Content';
   }
 }
-
-// ── Styles ────────────────────────────────────────────────────────────────────
 
 const S = {
   root: {
@@ -199,8 +202,6 @@ const S = {
   },
 } as const;
 
-// ── Component ─────────────────────────────────────────────────────────────────
-
 export function SpotifyApp({ widgetApi }: Props) {
   const [embedUrl, setEmbedUrl] = useState<string | null>(null);
   const [addedBy, setAddedBy] = useState<string>('');
@@ -208,47 +209,72 @@ export function SpotifyApp({ widgetApi }: Props) {
   const [sendError, setSendError] = useState<string | null>(null);
   const [sending, setSending] = useState(false);
 
-  // Load initial state on mount
+  const stateRef = useRef<SpotifyStateContent | null>(null);
+  const currentUserId = new URLSearchParams(window.location.search).get('userId') ?? 'you';
+
+  const applyState = useCallback((nextState: SpotifyStateContent) => {
+    const current = stateRef.current;
+    if (current && current.updatedAt > nextState.updatedAt) return;
+
+    stateRef.current = nextState;
+    setEmbedUrl(nextState.embedUrl);
+    setAddedBy(nextState.addedBy);
+    setSendError(null);
+  }, []);
+
+  const persistStateBestEffort = useCallback(
+    (nextState: SpotifyStateContent) => {
+      void widgetApi.sendStateEvent('eu.bettercord.apps.spotify', '', nextState).catch(() => undefined);
+    },
+    [widgetApi]
+  );
+
   useEffect(() => {
     let cancelled = false;
+
     async function load() {
       try {
         const events = await widgetApi.readStateEvents('eu.bettercord.apps.spotify', 1);
         if (cancelled) return;
-        const latest = events[0];
-        if (latest) {
-          const c = latest.content as Partial<SpotifyStateContent>;
-          if (c?.embedUrl) {
-            setEmbedUrl(c.embedUrl);
-            setAddedBy(c.addedBy ?? '');
-          }
-        }
+        const nextState = toSpotifyState(events[0]?.content as Partial<SpotifyStateContent> | undefined);
+        if (nextState) applyState(nextState);
       } catch {
-        // State event not found yet — that's fine, show empty state
+        // State event not found yet — that's fine.
       }
     }
-    load();
-    return () => { cancelled = true; };
-  }, [widgetApi]);
 
-  // Subscribe to live state updates
+    load();
+    return () => {
+      cancelled = true;
+    };
+  }, [widgetApi, applyState]);
+
   useEffect(() => {
     const eventName = `action:${WidgetApiToWidgetAction.SendEvent}`;
+
     const handler = (actionEv: any) => {
       const event = actionEv?.detail?.data ?? actionEv;
       if (!event?.type) return;
+
+      if (event.type === 'eu.bettercord.apps.spotify.cmd') {
+        const cmd = event.content as Partial<SpotifyCommandContent> | undefined;
+        if (cmd?.action !== 'load') return;
+        const nextState = toSpotifyState(cmd);
+        if (nextState) applyState(nextState);
+        return;
+      }
+
       if (event.type === 'eu.bettercord.apps.spotify') {
-        const c = event.content as Partial<SpotifyStateContent>;
-        if (c?.embedUrl) {
-          setEmbedUrl(c.embedUrl);
-          setAddedBy(c.addedBy ?? '');
-          setSendError(null);
-        }
+        const nextState = toSpotifyState(event.content as Partial<SpotifyStateContent> | undefined);
+        if (nextState) applyState(nextState);
       }
     };
+
     widgetApi.on(eventName, handler);
-    return () => { widgetApi.off(eventName, handler); };
-  }, [widgetApi]);
+    return () => {
+      widgetApi.off(eventName, handler);
+    };
+  }, [widgetApi, applyState]);
 
   const handleLoad = useCallback(async () => {
     const normalized = toSpotifyEmbedUrl(urlInput);
@@ -256,39 +282,40 @@ export function SpotifyApp({ widgetApi }: Props) {
       setSendError('Invalid Spotify URL');
       return;
     }
+
+    const nextState: SpotifyStateContent = {
+      embedUrl: normalized,
+      addedBy: currentUserId,
+      updatedAt: Date.now(),
+    };
+
     setSending(true);
     setSendError(null);
+
     try {
-      await widgetApi.sendStateEvent('eu.bettercord.apps.spotify', '', {
-        embedUrl: normalized,
-        addedBy: new URLSearchParams(window.location.search).get('userId') ?? 'you',
-        updatedAt: Date.now(),
-      });
-      setEmbedUrl(normalized);
-      setAddedBy(new URLSearchParams(window.location.search).get('userId') ?? 'you');
+      await widgetApi.sendRoomEvent('eu.bettercord.apps.spotify.cmd', {
+        action: 'load',
+        ...nextState,
+      } satisfies SpotifyCommandContent);
+      applyState(nextState);
       setUrlInput('');
+      persistStateBestEffort(nextState);
     } catch (err: any) {
       const msg = String(err?.message ?? err ?? '');
-      if (msg.toLowerCase().includes('permission') || msg.toLowerCase().includes('power') || msg.toLowerCase().includes('denied')) {
-        setSendError('Only moderators can change this');
-      } else {
-        setSendError(`Failed to update: ${msg || 'unknown error'}`);
-      }
+      setSendError(msg ? `Failed to sync: ${msg}` : 'Failed to sync Spotify link');
     } finally {
       setSending(false);
     }
-  }, [urlInput, widgetApi]);
+  }, [urlInput, currentUserId, widgetApi, applyState, persistStateBestEffort]);
 
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent<HTMLInputElement>) => {
       if (e.key === 'Enter') handleLoad();
     },
-    [handleLoad],
+    [handleLoad]
   );
 
   const contentType = getContentType(embedUrl);
-
-  // ── Bottom bar (shared between empty + loaded states) ──────────────────────
 
   const bottomBar = (
     <div style={S.bottomBar}>
@@ -303,7 +330,10 @@ export function SpotifyApp({ widgetApi }: Props) {
         type="text"
         placeholder="Paste Spotify track / album / playlist URL…"
         value={urlInput}
-        onChange={(e) => { setUrlInput(e.target.value); setSendError(null); }}
+        onChange={(e) => {
+          setUrlInput(e.target.value);
+          setSendError(null);
+        }}
         onKeyDown={handleKeyDown}
         disabled={sending}
         aria-label="Spotify URL input"
@@ -323,8 +353,6 @@ export function SpotifyApp({ widgetApi }: Props) {
     </div>
   );
 
-  // ── Empty state ────────────────────────────────────────────────────────────
-
   if (!embedUrl) {
     return (
       <div style={S.root}>
@@ -339,8 +367,6 @@ export function SpotifyApp({ widgetApi }: Props) {
       </div>
     );
   }
-
-  // ── Loaded state ───────────────────────────────────────────────────────────
 
   return (
     <div style={S.root}>

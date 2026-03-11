@@ -13,6 +13,8 @@ export function GifItem({ gif, isFavorite, onSelect, onToggleFavorite }: GifItem
   const [imgError, setImgError] = useState(false);
   const [hovered, setHovered] = useState(false);
 
+  const showOverlay = hovered || isFavorite;
+
   const handleBodyClick = () => {
     onSelect(gif);
   };
@@ -26,16 +28,23 @@ export function GifItem({ gif, isFavorite, onSelect, onToggleFavorite }: GifItem
     <div
       role="button"
       tabIndex={0}
+      aria-label={gif.title || 'GIF'}
       onClick={handleBodyClick}
-      onKeyDown={(e) => e.key === 'Enter' && handleBodyClick()}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          handleBodyClick();
+        }
+      }}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
       style={{
         position: 'relative',
         cursor: 'pointer',
-        borderRadius: '6px',
+        borderRadius: '8px',
         overflow: 'hidden',
-        background: 'var(--bg-surface-low, #1e1f22)',
+        background: 'var(--background-secondary)',
+        border: '1px solid rgba(255, 255, 255, 0.06)',
         aspectRatio: gif.width && gif.height ? `${gif.width} / ${gif.height}` : '16 / 9',
       }}
     >
@@ -48,8 +57,8 @@ export function GifItem({ gif, isFavorite, onSelect, onToggleFavorite }: GifItem
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            background: 'var(--bg-surface-low, #1e1f22)',
-            color: 'var(--text-secondary, #b5bac1)',
+            background: 'var(--background-secondary)',
+            color: 'var(--text-secondary)',
             fontSize: '12px',
           }}
         >
@@ -70,59 +79,52 @@ export function GifItem({ gif, isFavorite, onSelect, onToggleFavorite }: GifItem
         />
       )}
 
-      {/* Hover overlay */}
-      {hovered && (
+      {showOverlay && (
         <div
           style={{
             position: 'absolute',
             inset: 0,
-            background: 'rgba(0,0,0,0.4)',
+            background: 'rgba(0, 0, 0, 0.4)',
             display: 'flex',
             flexDirection: 'column',
             justifyContent: 'space-between',
-            padding: '4px',
+            padding: '6px',
           }}
         >
-          {/* Star button top-right */}
           <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
             <button
               type="button"
               onClick={handleStarClick}
               aria-label={isFavorite ? 'Remove from favorites' : 'Add to favorites'}
               style={{
-                background: 'rgba(0,0,0,0.6)',
-                border: 'none',
-                borderRadius: '50%',
-                width: '24px',
-                height: '24px',
+                background: 'rgba(0, 0, 0, 0.6)',
+                border: '1px solid rgba(255, 255, 255, 0.12)',
+                borderRadius: '6px',
+                width: '26px',
+                height: '26px',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
                 cursor: 'pointer',
-                color: isFavorite ? '#f0b132' : '#fff',
+                color: isFavorite ? '#f0b132' : 'var(--text-muted)',
                 padding: 0,
               }}
             >
-              <Icon
-                src={Icons.Star}
-                size="100"
-                filled={isFavorite}
-              />
+              <Icon src={Icons.Star} size="100" filled={isFavorite} />
             </button>
           </div>
 
-          {/* Title overlay bottom */}
           {gif.title && (
             <div
               style={{
                 fontSize: '10px',
-                color: '#fff',
+                color: 'var(--text-primary)',
                 overflow: 'hidden',
                 textOverflow: 'ellipsis',
                 whiteSpace: 'nowrap',
-                background: 'rgba(0,0,0,0.5)',
-                borderRadius: '3px',
-                padding: '2px 4px',
+                background: 'rgba(0, 0, 0, 0.6)',
+                borderRadius: '4px',
+                padding: '3px 5px',
               }}
             >
               {gif.title}

@@ -8,7 +8,6 @@ import React, {
   useState,
 } from 'react';
 import { useAtom, useAtomValue } from 'jotai';
-import { spaceUploadSettingsAtom } from '../../state/uploadSettings';
 import { isKeyHotkey } from 'is-hotkey';
 import { EventType, IContent, MsgType, RelationType, Room } from 'matrix-js-sdk';
 import { ReactEditor } from 'slate-react';
@@ -29,6 +28,7 @@ import {
   config,
   toRem,
 } from 'folds';
+import { spaceUploadSettingsAtom } from '../../state/uploadSettings';
 
 import { useMatrixClient } from '../../hooks/useMatrixClient';
 import {
@@ -142,7 +142,7 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
     const direct = useIsDirectRoom();
     const { hashRouter } = useClientConfig();
     const commands = useCommands(mx, room);
-    const emojiBtnRef = useRef<HTMLButtonElement>(null);
+    const pickerBtnRef = useRef<HTMLButtonElement>(null);
     const roomToParents = useAtomValue(roomToParentsAtom);
     const powerLevels = usePowerLevelsContext();
     const creators = useRoomCreators(room);
@@ -203,7 +203,9 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
             const maxMb = Math.round(maxBytes / (1024 * 1024));
             const names = rejected.map((f) => f.name).join(', ');
             setUploadSizeError(
-              `${rejected.length} Datei${rejected.length > 1 ? 'en' : ''} abgelehnt (>${maxMb} MB): ${names}`
+              `${rejected.length} Datei${
+                rejected.length > 1 ? 'en' : ''
+              } abgelehnt (>${maxMb} MB): ${names}`
             );
           }
           if (filesToProcess.length === 0) return;
@@ -246,13 +248,13 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
     const pickFile = useFilePicker(handleFiles, true);
     const handlePaste = useFilePasteHandler(handleFiles);
     const dropZoneVisible = useFileDropZone(fileDropContainerRef, handleFiles);
-    const [hideStickerBtn, setHideStickerBtn] = useState(document.body.clientWidth < 500);
+    const [isNarrowPicker, setIsNarrowPicker] = useState(document.body.clientWidth < 500);
 
     const isComposing = useComposingCheck();
 
     useElementSizeObserver(
       useCallback(() => document.body, []),
-      useCallback((width) => setHideStickerBtn(width < 500), [])
+      useCallback((width) => setIsNarrowPicker(width < 500), [])
     );
 
     useEffect(() => {
@@ -380,7 +382,8 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
         body,
       };
 
-      if (replyDraft && replyDraft.userId !== mx.getUserId()) {
+      const currentUserId = mx.getUserId();
+      if (replyDraft && currentUserId && replyDraft.userId !== currentUserId) {
         mentionData.users.add(replyDraft.userId);
       }
 
@@ -469,7 +472,17 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
           }
         }
       },
-      [submit, setReplyDraft, enterForNewline, autocompleteQuery, isComposing, editId, setEditId, mx, roomId]
+      [
+        submit,
+        setReplyDraft,
+        enterForNewline,
+        autocompleteQuery,
+        isComposing,
+        editId,
+        setEditId,
+        mx,
+        roomId,
+      ]
     );
 
     const handleKeyUp: KeyboardEventHandler = useCallback(
@@ -728,7 +741,7 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
                     anchor={
                       emojiBoardTab === undefined
                         ? undefined
-                        : emojiBtnRef.current?.getBoundingClientRect() ?? undefined
+                        : pickerBtnRef.current?.getBoundingClientRect() ?? undefined
                     }
                     content={
                       <EmojiBoard
@@ -753,7 +766,7 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
                       />
                     }
                   >
-                    {!hideStickerBtn && (
+                    {!isNarrowPicker && (
                       <>
                         <IconButton
                           aria-label="Open GIF picker"
@@ -763,10 +776,7 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
                           size="300"
                           radii="300"
                         >
-                          <Icon
-                            src={Icons.Photo}
-                            filled={emojiBoardTab === EmojiBoardTab.GIF}
-                          />
+                          <Icon src={Icons.Photo} filled={emojiBoardTab === EmojiBoardTab.GIF} />
                         </IconButton>
                         <IconButton
                           aria-label="Open sticker picker"
@@ -783,28 +793,53 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
                         </IconButton>
                       </>
                     )}
-                    <IconButton
-                      ref={emojiBtnRef}
-                      aria-label="Open emoji picker"
-                      aria-pressed={
-                        hideStickerBtn ? !!emojiBoardTab : emojiBoardTab === EmojiBoardTab.Emoji
-                      }
-                      onClick={() => setEmojiBoardTab(EmojiBoardTab.Emoji)}
-                      variant="SurfaceVariant"
-                      size="300"
-                      radii="300"
-                    >
-                      <Icon
-                        src={Icons.Smile}
-                        filled={
-                          hideStickerBtn ? !!emojiBoardTab : emojiBoardTab === EmojiBoardTab.Emoji
-                        }
-                      />
-                    </IconButton>
+                    {isNarrowPicker ? (
+                      <button
+                        type="button"
+                        ref={pickerBtnRef}
+                        aria-label="Open GIF picker"
+                        aria-pressed={!!emojiBoardTab}
+                        onClick={() => setEmojiBoardTab(EmojiBoardTab.GIF)}
+                        style={{
+                          cursor: 'pointer',
+                          minWidth: toRem(42),
+                          minHeight: toRem(32),
+                          padding: `0 ${config.space.S200}`,
+                          border: 'none',
+                          borderRadius: toRem(8),
+                          background: emojiBoardTab
+                            ? 'var(--background-secondary)'
+                            : 'var(--background-tertiary)',
+                          color: 'var(--text-primary)',
+                        }}
+                      >
+                        <Text as="span" size="L400">
+                          GIF
+                        </Text>
+                      </button>
+                    ) : (
+                      <IconButton
+                        ref={pickerBtnRef}
+                        aria-label="Open emoji picker"
+                        aria-pressed={emojiBoardTab === EmojiBoardTab.Emoji}
+                        onClick={() => setEmojiBoardTab(EmojiBoardTab.Emoji)}
+                        variant="SurfaceVariant"
+                        size="300"
+                        radii="300"
+                      >
+                        <Icon src={Icons.Smile} filled={emojiBoardTab === EmojiBoardTab.Emoji} />
+                      </IconButton>
+                    )}
                   </PopOut>
                 )}
               </UseStateProvider>
-              <IconButton onClick={submit} aria-label="Send message" variant="SurfaceVariant" size="300" radii="300">
+              <IconButton
+                onClick={submit}
+                aria-label="Send message"
+                variant="SurfaceVariant"
+                size="300"
+                radii="300"
+              >
                 <Icon src={Icons.Send} />
               </IconButton>
             </>

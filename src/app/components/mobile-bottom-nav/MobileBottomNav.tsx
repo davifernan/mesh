@@ -1,10 +1,8 @@
 import React, { useEffect } from 'react';
 import { NavLink } from 'react-router-dom';
-import { House, ChatCircle, Bell, MagnifyingGlass, List, User, X } from '@phosphor-icons/react';
-import { useSetAtom } from 'jotai';
+import { House, ChatCircle, Bell, List, X } from '@phosphor-icons/react';
 import { ScreenSize, useScreenSizeContext } from '../../hooks/useScreenSize';
-import { HOME_PATH, DIRECT_PATH, INBOX_PATH, EXPLORE_PATH } from '../../pages/paths';
-import { openUserSettingsAtom } from '../../state/keyboardShortcutsHelp';
+import { HOME_PATH, DIRECT_PATH, INBOX_PATH } from '../../pages/paths';
 import { useMobileDrawer } from '../mobile-drawer';
 import { useCallStateOptional } from '../../pages/client/call/CallProvider';
 import * as css from './MobileBottomNav.css';
@@ -62,7 +60,6 @@ function ButtonTab({
 
 export function MobileBottomNav() {
   const screenSize = useScreenSizeContext();
-  const setOpenUserSettings = useSetAtom(openUserSettingsAtom);
   const { isOpen, toggle, close } = useMobileDrawer();
   const callState = useCallStateOptional();
   const hideForActiveCall =
@@ -94,20 +91,6 @@ export function MobileBottomNav() {
       <NavTab to={HOME_PATH} icon={<House size={22} weight="fill" />} label="Home" onClick={close} />
       <NavTab to={DIRECT_PATH} icon={<ChatCircle size={22} weight="fill" />} label="DMs" onClick={close} />
       <NavTab to={INBOX_PATH} icon={<Bell size={22} weight="fill" />} label="Inbox" onClick={close} />
-      <NavTab
-        to={EXPLORE_PATH}
-        icon={<MagnifyingGlass size={22} weight="bold" />}
-        label="Explore"
-        onClick={close}
-      />
-      <ButtonTab
-        icon={<User size={22} weight="regular" />}
-        label="Profile"
-        onClick={() => {
-          close();
-          setOpenUserSettings(true);
-        }}
-      />
     </nav>
   );
 }

@@ -4,17 +4,13 @@
  * Active apps immediately appear as tiles in the call participant grid.
  */
 import React, { useRef, useEffect, useState } from 'react';
-import { Direction } from 'matrix-js-sdk';
 import { useMatrixClient } from '../../../hooks/useMatrixClient';
 import { useCallState } from './CallProvider';
 import { useRoomWidgets } from '../../../hooks/useRoomWidgets';
 import { getAppCatalog, AppCatalogEntry } from '../../../state/microappCatalog';
-// Side-effect import: registers all catalog apps so getAppCatalog() is populated
-// even when the user enters a call without ever opening the chat/widgets drawer.
 import '../../../../apps/index';
 import styles from './ActivityPicker.module.css';
 
-/** Substitute Matrix widget template variables. */
 function substituteTemplateVars(url: string, mx: ReturnType<typeof useMatrixClient>, roomId: string, widgetId: string): string {
   const userId = mx.getUserId() ?? '';
   const user = mx.getUser(userId);
@@ -41,15 +37,8 @@ export function ActivityPicker({ onClose }: ActivityPickerProps) {
   const catalog = getAppCatalog();
   const pickerRef = useRef<HTMLDivElement>(null);
   const [loading, setLoading] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
-  // Can the local user manage widgets in this room?
-  const canManage = room
-    ? room.getLiveTimeline().getState(Direction.Forward)
-        ?.maySendStateEvent('im.vector.modular.widgets', mx.getUserId()!)
-        ?? false
-    : false;
-
-  // Close when clicking outside the picker
   useEffect(() => {
     const handler = (e: MouseEvent) => {
       if (pickerRef.current && !pickerRef.current.contains(e.target as Node)) {
@@ -61,24 +50,30 @@ export function ActivityPicker({ onClose }: ActivityPickerProps) {
   }, [onClose]);
 
   const handleToggle = async (entry: AppCatalogEntry) => {
-    if (!room || !canManage || loading) return;
-    const isActive = activeWidgets.some((w) => w.id === entry.id);
+    if (!room || loading) return;
+    const isActive = activeWidgets.some((widget) => widget.id === entry.id);
     setLoading(entry.id);
+    setError(null);
+
     try {
       if (isActive) {
-        // Remove: empty content = widget removed
         await (mx as any).sendStateEvent(room.roomId, 'im.vector.modular.widgets', {}, entry.id);
       } else {
         const resolvedUrl = substituteTemplateVars(entry.widgetUrl, mx, room.roomId, entry.id);
-        await (mx as any).sendStateEvent(room.roomId, 'im.vector.modular.widgets', {
-          type: 'm.custom',
-          url: resolvedUrl,
-          name: entry.name,
-          id: entry.id,
-        }, entry.id);
+        await (mx as any).sendStateEvent(
+          room.roomId,
+          'im.vector.modular.widgets',
+          {
+            type: 'm.custom',
+            url: resolvedUrl,
+            name: entry.name,
+            id: entry.id,
+          },
+          entry.id
+        );
       }
     } catch {
-      // Silently ignore — e.g. no permission
+      setError('Could not update this activity in the room.');
     } finally {
       setLoading(null);
     }
@@ -93,16 +88,16 @@ export function ActivityPicker({ onClose }: ActivityPickerProps) {
       ) : (
         <div className={styles.grid}>
           {catalog.map((entry) => {
-            const isActive = activeWidgets.some((w) => w.id === entry.id);
+            const isActive = activeWidgets.some((widget) => widget.id === entry.id);
             const isLoading = loading === entry.id;
             return (
               <button
                 key={entry.id}
                 type="button"
-                className={`${styles.card}${isActive ? ` ${styles.cardActive}` : ''}${!canManage ? ` ${styles.cardDisabled}` : ''}`}
+                className={`${styles.card}${isActive ? ` ${styles.cardActive}` : ''}`}
                 onClick={() => void handleToggle(entry)}
-                disabled={isLoading || !canManage}
-                title={canManage ? entry.description : 'No permission to manage widgets'}
+                disabled={isLoading}
+                title={entry.description}
               >
                 <span className={styles.cardIcon} aria-hidden="true">
                   {isLoading ? '⏳' : entry.icon}
@@ -115,9 +110,7 @@ export function ActivityPicker({ onClose }: ActivityPickerProps) {
         </div>
       )}
 
-      {!canManage && room && (
-        <p className={styles.noPermission}>Need Manage Widgets permission</p>
-      )}
+      {error && <p className={styles.noPermission}>{error}</p>}
     </div>
   );
 }

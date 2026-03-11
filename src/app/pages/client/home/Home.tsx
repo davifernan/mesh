@@ -94,7 +94,7 @@ const HomeMenu = forwardRef<HTMLDivElement, HomeMenuProps>(({ requestClose }, re
   };
 
   return (
-    <Menu role="menu" ref={ref} style={{ maxWidth: toRem(160), width: '100vw' }}>
+    <Menu role="menu" ref={ref} style={{ maxWidth: toRem(160) }}>
       <Box direction="Column" gap="100" style={{ padding: config.space.S100 }}>
         <MenuItem
           onClick={() => setRoomSortOrder('activity')}
@@ -159,48 +159,9 @@ function HomeHeader() {
       <PageNavHeader>
         <Box alignItems="Center" grow="Yes" gap="300">
           <Box grow="Yes" style={{ overflow: 'hidden' }}>
-            <div
-              style={{
-                height: '1.0625rem',
-                overflow: 'hidden',
-                display: 'flex',
-                flexDirection: 'column',
-              }}
-            >
-              <span
-                className="bc-header-title"
-                style={{
-                  flexShrink: 0,
-                  height: '1.0625rem',
-                  lineHeight: '1.0625rem',
-                  fontSize: '1rem',
-                  fontWeight: 600,
-                  color: 'var(--text-primary)',
-                  whiteSpace: 'nowrap',
-                  overflow: 'hidden',
-                  textOverflow: 'ellipsis',
-                }}
-              >
+            <Text size="H4" as="h1" truncate>
                 Home
-              </span>
-              <span
-                className="bc-header-subtitle"
-                style={{
-                  flexShrink: 0,
-                  height: '1.0625rem',
-                  lineHeight: '1.0625rem',
-                  fontSize: '0.6875rem',
-                  fontWeight: 400,
-                  color: 'var(--text-muted)',
-                  whiteSpace: 'nowrap',
-                  overflow: 'hidden',
-                  textOverflow: 'ellipsis',
-                  opacity: 0,
-                }}
-              >
-                Your rooms
-              </span>
-            </div>
+            </Text>
           </Box>
           <Box>
             <IconButton aria-pressed={!!menuAnchor} variant="Background" onClick={handleOpenMenu}>
@@ -474,6 +435,7 @@ export function Home() {
                   style={{
                     position: 'relative',
                     height: virtualizer.getTotalSize(),
+                    width: '100%',
                   }}
                 >
                   {virtualizer.getVirtualItems().map((vItem) => {

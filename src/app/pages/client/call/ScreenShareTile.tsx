@@ -7,6 +7,14 @@ import { VideoTrack, type TrackReference, useRoomContext } from '@livekit/compon
 import { Track, RoomEvent, type Room } from 'livekit-client';
 import { Monitor, CornersOut, ArrowSquareOut, Eye } from '@phosphor-icons/react';
 import { playViewerJoinSound, playViewerLeaveSound } from '../../../utils/sounds';
+import {
+  addFullscreenListeners,
+  enterVideoFullscreen,
+  exitFullscreen,
+  isElementFullscreen,
+  isVideoFullscreen,
+  requestElementFullscreen,
+} from './fullscreenUtils';
 import styles from './NativeCallParticipantGrid.module.css';
 
 /** Tracks how many participants are watching a screen share track. */
@@ -92,11 +100,25 @@ export function ScreenShareTile({
 
   useEffect(() => {
     const onFullscreenChange = () => {
-      setIsFullscreen(document.fullscreenElement === tileRef.current);
+      setIsFullscreen(isElementFullscreen(tileRef.current) || isVideoFullscreen(getVideoElement()));
     };
-    document.addEventListener('fullscreenchange', onFullscreenChange);
-    return () => document.removeEventListener('fullscreenchange', onFullscreenChange);
-  }, []);
+    const cleanup = addFullscreenListeners(document, onFullscreenChange);
+
+    const video = getVideoElement();
+    if (!video) return cleanup;
+
+    const onWebkitBegin = () => setIsFullscreen(true);
+    const onWebkitEnd = () => setIsFullscreen(false);
+
+    video.addEventListener('webkitbeginfullscreen', onWebkitBegin as EventListener);
+    video.addEventListener('webkitendfullscreen', onWebkitEnd as EventListener);
+
+    return () => {
+      cleanup();
+      video.removeEventListener('webkitbeginfullscreen', onWebkitBegin as EventListener);
+      video.removeEventListener('webkitendfullscreen', onWebkitEnd as EventListener);
+    };
+  }, [getVideoElement]);
 
   useEffect(() => {
     const video = getVideoElement();
@@ -113,12 +135,18 @@ export function ScreenShareTile({
 
   const toggleFullscreen = useCallback(async () => {
     if (!tileRef.current) return;
-    if (document.fullscreenElement === tileRef.current) {
-      await document.exitFullscreen();
+    const video = getVideoElement();
+
+    if (isElementFullscreen(tileRef.current) || isVideoFullscreen(video)) {
+      await exitFullscreen();
       return;
     }
-    await tileRef.current.requestFullscreen();
-  }, []);
+
+    const enteredElementFullscreen = await requestElementFullscreen(tileRef.current);
+    if (!enteredElementFullscreen) {
+      enterVideoFullscreen(video);
+    }
+  }, [getVideoElement]);
 
   const togglePiP = useCallback(async () => {
     const video = getVideoElement();

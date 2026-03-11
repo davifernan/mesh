@@ -1,21 +1,19 @@
 /* ── Spaces section (shown on mobile at top of Home) ── */
 .spacesSection {
-  padding: 12px 8px 4px;
+  padding: 10px 8px 2px;
 }
 
 .spacesSectionTitle {
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 600;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
   color: var(--text-secondary);
-  padding: 0 4px 8px;
+  padding: 0 4px 6px;
 }
 
 .spacesGrid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(72px, 1fr));
-  gap: 8px;
+  grid-template-columns: repeat(auto-fill, minmax(68px, 1fr));
+  gap: 6px;
 }
 
 /* Individual space card */
@@ -23,9 +21,9 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 6px;
-  padding: 8px 4px;
-  border-radius: 12px;
+  gap: 5px;
+  padding: 7px 4px;
+  border-radius: 8px;
   cursor: pointer;
   background: none;
   border: none;
@@ -58,18 +56,18 @@
 .spaceAvatar {
   width: 100%;
   height: 100%;
-  border-radius: 16px;
+  border-radius: 12px;
   overflow: hidden;
   display: flex;
   align-items: center;
   justify-content: center;
   background: var(--background-tertiary);
-  transition: border-radius 200ms ease;
+  transition: border-radius 150ms ease;
 }
 
 .spaceCard:hover .spaceAvatar,
 .spaceCardActive .spaceAvatar {
-  border-radius: 12px;
+  border-radius: 8px;
 }
 
 .spaceAvatar img {
@@ -91,6 +89,7 @@
   font-size: 11px;
   font-weight: 500;
   line-height: 1.2;
+  color: inherit;
   max-width: 100%;
   overflow: hidden;
   display: -webkit-box;
@@ -111,7 +110,7 @@
 .sectionDivider {
   height: 1px;
   background: var(--background-modifier-hover);
-  margin: 4px 12px 0;
+  margin: 6px 10px 0;
 }
 
 /* Badge overlays on space avatar — positioned relative to .spaceAvatarWrapper */
@@ -131,7 +130,7 @@
   justify-content: center;
   width: 16px;
   height: 16px;
-  border-radius: 999px;
+  border-radius: 50%;
   background: rgba(17, 18, 20, 0.95);
   box-shadow: 0 0 0 2px var(--background-secondary);
   color: #23A55A;
@@ -147,7 +146,7 @@
   justify-content: center;
   width: 16px;
   height: 16px;
-  border-radius: 999px;
+  border-radius: 50%;
   background: rgba(17, 18, 20, 0.95);
   box-shadow: 0 0 0 2px var(--background-secondary);
   color: #fff;

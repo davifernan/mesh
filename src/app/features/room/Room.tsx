@@ -156,6 +156,7 @@ export function Room() {
   const swipeTouchStartY = useRef<number | null>(null);
   const swipeCurrentTranslate = useRef(0);
   const sheetRef = useRef<HTMLDivElement>(null);
+  const closeSheetTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const SWIPE_CLOSE_THRESHOLD = 80; // px
 
   const handleSheetTouchStart = useCallback((e: React.TouchEvent<HTMLDivElement>) => {
@@ -187,7 +188,8 @@ export function Room() {
         sheetRef.current.style.transition = '';
       }
       setIsSheetClosing(true);
-      setTimeout(() => {
+      if (closeSheetTimeoutRef.current) clearTimeout(closeSheetTimeoutRef.current);
+      closeSheetTimeoutRef.current = setTimeout(() => {
         setIsSheetClosing(false);
         toggleChat();
       }, 220);
@@ -195,11 +197,24 @@ export function Room() {
       // Snap back
       if (sheetRef.current) {
         sheetRef.current.style.transform = '';
-        sheetRef.current.style.transition = 'transform 200ms cubic-bezier(0.22, 1, 0.36, 1)';
+        sheetRef.current.style.transition = 'transform 200ms ease-out';
       }
       swipeCurrentTranslate.current = 0;
     }
   }, [toggleChat]);
+
+  const handleSheetTouchCancel = useCallback(() => {
+    swipeTouchStartY.current = null;
+    swipeCurrentTranslate.current = 0;
+    if (sheetRef.current) {
+      sheetRef.current.style.transform = '';
+      sheetRef.current.style.transition = '';
+    }
+  }, []);
+
+  useEffect(() => () => {
+    if (closeSheetTimeoutRef.current) clearTimeout(closeSheetTimeoutRef.current);
+  }, []);
 
   const handleDividerPointerDown = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
     e.preventDefault();
@@ -214,12 +229,14 @@ export function Room() {
       splitRatioRef.current = ratio;
       setSplitRatio(ratio);
     };
-    const onUp = () => {
+    const cleanup = () => {
       window.removeEventListener('pointermove', onMove);
-      window.removeEventListener('pointerup', onUp);
+      window.removeEventListener('pointerup', cleanup);
+      window.removeEventListener('pointercancel', cleanup);
     };
     window.addEventListener('pointermove', onMove);
-    window.addEventListener('pointerup', onUp);
+    window.addEventListener('pointerup', cleanup);
+    window.addEventListener('pointercancel', cleanup);
   }, []);
 
   useKeyDown(
@@ -310,10 +327,16 @@ export function Room() {
                           ? `${styles.mobileChatSheet} ${styles.mobileChatSheetClosing}`
                           : styles.mobileChatSheet
                       }
-                      onTouchStart={handleSheetTouchStart}
-                      onTouchMove={handleSheetTouchMove}
-                      onTouchEnd={handleSheetTouchEnd}
                     >
+                      <div
+                        className={styles.mobileChatHandle}
+                        onTouchStart={handleSheetTouchStart}
+                        onTouchMove={handleSheetTouchMove}
+                        onTouchEnd={handleSheetTouchEnd}
+                        onTouchCancel={handleSheetTouchCancel}
+                      >
+                        <div className={styles.mobileChatHandleGrip} aria-hidden="true" />
+                      </div>
                       <RoomView room={room} eventId={eventId} />
                     </div>
                   </>

@@ -11,6 +11,8 @@ const widgetApi = new WidgetApi(widgetId, parentUrl);
 
 widgetApi.requestCapabilityToReceiveState('eu.bettercord.apps.spotify');
 widgetApi.requestCapabilityToSendState('eu.bettercord.apps.spotify');
+widgetApi.requestCapabilityToReceiveEvent('eu.bettercord.apps.spotify.cmd');
+widgetApi.requestCapabilityToSendEvent('eu.bettercord.apps.spotify.cmd');
 widgetApi.requestCapabilityToReceiveState('m.room.power_levels');
 
 widgetApi.start();
@@ -23,11 +25,6 @@ widgetApi.once('ready', () => {
   root.render(<SpotifyApp widgetApi={widgetApi} />);
 });
 
-// Fallback: if the Widget API hasn't started after 4s, show a helpful message.
-// Two cases:
-//   - window.parent === window: opened directly in browser, no Matrix host
-//   - window.parent !== window: embedded as plain iframe (e.g. Element Web "Custom widget" UI)
-//     but without the Matrix Widget API handshake (no parentUrl/widgetId params → ready never fires)
 setTimeout(() => {
   if (rendered) return;
   const isInIframe = window.parent !== window;
@@ -35,9 +32,17 @@ setTimeout(() => {
   const root = createRoot(document.getElementById('widget-root')!);
   root.render(
     <div style={{
-      display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
-      height: '100vh', gap: 16, padding: 24, textAlign: 'center', fontFamily: 'system-ui, sans-serif',
-      color: '#b3b3b3', background: '#121212',
+      display: 'flex',
+      flexDirection: 'column',
+      alignItems: 'center',
+      justifyContent: 'center',
+      height: '100vh',
+      gap: 16,
+      padding: 24,
+      textAlign: 'center',
+      fontFamily: 'system-ui, sans-serif',
+      color: '#b3b3b3',
+      background: '#121212',
     }}>
       <div style={{ fontSize: 48 }}>🎵</div>
       <div style={{ fontWeight: 700, fontSize: 20, color: '#1db954' }}>Spotify Together</div>
@@ -53,8 +58,13 @@ setTimeout(() => {
           with developer tools works (Gomuks, Element Web, etc.).
         </p>
         <pre style={{
-          background: '#1a1a1a', padding: '10px 14px', borderRadius: 4,
-          fontSize: 12, overflowX: 'auto', margin: 0, color: '#e0e0e0',
+          background: '#1a1a1a',
+          padding: '10px 14px',
+          borderRadius: 4,
+          fontSize: 12,
+          overflowX: 'auto',
+          margin: 0,
+          color: '#e0e0e0',
         }}>{
 `Event type:  im.vector.modular.widgets
 State key:   eu.bettercord.apps.spotify
@@ -80,8 +90,13 @@ Content:
           slash command in the room chat:
         </p>
         <pre style={{
-          background: '#1a1a1a', padding: '6px 14px', borderRadius: 4,
-          fontSize: 12, overflowX: 'auto', margin: '4px 0', color: '#e0e0e0',
+          background: '#1a1a1a',
+          padding: '6px 14px',
+          borderRadius: 4,
+          fontSize: 12,
+          overflowX: 'auto',
+          margin: '4px 0',
+          color: '#e0e0e0',
         }}>{
           `/addwidget ${window.location.origin + window.location.pathname}?widgetId=$matrix_widget_id&parentUrl=$matrix_client_origin`
         }</pre>

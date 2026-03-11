@@ -109,13 +109,13 @@ export function YoutubeApp({ widgetApi }: Props) {
                 action: 'play',
                 timestamp: playerRef.current?.getCurrentTime?.() ?? 0,
               }).catch(() => {
-                showToast('Only moderators can control playback');
+                showToast('Failed to sync playback');
               });
             } else if (event.data === YT_PAUSED) {
               setIsPlaying(false);
               const ts = playerRef.current?.getCurrentTime?.() ?? 0;
               sendCommand({ action: 'pause', timestamp: ts }).catch(() => {
-                showToast('Only moderators can control playback');
+                showToast('Failed to sync playback');
               });
             } else if (event.data === YT_ENDED) {
               setIsPlaying(false);
@@ -211,7 +211,7 @@ export function YoutubeApp({ widgetApi }: Props) {
         await sendCommand({ action: 'play', timestamp: ts });
       }
     } catch {
-      showToast('Only moderators can control playback');
+      showToast('Failed to sync playback');
     }
   }, [isPlaying, sendCommand, showToast]);
 
@@ -230,7 +230,7 @@ export function YoutubeApp({ widgetApi }: Props) {
     try {
       await sendCommand({ action: 'seek', timestamp: newTs });
     } catch {
-      showToast('Only moderators can control playback');
+      showToast('Failed to sync playback');
     }
   }, [sendCommand, showToast]);
 
@@ -245,7 +245,7 @@ export function YoutubeApp({ widgetApi }: Props) {
       setUrlInput('');
       setShowUrlInput(false);
     } catch {
-      showToast('Only moderators can control playback');
+      showToast('Failed to sync playback');
     }
   }, [urlInput, sendCommand, showToast]);
 
