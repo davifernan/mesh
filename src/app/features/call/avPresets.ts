@@ -205,6 +205,11 @@ export function buildAudioCaptureDefaults(av: AudioCaptureSettings): AudioCaptur
     echoCancellation: av.echoCancellation,
     noiseSuppression: av.noiseSuppression,
     autoGainControl: av.autoGainControl,
+    // CRITICAL: Explicitly set voiceIsolation so it is never eliminated by object spread
+    // in the SDK. Without this, BetterCord's own AudioCaptureOptions replace the SDK
+    // defaults entirely, which drops voiceIsolation and enables Chrome's old WebRTC
+    // noise suppressor (AEC3) — causing the metallic "Blechdosen" sound.
+    voiceIsolation: true,
   };
 }
 
