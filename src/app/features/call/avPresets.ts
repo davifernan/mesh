@@ -51,14 +51,18 @@ export const ScreenSharePresets1440p = {
  *
  * VP8 at 4k needs ~15-20 Mbps for crisp text/UI (content hint 'detail').
  * Motion content at 60/120fps needs even more headroom.
+ *
+ * Issue #67: all 4K presets require maxBitrate ≥ 15 Mbps for legible text at full resolution.
  */
 export const ScreenSharePresets4K = {
-  h2160fps15: new VideoPreset(3840, 2160, 6_000_000, 15, 'high'),
-  h2160fps30: new VideoPreset(3840, 2160, 10_000_000, 30, 'high'),
-  // 4k60: primary aggressive profile — 18 Mbps for legible text at full resolution
-  h2160fps60: new VideoPreset(3840, 2160, 18_000_000, 60, 'high'),
+  // 15fps: minimum viable bitrate for static UI / slides at 4K
+  h2160fps15: new VideoPreset(3840, 2160, 15_000_000, 15, 'high'),
+  // 30fps: higher rate for smooth scrolling / light motion at 4K
+  h2160fps30: new VideoPreset(3840, 2160, 20_000_000, 30, 'high'),
+  // 4k60: primary aggressive profile — headroom for high-motion content
+  h2160fps60: new VideoPreset(3840, 2160, 26_000_000, 60, 'high'),
   // 4k120: maximum quality — high-refresh gaming at 4k
-  h2160fps120: new VideoPreset(3840, 2160, 26_000_000, 120, 'high'),
+  h2160fps120: new VideoPreset(3840, 2160, 35_000_000, 120, 'high'),
 } as const;
 
 // ─── Mapping Functions ────────────────────────────────────────────────────────
