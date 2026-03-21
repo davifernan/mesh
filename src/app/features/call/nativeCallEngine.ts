@@ -27,7 +27,7 @@ import {
   destroySoundboardMixerSingleton,
   type SoundboardMixer,
 } from './soundboardMixer';
-import { publishSoundboardEvent, subscribeSoundboardEvents } from './soundboardDataChannel';
+import { publishSoundboardEvent, subscribeSoundboardEvents, deriveSoundboardAesKey } from './soundboardDataChannel';
 import type { MatrixClient } from 'matrix-js-sdk';
 import { useSetAtom, useAtomValue } from 'jotai';
 import { watchedScreenSharesAtom } from '../../pages/client/call/screenShareStore';
@@ -219,6 +219,10 @@ export function useNativeCall(roomId: string | null): NativeCallEngine {
   // Created when the mic track is first obtained; torn down on cleanup/hangUp.
   const mixerRef = useRef<SoundboardMixer | null>(null);
 
+  // AES-GCM key for soundboard data channel encryption in E2EE rooms.
+  // Derived from the Matrix room ID via PBKDF2 — shared between all participants.
+  const soundboardEncKeyRef = useRef<CryptoKey | null>(null);
+
   const prevAudioQualityRef = useRef<{
     audioBitrate: number;
     echoCancellation: boolean;
@@ -339,6 +343,19 @@ export function useNativeCall(roomId: string | null): NativeCallEngine {
           e2eeWorker = new E2EEWorker();
           keyProvider = new MatrixKeyProvider();
           e2eeOptions = { keyProvider, worker: e2eeWorker };
+        }
+
+        // 2b. Derive soundboard data-channel encryption key for E2EE rooms.
+        //     All participants share the Matrix room ID so the derived key is
+        //     symmetric. This provides obfuscation (not true E2EE since the SFU
+        //     also knows the room ID), protecting clip names from casual SFU
+        //     inspection while the actual audio is secured by LiveKit's E2EE worker.
+        if (isEncrypted) {
+          try {
+            soundboardEncKeyRef.current = await deriveSoundboardAesKey(roomId!);
+          } catch {
+            console.warn('[Soundboard] Key derivation failed — data channel messages will be unencrypted');
+          }
         }
 
         if (aborted) {
@@ -664,6 +681,7 @@ export function useNativeCall(roomId: string | null): NativeCallEngine {
         });
 
         // Issue #80 — subscribe to soundboard data channel events from other participants
+        // Pass the E2EE key so messages are decrypted in E2EE rooms (#80, AGENTS.md rule).
         unsubscribeSoundboard = subscribeSoundboardEvents(room, (identity, event) => {
           const resolvedUserId = identityToUserIdMap.get(identity) ?? identity;
           if (event.type === 'start') {
@@ -680,7 +698,7 @@ export function useNativeCall(roomId: string | null): NativeCallEngine {
               return next;
             });
           }
-        });
+        }, soundboardEncKeyRef.current);
 
         // 8. Connect to the LiveKit SFU
         await room.connect(sfuConfig.url, sfuConfig.jwt, { autoSubscribe: false });
@@ -770,6 +788,7 @@ export function useNativeCall(roomId: string | null): NativeCallEngine {
     return () => {
       aborted = true;
       unsubscribeSoundboard?.();
+      soundboardEncKeyRef.current = null;
 
       // If we were in the call (rtcSession still held) and are the last member,
       // clear the server-stored call start time so the timer resets for everyone.
@@ -1181,7 +1200,7 @@ export function useNativeCall(roomId: string | null): NativeCallEngine {
     (clipName: string, type: 'start' | 'stop') => {
       const room = roomRef.current;
       if (!room) return;
-      publishSoundboardEvent(room, { type, clipName, timestamp: Date.now() }).catch((err) => {
+      publishSoundboardEvent(room, { type, clipName, timestamp: Date.now() }, soundboardEncKeyRef.current).catch((err) => {
         console.warn('[Soundboard] Failed to broadcast clip event:', err);
       });
     },
