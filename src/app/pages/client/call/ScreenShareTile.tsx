@@ -22,7 +22,13 @@ import {
 import { useCallState } from './CallProvider';
 import styles from './NativeCallParticipantGrid.module.css';
 
-/** Tracks how many participants are watching a screen share track. */
+/**
+ * Issue #49: Tracks how many participants are watching a specific screen share track.
+ *
+ * Previous implementation counted all subscribed screenshare tracks across all
+ * remote participants, giving wrong results when multiple people were sharing.
+ * Fix: only count the subscription state of THIS specific sharer's screenshare pub.
+ */
 export function useScreenShareViewerCount(trackRef: TrackReference): number {
   const room = useRoomContext();
   const [count, setCount] = useState(0);
@@ -31,18 +37,24 @@ export function useScreenShareViewerCount(trackRef: TrackReference): number {
     const pub = trackRef.publication;
     if (!pub) return;
 
+    const sharerIdentity = trackRef.participant?.identity;
+
     const update = () => {
-      if (trackRef.participant.isLocal) {
+      if (trackRef.participant?.isLocal || !sharerIdentity) {
+        // We can't know how many remote clients are watching our own share
         setCount(0);
-      } else {
-        let n = 0;
-        for (const p of room.remoteParticipants.values()) {
-          for (const tp of p.trackPublications.values()) {
-            if (tp.source === Track.Source.ScreenShare && tp.isSubscribed) n++;
-          }
-        }
-        setCount(n);
+        return;
       }
+
+      // Count local client's subscription to this specific participant's screenshare
+      let n = 0;
+      const sharerParticipant = room.remoteParticipants.get(sharerIdentity);
+      if (sharerParticipant) {
+        for (const tp of sharerParticipant.trackPublications.values()) {
+          if (tp.source === Track.Source.ScreenShare && tp.isSubscribed) n++;
+        }
+      }
+      setCount(n);
     };
 
     update();
