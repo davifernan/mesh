@@ -36,6 +36,7 @@ interface CallContextState {
   isVideoEnabled: boolean;
   isScreenShareEnabled: boolean;
   isDeafened: boolean;
+  isReconnecting: boolean;
   isFrontCamera: boolean;
   toggleDeafen: () => Promise<void>;
   speakingUsers: Set<string>;
@@ -279,6 +280,7 @@ export function CallProvider({ children }: CallProviderProps) {
     isVideoEnabled: engine.isVideoEnabled,
     isScreenShareEnabled: engine.isScreenShareEnabled,
     isDeafened: engine.isDeafened,
+    isReconnecting: engine.isReconnecting,
     isFrontCamera: engine.isFrontCamera,
     toggleDeafen: engine.toggleDeafen,
     speakingUsers: engine.speakingUsers,

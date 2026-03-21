@@ -55,6 +55,7 @@ export function NativeCallControlBar() {
     isDeafened,
     toggleDeafen,
     callStatus,
+    isReconnecting,
     startScreenShare,
     stopScreenShare,
     livekitRoom,
@@ -238,6 +239,11 @@ export function NativeCallControlBar() {
 
   return (
     <>
+      {isReconnecting && (
+        <div className={styles.reconnectingBanner}>
+          Verbindung wird wiederhergestellt...
+        </div>
+      )}
       {showQualityModal && (
         <ScreenShareModal
           onConfirm={handleConfirmScreenShare}

@@ -24,6 +24,23 @@ async function withRetry<T>(fn: () => Promise<T>): Promise<T> {
   throw lastError;
 }
 
+/** Retries only on network-level errors (TypeError from fetch), not on HTTP error responses. */
+async function withNetworkRetry<T>(fn: () => Promise<T>, maxAttempts = 3, baseDelayMs = 1000): Promise<T> {
+  let lastError: unknown;
+  for (let attempt = 0; attempt < maxAttempts; attempt++) {
+    try {
+      return await fn();
+    } catch (err) {
+      if (!(err instanceof TypeError)) throw err; // not a network error — do not retry
+      lastError = err;
+      if (attempt < maxAttempts - 1) {
+        await new Promise<void>((resolve) => setTimeout(resolve, baseDelayMs * Math.pow(2, attempt)));
+      }
+    }
+  }
+  throw lastError;
+}
+
 function parseLivekitAlias(jwt: string, fallback: string): string {
   try {
     const payload = jwt.split('.')[1];
@@ -49,36 +66,54 @@ export async function getSFUConfigWithOpenID(
 
   const baseUrl = serviceUrl.replace(/\/$/, '');
 
-  // Try new endpoint first
+  // Try new endpoint first; fall back to legacy on 404, 5xx, or network errors (#51, #52)
   let url: string;
   let jwt: string;
 
-  const newEndpointResponse = await fetch(`${baseUrl}/get_token`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      room_id: roomId,
-      slot_id: 'm.call#ROOM',
-      openid_token: openIdToken,
-      member: {
-        id: resolvedMemberId,
-        claimed_user_id: userId,
-        claimed_device_id: deviceId,
-      },
-    }),
-  });
+  let newEndpointResponse: Response | null = null;
+  let newEndpointNetworkError = false;
 
-  if (newEndpointResponse.status === 404) {
-    // Fall back to legacy endpoint
-    const legacyResponse = await fetch(`${baseUrl}/sfu/get`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        room: roomId,
-        openid_token: openIdToken,
-        device_id: deviceId,
+  try {
+    newEndpointResponse = await withNetworkRetry(() =>
+      fetch(`${baseUrl}/get_token`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          room_id: roomId,
+          slot_id: 'm.call#ROOM',
+          openid_token: openIdToken,
+          member: {
+            id: resolvedMemberId,
+            claimed_user_id: userId,
+            claimed_device_id: deviceId,
+          },
+        }),
       }),
-    });
+    );
+  } catch {
+    // Network error after all retries exhausted — fall back to legacy
+    newEndpointNetworkError = true;
+  }
+
+  const shouldFallback =
+    newEndpointNetworkError ||
+    !newEndpointResponse ||
+    newEndpointResponse.status === 404 ||
+    newEndpointResponse.status >= 500;
+
+  if (shouldFallback) {
+    // Fall back to legacy endpoint with retry for transient failures
+    const legacyResponse = await withNetworkRetry(() =>
+      fetch(`${baseUrl}/sfu/get`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          room: roomId,
+          openid_token: openIdToken,
+          device_id: deviceId,
+        }),
+      }),
+    );
 
     if (!legacyResponse.ok) {
       throw new Error(
@@ -90,13 +125,13 @@ export async function getSFUConfigWithOpenID(
     url = legacyData.url;
     jwt = legacyData.jwt;
   } else {
-    if (!newEndpointResponse.ok) {
+    if (!newEndpointResponse!.ok) {
       throw new Error(
-        `SFU token endpoint failed: ${newEndpointResponse.status} ${newEndpointResponse.statusText}`,
+        `SFU token endpoint failed: ${newEndpointResponse!.status} ${newEndpointResponse!.statusText}`,
       );
     }
 
-    const newData = (await newEndpointResponse.json()) as { url: string; jwt: string };
+    const newData = (await newEndpointResponse!.json()) as { url: string; jwt: string };
     url = newData.url;
     jwt = newData.jwt;
   }
