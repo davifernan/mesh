@@ -5,8 +5,12 @@
 import React, { useRef, useState, useEffect, useCallback, useMemo } from 'react';
 import { VideoTrack, type TrackReference, useRoomContext } from '@livekit/components-react';
 import { Track, RoomEvent, type Room } from 'livekit-client';
-import { Monitor, CornersOut, ArrowSquareOut, Eye } from '@phosphor-icons/react';
-import { playViewerJoinSound, playViewerLeaveSound } from '../../../utils/sounds';
+import { Monitor, CornersOut, ArrowSquareOut, MonitorPlay } from '@phosphor-icons/react';
+import type { Room as MatrixRoom } from 'matrix-js-sdk';
+import {
+  resolveParticipantDisplayName,
+  isOpaqueParticipantIdentifier,
+} from '../../../features/call/participantIdentity';
 import {
   addFullscreenListeners,
   enterVideoFullscreen,
@@ -15,6 +19,7 @@ import {
   isVideoFullscreen,
   requestElementFullscreen,
 } from './fullscreenUtils';
+import { useCallState } from './CallProvider';
 import styles from './NativeCallParticipantGrid.module.css';
 
 /** Tracks how many participants are watching a screen share track. */
@@ -57,10 +62,13 @@ export function ScreenShareTile({
   trackRef,
   onWatch,
   livekitRoom,
+  matrixRoom,
 }: {
   trackRef: TrackReference;
   onWatch?: () => void;
   livekitRoom: Room | null;
+  /** Matrix room — used to resolve the sharer's display name. */
+  matrixRoom?: MatrixRoom | null;
 }) {
   const tileRef = useRef<HTMLDivElement>(null);
   const [isFullscreen, setIsFullscreen] = useState(false);
@@ -71,21 +79,26 @@ export function ScreenShareTile({
     height: number;
     fps?: number;
   } | null>(null);
-  const viewerCount = useScreenShareViewerCount(trackRef);
-  const prevViewerCountRef = useRef(0);
 
-  useEffect(() => {
-    if (viewerCount > prevViewerCountRef.current) {
-      playViewerJoinSound();
-    } else if (viewerCount < prevViewerCountRef.current) {
-      playViewerLeaveSound();
-    }
-    prevViewerCountRef.current = viewerCount;
-  }, [viewerCount]);
+  // Watch-state from CallProvider context
+  const { watchedScreenShares, watchScreenShare, unwatchScreenShare } = useCallState();
+  const participantIdentity = trackRef.participant?.identity ?? '';
+  const isWatching = watchedScreenShares.has(participantIdentity);
 
   const popoutWindowRef = useRef<Window | null>(null);
   const popoutVideoRef = useRef<HTMLMediaElement | null>(null);
-  const name = trackRef.participant?.name ?? trackRef.participant?.identity ?? 'Someone';
+  // Resolve the sharer's display name via Matrix room if available
+  const name = useMemo(() => {
+    const participant = trackRef.participant;
+    if (!participant) return 'Someone';
+    return resolveParticipantDisplayName(participant, matrixRoom);
+  }, [trackRef.participant, matrixRoom]);
+  const screenLabel = useMemo(() => {
+    if (!name || name === 'Participant' || isOpaqueParticipantIdentifier(name)) {
+      return 'Shared screen';
+    }
+    return `${name}'s screen`;
+  }, [name]);
   const isElectron = typeof window !== 'undefined' && !!window.electron;
 
   const getVideoElement = useCallback(() => {
@@ -310,58 +323,106 @@ export function ScreenShareTile({
     return `${width}x${height}${fps ? ` · ${Math.round(fps)}fps` : ''}`;
   }, [dims?.height, dims?.width, mediaSettings?.height, mediaSettings?.width, outboundQuality, trackFps]);
 
+  // Quality label for the viewer side (remote tracks only — sender has outboundQuality above)
+  const remoteQualityLabel = useMemo(() => {
+    if (trackRef.participant?.isLocal) return null;
+    const remoteDims = trackRef.publication?.dimensions;
+    const remoteSettings = trackRef.publication?.track?.mediaStreamTrack?.getSettings() as
+      (MediaTrackSettings & { frameRate?: number }) | undefined;
+    const w = remoteDims?.width;
+    const h = remoteDims?.height;
+    const fps = remoteSettings?.frameRate;
+    if (!w || !h) return null;
+    return `${w}×${h}${fps ? ` · ${Math.round(fps)}fps` : ''}`;
+  }, [trackRef.publication, trackRef.participant?.isLocal]);
+
+  // Remote tile that hasn't been subscribed yet — show watch overlay instead of video
+  const showWatchOverlay = !trackRef.participant?.isLocal && !isWatching;
+
   return (
     <div className={styles.screenTile} ref={tileRef}>
-      <VideoTrack trackRef={trackRef} style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
+      {/* Video — only rendered when watching or it's our own share */}
+      {!showWatchOverlay && (
+        <VideoTrack trackRef={trackRef} style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
+      )}
 
-      <div className={styles.screenActions}>
-        <button
-          type="button"
-          className={styles.screenActionBtn}
-          onClick={(e) => { e.stopPropagation(); void toggleFullscreen(); }}
-          aria-label={isFullscreen ? 'Exit fullscreen screen share' : 'Enter fullscreen screen share'}
-          title={isFullscreen ? 'Exit fullscreen' : 'Fullscreen'}
-        >
-          <CornersOut size={14} weight="bold" />
-        </button>
-
-        {(supportsPiP || isElectron) && (
+      {/* ── Not-watching overlay ─────────────────────────────────────────── */}
+      {showWatchOverlay && (
+        <div className={styles.screenWatchOverlay}>
+          <div className={styles.screenWatchInfo}>
+            <Monitor size={20} weight="bold" style={{ opacity: 0.6 }} />
+            <span>{screenLabel}</span>
+            {remoteQualityLabel && (
+              <span className={styles.screenQualityChip}>{remoteQualityLabel}</span>
+            )}
+          </div>
           <button
             type="button"
-            className={styles.screenActionBtn}
+            className={styles.screenWatchBtn}
             onClick={(e) => {
               e.stopPropagation();
-              if (isElectron) { toggleElectronPopout(); } else { void togglePiP(); }
+              void watchScreenShare(participantIdentity);
+              onWatch?.();
             }}
-            aria-label={(isElectron ? isPopoutActive : isPiPActive) ? 'Close popout' : 'Open popout'}
-            title={(isElectron ? isPopoutActive : isPiPActive) ? 'Close popout' : 'Open popout'}
           >
-            <ArrowSquareOut size={14} weight="bold" />
+            <MonitorPlay size={16} weight="fill" />
+            Watch Stream
           </button>
-        )}
-      </div>
-
-      {qualityLabel && <div className={styles.screenQualityPill}>{qualityLabel}</div>}
-
-      {viewerCount > 0 && (
-        <div className={styles.viewerBadge}>
-          <Eye size={11} weight="fill" />
-          {viewerCount} {viewerCount === 1 ? 'viewer' : 'viewers'}
         </div>
       )}
 
-      <div className={styles.screenTileLabel}>
-        <Monitor size={13} weight="bold" style={{ flexShrink: 0 }} />
-        {name}&apos;s screen
-        {onWatch && (
+      {/* ── Controls (fullscreen / popout) — only when video is visible ─── */}
+      {!showWatchOverlay && (
+        <div className={styles.screenActions}>
           <button
             type="button"
-            className={styles.watchBtn}
-            onClick={(e) => { e.stopPropagation(); onWatch(); }}
+            className={styles.screenActionBtn}
+            onClick={(e) => { e.stopPropagation(); void toggleFullscreen(); }}
+            aria-label={isFullscreen ? 'Exit fullscreen screen share' : 'Enter fullscreen screen share'}
+            title={isFullscreen ? 'Exit fullscreen' : 'Fullscreen'}
           >
-            Watch Stream
+            <CornersOut size={14} weight="bold" />
           </button>
-        )}
+
+          {(supportsPiP || isElectron) && (
+            <button
+              type="button"
+              className={styles.screenActionBtn}
+              onClick={(e) => {
+                e.stopPropagation();
+                if (isElectron) { toggleElectronPopout(); } else { void togglePiP(); }
+              }}
+              aria-label={(isElectron ? isPopoutActive : isPiPActive) ? 'Close popout' : 'Open popout'}
+              title={(isElectron ? isPopoutActive : isPiPActive) ? 'Close popout' : 'Open popout'}
+            >
+              <ArrowSquareOut size={14} weight="bold" />
+            </button>
+          )}
+        </div>
+      )}
+
+      {/* ── Quality pill — sender outbound stats OR viewer remote dims ───── */}
+      {!showWatchOverlay && (qualityLabel || remoteQualityLabel) && (
+        <div className={trackRef.participant?.isLocal ? styles.screenQualityPill : styles.screenQualityPillViewer}>
+          {trackRef.participant?.isLocal ? qualityLabel : remoteQualityLabel}
+        </div>
+      )}
+
+      {/* ── Stop watching button — remote only, shown when subscribed ────── */}
+      {isWatching && !trackRef.participant?.isLocal && (
+        <button
+          type="button"
+          className={styles.screenStopWatchBtn}
+          onClick={(e) => { e.stopPropagation(); void unwatchScreenShare(participantIdentity); }}
+        >
+          Stop Watching
+        </button>
+      )}
+
+      {/* ── Bottom label bar ─────────────────────────────────────────────── */}
+      <div className={styles.screenTileLabel}>
+        <Monitor size={13} weight="bold" style={{ flexShrink: 0 }} />
+        <span className={styles.screenTileName}>{screenLabel}</span>
       </div>
     </div>
   );

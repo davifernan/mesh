@@ -51,6 +51,11 @@ interface CallContextState {
   activeSoundboardClips: Set<string>;
   isSoundboardOpen: boolean;
   setSoundboardOpen: (open: boolean) => void;
+  // ScreenShare watching
+  watchedScreenShares: ReadonlySet<string>;
+  watchScreenShare: (identity: string) => Promise<void>;
+  unwatchScreenShare: (identity: string) => Promise<void>;
+  updateScreenShareSettings: (ssRes: string, ssFps: number, ssAudio: boolean) => Promise<void>;
 }
 
 const CallContext = createContext<CallContextState | undefined>(undefined);
@@ -288,6 +293,10 @@ export function CallProvider({ children }: CallProviderProps) {
     activeSoundboardClips,
     isSoundboardOpen,
     setSoundboardOpen,
+    watchedScreenShares: engine.watchedScreenShares,
+    watchScreenShare: engine.watchScreenShare,
+    unwatchScreenShare: engine.unwatchScreenShare,
+    updateScreenShareSettings: engine.updateActiveScreenShareSettings,
   }), [
     activeCallRoomId,
     setActiveCallRoomId,

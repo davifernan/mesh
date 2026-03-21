@@ -25,10 +25,12 @@ import {
   toRem,
 } from 'folds';
 import { useAtom, useAtomValue } from 'jotai';
-import { Room } from 'matrix-js-sdk';
+import { ClientEvent, MatrixEvent, Room, RoomStateEvent } from 'matrix-js-sdk';
 import { Monitor, SpeakerHigh } from '@phosphor-icons/react';
-import { selectSpaceHasLiveActivity, selectSpaceHasVoiceActivity } from '../../../state/voiceActivity';
-import { useSpaceBridgeActivity } from '../../../hooks/useSpaceBridgeActivity';
+import { selectSpaceHasVoiceActivity } from '../../../state/voiceActivity';
+import { roomHasCallScreenShare } from '../../../hooks/useCallMemberPresence';
+import { useSpaceVoiceActivity } from '../../../hooks/useSpaceVoiceActivity';
+import { useSpaceLiveActivity } from '../../../hooks/useSpaceLiveActivity';
 import {
   draggable,
   dropTargetForElements,
@@ -441,23 +443,46 @@ function SpaceTab({
     [space.roomId]
   );
   const hasVoiceActivity = useAtomValue(spaceVoiceActivityAtom);
-  const spaceLiveActivityAtom = useMemo(
-    () => selectSpaceHasLiveActivity(space.roomId),
-    [space.roomId]
-  );
-  const hasBridgeLiveActivity = useAtomValue(spaceLiveActivityAtom);
   const roomToParents = useAtomValue(roomToParentsAtom);
   const { activeCallRoomId, isScreenShareEnabled, remoteParticipantStates } = useCallState();
+  const childRooms = useSpaceChildren(
+    allRoomsAtom,
+    space.roomId,
+    useRecursiveChildScopeFactory(mx, roomToParents)
+  );
+
+  const childRoomsKey = childRooms.join(',');
+  const [hasMatrixScreenShare, setHasMatrixScreenShare] = useState(() => {
+    const scopedRoomIds = [space.roomId, ...childRooms];
+    return scopedRoomIds.some((roomId) => roomHasCallScreenShare(mx, roomId));
+  });
+  useEffect(() => {
+    const scopedRoomIds = [space.roomId, ...childRoomsKey.split(',').filter(Boolean)];
+    const compute = () => {
+      setHasMatrixScreenShare(
+        [space.roomId, ...scopedRoomIds].some((roomId) => roomHasCallScreenShare(mx, roomId))
+      );
+    };
+    compute();
+    const handleStateEvent = (ev: MatrixEvent) => {
+      const type = ev.getType();
+      if (type.includes('call.member')) {
+        compute();
+      }
+    };
+    mx.on(ClientEvent.Event, handleStateEvent);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    mx.on(RoomStateEvent.Events as any, handleStateEvent);
+    return () => {
+      mx.off(ClientEvent.Event, handleStateEvent);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      mx.off(RoomStateEvent.Events as any, handleStateEvent);
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mx, space.roomId, childRoomsKey]);
 
   const hasLiveStreamActivity = useMemo(() => {
-    if (hasBridgeLiveActivity) {
-      const belongsToThisSpace =
-        activeCallRoomId === space.roomId ||
-        (activeCallRoomId ? roomToParents.get(activeCallRoomId)?.has(space.roomId) : false);
-      if (!activeCallRoomId || !belongsToThisSpace) {
-        return true;
-      }
-    }
+    if (hasMatrixScreenShare) return true;
 
     if (!activeCallRoomId) return false;
 
@@ -473,7 +498,7 @@ function SpaceTab({
     }
     return false;
   }, [
-    hasBridgeLiveActivity,
+    hasMatrixScreenShare,
     activeCallRoomId,
     isScreenShareEnabled,
     remoteParticipantStates,
@@ -735,7 +760,8 @@ export function SpaceTabs({ scrollRef }: SpaceTabsProps) {
   const [openedFolder, setOpenedFolder] = useAtom(useOpenedSidebarFolderAtom());
   const [draggingItem, setDraggingItem] = useState<SidebarDraggable>();
 
-  useSpaceBridgeActivity(orphanSpaces);
+  useSpaceVoiceActivity(orphanSpaces);
+  useSpaceLiveActivity(orphanSpaces);
 
   useDnDMonitor(
     scrollRef,

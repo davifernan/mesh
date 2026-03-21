@@ -57,30 +57,30 @@ export function NativeCallControlBar() {
     callStatus,
     startScreenShare,
     stopScreenShare,
-    remoteParticipantStates,
     livekitRoom,
     callJoinTime,
     isSoundboardOpen,
     setSoundboardOpen,
+    updateScreenShareSettings,
+    watchedScreenShares,
+    unwatchScreenShare,
   } = useCallState();
 
   // Screen share state comes from the LiveKit RoomContext — no polling needed.
   const { localParticipant } = useLocalParticipant();
   const isScreenShareEnabled = localParticipant.isScreenShareEnabled;
+  // Audio cannot be enabled mid-share if no ScreenShareAudio track exists yet.
+  // The track is only published when the share starts with ssAudio=true.
+  const hasScreenShareAudioTrack = !!localParticipant.getTrackPublication(Track.Source.ScreenShareAudio);
+  const audioLockedMidShare = isScreenShareEnabled && !hasScreenShareAudioTrack;
 
-  const isWatchingScreenShare = !isScreenShareEnabled &&
-    [...remoteParticipantStates.values()].some((s) => s.isScreenSharing);
+  const isWatchingScreenShare = watchedScreenShares.size > 0;
 
-  const stopWatchingScreenShare = useCallback(() => {
-    if (!livekitRoom) return;
-    for (const participant of livekitRoom.remoteParticipants.values()) {
-      for (const pub of participant.trackPublications.values()) {
-        if (pub.source === Track.Source.ScreenShare && pub.isSubscribed) {
-          void pub.setSubscribed(false);
-        }
-      }
+  const stopWatchingAll = useCallback(() => {
+    for (const identity of watchedScreenShares) {
+      void unwatchScreenShare(identity);
     }
-  }, [livekitRoom]);
+  }, [watchedScreenShares, unwatchScreenShare]);
 
   const [userSettings, setUserSettings] = useAtom(settingsAtom);
 
@@ -213,10 +213,16 @@ export function NativeCallControlBar() {
         ssFps: ssFps as typeof userSettings.ssFps,
         ssAudio,
       });
-      void startScreenShare(ssRes, ssFps, ssAudio);
+      if (isScreenShareEnabled) {
+        // Mid-share: update quality without restarting the track
+        void updateScreenShareSettings(ssRes, ssFps, ssAudio);
+      } else {
+        // New share
+        void startScreenShare(ssRes, ssFps, ssAudio);
+      }
       setShowQualityModal(false);
     },
-    [setUserSettings, startScreenShare, userSettings],
+    [setUserSettings, startScreenShare, updateScreenShareSettings, isScreenShareEnabled, userSettings],
   );
 
   const handleToggleNoiseSup = useCallback(() => {
@@ -233,8 +239,10 @@ export function NativeCallControlBar() {
     <>
       {showQualityModal && (
         <ScreenShareModal
-          onConfirm={handleConfirmScreenShare as any}
+          onConfirm={handleConfirmScreenShare}
           onCancel={() => setShowQualityModal(false)}
+          mode={isScreenShareEnabled ? 'update' : 'start'}
+          audioLocked={audioLockedMidShare}
         />
       )}
       <div className={styles.bar}>
@@ -500,7 +508,7 @@ export function NativeCallControlBar() {
             <button
               type="button"
               className={`${styles.btn} ${styles.btnActive}`}
-              onClick={stopWatchingScreenShare}
+              onClick={stopWatchingAll}
               title="Stop Watching"
               aria-label="Stop watching screen share"
             >

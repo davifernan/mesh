@@ -16,7 +16,6 @@ import {
 } from '@phosphor-icons/react';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { AnimatePresence } from 'framer-motion';
-import { SignalStrengthIcon } from './SignalStrengthIcon';
 import { IncomingCallCard } from './RoomCallNavStatusIncoming';
 import { useCallMembers } from '../../hooks/useCallMemberships';
 import { useAtomValue } from 'jotai';
@@ -459,7 +458,7 @@ export function CallNavStatus({ docked = false }: CallNavStatusProps) {
         <div className={css.StatusRow}>
           <div className={`${css.SignalIconWrap} ${isConnected ? css.SignalConnected : css.SignalConnecting}`}>
             {isConnected ? (
-              <SignalStrengthIcon latencyMs={latencyMs} size={16} />
+              <div className={css.ConnectedDot} />
             ) : (
               <Spinner size="300" variant="Secondary" />
             )}

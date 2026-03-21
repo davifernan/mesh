@@ -137,31 +137,37 @@ export function useAudioWinsOverVideo(
 
       const lp = r.localParticipant;
 
-      // Restore screenshare sender
-      const ssPub = lp.getTrackPublication(Track.Source.ScreenShare);
-      const ssTrack = ssPub?.track as LocalVideoTrack | undefined;
-      const ssSender = ssTrack?.sender;
-      const ssOrig = ssOriginalEncodingRef.current;
-      if (ssSender && ssOrig?.maxBitrate !== undefined) {
-        await throttleSender(ssSender, ssOrig.maxBitrate, ssOrig.maxFramerate ?? undefined).catch(
-          () => {},
-        );
-      }
+      try {
+        // Restore screenshare sender
+        const ssPub = lp.getTrackPublication(Track.Source.ScreenShare);
+        const ssTrack = ssPub?.track as LocalVideoTrack | undefined;
+        const ssSender = ssTrack?.sender;
+        const ssOrig = ssOriginalEncodingRef.current;
+        if (ssSender && ssOrig?.maxBitrate !== undefined) {
+          await throttleSender(ssSender, ssOrig.maxBitrate, ssOrig.maxFramerate ?? undefined).catch(
+            () => {},
+          );
+        }
 
-      // Restore camera sender
-      const camPub = lp.getTrackPublication(Track.Source.Camera);
-      const camTrack = camPub?.track as LocalVideoTrack | undefined;
-      const camSender = camTrack?.sender;
-      const camOrig = camOriginalEncodingRef.current;
-      if (camSender && camOrig?.maxBitrate !== undefined) {
-        await throttleSender(camSender, camOrig.maxBitrate, camOrig.maxFramerate ?? undefined).catch(
-          () => {},
-        );
+        // Restore camera sender
+        const camPub = lp.getTrackPublication(Track.Source.Camera);
+        const camTrack = camPub?.track as LocalVideoTrack | undefined;
+        const camSender = camTrack?.sender;
+        const camOrig = camOriginalEncodingRef.current;
+        if (camSender && camOrig?.maxBitrate !== undefined) {
+          await throttleSender(camSender, camOrig.maxBitrate, camOrig.maxFramerate ?? undefined).catch(
+            () => {},
+          );
+        }
+      } finally {
+        // Always reset state-machine flags regardless of whether snapshots existed.
+        // If a screenshare started *during* the throttle phase, ssOriginalEncodingRef
+        // has no snapshot — the restore if-block above is skipped, but we must still
+        // clear isThrottledRef so the next applyFallback is not permanently blocked.
+        isThrottledRef.current = false;
+        ssOriginalEncodingRef.current = undefined;
+        camOriginalEncodingRef.current = undefined;
       }
-
-      isThrottledRef.current = false;
-      ssOriginalEncodingRef.current = undefined;
-      camOriginalEncodingRef.current = undefined;
       console.info('[QualityFallback] Quality recovered — video encoding restored');
     }
 

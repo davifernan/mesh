@@ -1,4 +1,6 @@
 import type { Room } from 'matrix-js-sdk';
+import { getMxIdLocalPart, isUserId } from '../../utils/matrix';
+import { getMemberDisplayName } from '../../utils/room';
 
 type LiveKitParticipantLike = {
   identity: string;
@@ -22,6 +24,14 @@ export const PARTICIPANT_USER_ID_KEYS = [
   'userId',
   // Legacy Element Call key — kept for backwards compat
   'io.element.owned_by',
+] as const;
+
+export const PARTICIPANT_DISPLAY_NAME_KEYS = [
+  'display_name',
+  'displayName',
+  'participant_name',
+  'participantName',
+  'name',
 ] as const;
 
 function isMatrixUserId(value: string): boolean {
@@ -49,6 +59,42 @@ function getMappedUserId(candidate?: Record<string, unknown> | null): string | n
   return (
     PARTICIPANT_USER_ID_KEYS.map((key) => readUserIdCandidate(candidate[key])).find(Boolean) ?? null
   );
+}
+
+function readDisplayNameCandidate(value: unknown): string | null {
+  if (typeof value !== 'string') return null;
+  const trimmed = value.trim();
+  return trimmed.length > 0 ? trimmed : null;
+}
+
+function getMappedDisplayName(candidate?: Record<string, unknown> | null): string | null {
+  if (!candidate) return null;
+
+  return (
+    PARTICIPANT_DISPLAY_NAME_KEYS.map((key) => readDisplayNameCandidate(candidate[key])).find(Boolean) ?? null
+  );
+}
+
+export function isOpaqueParticipantIdentifier(value: string | null | undefined): boolean {
+  if (!value) return false;
+  const trimmed = value.trim();
+  if (!trimmed || trimmed.includes(' ')) return false;
+  if (trimmed.startsWith('@') || trimmed.includes(':')) return false;
+  return /^[A-Za-z0-9+/=_-]{12,}$/.test(trimmed);
+}
+
+function matchUniqueRoomMemberByLocalPart(room: Room | null | undefined, value?: string): string | null {
+  if (!room || !value) return null;
+
+  const normalized = value.trim().toLowerCase();
+  if (!normalized) return null;
+
+  const matches = room.getJoinedMembers().filter((member) => {
+    const localPart = getMxIdLocalPart(member.userId)?.toLowerCase();
+    return localPart === normalized;
+  });
+
+  return matches.length === 1 ? matches[0].userId : null;
 }
 
 function matchUniqueRoomMemberByName(room: Room | null | undefined, name?: string): string | null {
@@ -140,8 +186,47 @@ export function resolveParticipantUserId(
   const identityUserId = extractMatrixUserIdFromIdentity(participant.identity);
   if (identityUserId) return identityUserId;
 
+  const nameUserId = participant.name && isUserId(participant.name) ? participant.name : null;
+  if (nameUserId) return nameUserId;
+
   const namedMemberUserId = matchUniqueRoomMemberByName(room, participant.name);
   if (namedMemberUserId) return namedMemberUserId;
 
+  const localPartUserId = matchUniqueRoomMemberByLocalPart(room, participant.name);
+  if (localPartUserId) return localPartUserId;
+
   return participant.identity.startsWith('_@') ? participant.identity.slice(1) : participant.identity;
+}
+
+export function resolveParticipantDisplayName(
+  participant: LiveKitParticipantLike,
+  room?: Room | null,
+): string {
+  const resolvedUserId = resolveParticipantUserId(participant, room);
+  const matrixName = room ? getMemberDisplayName(room, resolvedUserId) : undefined;
+  if (matrixName) return matrixName;
+
+  const metadataDisplayName = getMappedDisplayName(parseParticipantMetadata(participant.metadata));
+  if (metadataDisplayName && !isOpaqueParticipantIdentifier(metadataDisplayName)) {
+    return metadataDisplayName;
+  }
+
+  const attributeDisplayName = getMappedDisplayName(participant.attributes);
+  if (attributeDisplayName && !isOpaqueParticipantIdentifier(attributeDisplayName)) {
+    return attributeDisplayName;
+  }
+
+  if (participant.name && !participant.name.startsWith('@') && !isOpaqueParticipantIdentifier(participant.name)) {
+    return participant.name;
+  }
+
+  const localPart = getMxIdLocalPart(resolvedUserId);
+  if (localPart) return localPart;
+
+  const identityLocalPart = getMxIdLocalPart(
+    participant.identity.startsWith('_@') ? participant.identity.slice(1) : participant.identity,
+  );
+  if (identityLocalPart) return identityLocalPart;
+
+  return isOpaqueParticipantIdentifier(participant.identity) ? 'Participant' : participant.identity;
 }

@@ -84,6 +84,15 @@ export const SignalConnecting = style({
   color: 'var(--text-muted)',
 });
 
+export const ConnectedDot = style({
+  width: toRem(10),
+  height: toRem(10),
+  borderRadius: '50%',
+  background: 'var(--status-online, #23a55a)',
+  boxShadow: '0 0 0 2px color-mix(in srgb, var(--status-online, #23a55a) 25%, transparent)',
+  flexShrink: 0,
+});
+
 export const StatusLabel = style({
   flex: 1,
   minWidth: 0,

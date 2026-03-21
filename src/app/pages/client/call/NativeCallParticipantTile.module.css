@@ -192,6 +192,7 @@
   background: rgba(0, 0, 0, 0.68);
   border-radius: 4px;
   min-width: 0;
+  width: 100%;
   max-width: 100%;
 }
 
@@ -203,6 +204,7 @@
   text-overflow: ellipsis;
   white-space: nowrap;
   min-width: 0;
+  flex: 1 1 auto;
 }
 
 .mutedIcon {
@@ -217,4 +219,30 @@
 .metaIconDeafened {
   color: var(--status-idle, #faa61a);
   flex-shrink: 0;
+}
+
+@media (max-width: 768px) {
+  .selfBadge,
+  .screenBadge {
+    font-size: 10px;
+    padding: 2px 6px;
+  }
+
+  .streamPill {
+    display: none;
+  }
+
+  .metadata {
+    left: 0.375rem;
+    right: 0.375rem;
+    bottom: 0.375rem;
+  }
+
+  .metaChip {
+    padding: 4px 8px;
+  }
+
+  .metaName {
+    font-size: 11px;
+  }
 }

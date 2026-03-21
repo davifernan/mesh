@@ -1,4 +1,4 @@
-import React, { useMemo, useEffect, useState, useRef } from 'react';
+import React, { useMemo, useEffect, useLayoutEffect, useState, useRef, useCallback } from 'react';
 import { useParticipants, useTracks, type TrackReference } from '@livekit/components-react';
 import { Track } from 'livekit-client';
 import { CaretUp, CaretDown } from '@phosphor-icons/react';
@@ -8,6 +8,8 @@ import { NativeCallParticipantTile } from './NativeCallParticipantTile';
 import { ScreenShareTile } from './ScreenShareTile';
 import { AppTile, WIDGET_PIN_PREFIX, widgetPinId } from './AppTile';
 import { useCallState } from './CallProvider';
+import { useMatrixClient } from '../../../hooks/useMatrixClient';
+import type { Room as MatrixRoom } from 'matrix-js-sdk';
 import type { RoomWidget } from '../../../hooks/useRoomWidgets';
 import styles from './NativeCallParticipantGrid.module.css';
 
@@ -18,6 +20,21 @@ interface NativeCallParticipantGridProps {
 }
 
 const DISPLAY_COLLATOR = new Intl.Collator(undefined, { sensitivity: 'base', numeric: true });
+const OVERFLOW_ENTER_HYSTERESIS_PX = 2;
+const OVERFLOW_EXIT_HYSTERESIS_PX = 6;
+const TILE_ASPECT_RATIO = 16 / 9;
+
+interface GridStyle extends React.CSSProperties {
+  '--voice-grid-single-tile-width'?: string;
+}
+
+function resolveOverflowWithHysteresis(overflowDelta: number, wasOverflowing: boolean): boolean {
+  if (wasOverflowing) {
+    return overflowDelta > -OVERFLOW_EXIT_HYSTERESIS_PX;
+  }
+
+  return overflowDelta > OVERFLOW_ENTER_HYSTERESIS_PX;
+}
 
 export function NativeCallParticipantGrid({ onPin, widgets }: NativeCallParticipantGridProps) {
   const allParticipants = useParticipants();
@@ -40,54 +57,117 @@ export function NativeCallParticipantGrid({ onPin, widgets }: NativeCallParticip
     return sorted;
   }, [allFilteredParticipants]);
 
-  const { remoteParticipantStates, livekitRoom } = useCallState();
+  const { remoteParticipantStates, livekitRoom, activeCallRoomId } = useCallState();
+  const mx = useMatrixClient();
+  const activeRoom: MatrixRoom | null = activeCallRoomId ? (mx.getRoom(activeCallRoomId) ?? null) : null;
   const [layoutState, setLayoutState] = useAtom(voiceCallLayoutAtom);
   const pinParticipant = useSetAtom(pinParticipantAtom);
   const { layoutMode, pinnedParticipantId, isCarouselExpanded } = layoutState;
 
-  // Grid layout state — columns computed via ResizeObserver
-  const gridRef = useRef<HTMLDivElement>(null);
-  const [isOverflowing, setIsOverflowing] = useState(false);
-  const wasOverflowingRef = useRef(false);
-  const [gridColumns, setGridColumns] = useState(1);
-  const participantCountRef = useRef(participants.length);
-  // Include widget tiles in the grid count so column logic adapts correctly
-  participantCountRef.current = participants.length + (widgets?.length ?? 0);
-
-  useEffect(() => {
-    const el = gridRef.current;
-    if (!el) return;
-    const observer = new ResizeObserver(() => {
-      const { width } = el.getBoundingClientRect();
-      const n = participantCountRef.current;
-      let cols = 1;
-      if (n >= 2 && width >= 520) cols = 2;
-      if (n >= 5 && width >= 860) cols = 3;
-      if (n >= 10 && width >= 1180) cols = 4;
-      setGridColumns(cols);
-
-      const delta = el.scrollHeight - el.clientHeight;
-      const wasOver = wasOverflowingRef.current;
-      const nowOver = wasOver ? delta > -6 : delta > 2;
-      if (nowOver !== wasOverflowingRef.current) {
-        wasOverflowingRef.current = nowOver;
-        setIsOverflowing(nowOver);
-      }
-    });
-    observer.observe(el);
-    return () => observer.disconnect();
-  }, []);
-
-  // Collect all active screenshare tracks
+  // Collect all active screenshare tracks — must be above column-recalc effects
   const allSSTracks = useTracks([{ source: Track.Source.ScreenShare, withPlaceholder: false }]);
   const screenShareTracks = useMemo(
     () => allSSTracks.filter((t): t is TrackReference => 'publication' in t && !!t.publication),
     [allSSTracks],
   );
 
-  const hasWidgets = !!(widgets?.length);
-  const isSingleParticipantView =
-    participants.length === 1 && screenShareTracks.length === 0 && !hasWidgets;
+  const widgetCount = widgets?.length ?? 0;
+  const hasWidgets = widgetCount > 0;
+  const gridTileCount = widgetCount + screenShareTracks.length + participants.length;
+  const containerRef = useRef<HTMLDivElement>(null);
+  const gridRef = useRef<HTMLDivElement>(null);
+  const [isOverflowing, setIsOverflowing] = useState(false);
+  const [singleTileWidthPx, setSingleTileWidthPx] = useState<number | null>(null);
+  const overflowStateRef = useRef(false);
+  const gridStyle = useMemo<GridStyle | undefined>(() => {
+    if (gridTileCount !== 1 || singleTileWidthPx == null) {
+      return undefined;
+    }
+    return {
+      '--voice-grid-single-tile-width': `${Math.round(singleTileWidthPx)}px`,
+    };
+  }, [gridTileCount, singleTileWidthPx]);
+
+  useLayoutEffect(() => {
+    if (gridTileCount <= 1) {
+      overflowStateRef.current = false;
+      setIsOverflowing(false);
+      return;
+    }
+
+    const container = containerRef.current;
+    const grid = gridRef.current;
+    if (!container || !grid) return;
+
+    const recompute = () => {
+      const overflowDelta = grid.scrollHeight - container.clientHeight;
+      const nextOverflow = resolveOverflowWithHysteresis(overflowDelta, overflowStateRef.current);
+      overflowStateRef.current = nextOverflow;
+      setIsOverflowing((prev) => (prev === nextOverflow ? prev : nextOverflow));
+    };
+
+    if (typeof ResizeObserver === 'undefined') {
+      recompute();
+      return;
+    }
+
+    const observer = new ResizeObserver(() => {
+      recompute();
+    });
+    observer.observe(container);
+    observer.observe(grid);
+    recompute();
+
+    return () => {
+      observer.disconnect();
+    };
+  }, [gridTileCount]);
+
+  useLayoutEffect(() => {
+    if (gridTileCount !== 1) {
+      setSingleTileWidthPx(null);
+      return;
+    }
+
+    const container = containerRef.current;
+    const grid = gridRef.current;
+    if (!container || !grid) return;
+
+    const recomputeSingleTileWidth = () => {
+      const containerWidth = container.clientWidth;
+      const containerHeight = container.clientHeight;
+      if (containerWidth <= 0 || containerHeight <= 0) return;
+
+      const computed = window.getComputedStyle(grid);
+      const sidePadding = Number.parseFloat(computed.getPropertyValue('--voice-grid-side-padding')) || 12;
+      const verticalPadding = Number.parseFloat(computed.getPropertyValue('--voice-grid-vertical-padding')) || 14;
+      const availableWidth = Math.max(0, containerWidth - sidePadding * 2);
+      const availableHeight = Math.max(0, containerHeight - verticalPadding * 2);
+      const nextWidth = Math.max(0, Math.min(availableWidth, availableHeight * TILE_ASPECT_RATIO));
+      setSingleTileWidthPx((previousWidth) => {
+        if (previousWidth != null && Math.abs(previousWidth - nextWidth) < 0.5) {
+          return previousWidth;
+        }
+        return nextWidth;
+      });
+    };
+
+    if (typeof ResizeObserver === 'undefined') {
+      recomputeSingleTileWidth();
+      return;
+    }
+
+    const observer = new ResizeObserver(() => {
+      recomputeSingleTileWidth();
+    });
+    observer.observe(container);
+    observer.observe(grid);
+    recomputeSingleTileWidth();
+
+    return () => {
+      observer.disconnect();
+    };
+  }, [gridTileCount]);
 
   // Auto-pin: when a remote participant starts screensharing, switch to focus mode
   useEffect(() => {
@@ -143,7 +223,7 @@ export function NativeCallParticipantGrid({ onPin, widgets }: NativeCallParticip
               isPinned
             />
           ) : pinnedSSTrack ? (
-            <ScreenShareTile trackRef={pinnedSSTrack} livekitRoom={livekitRoom} />
+            <ScreenShareTile trackRef={pinnedSSTrack} livekitRoom={livekitRoom} matrixRoom={activeRoom} />
           ) : pinnedParticipant ? (
             <NativeCallParticipantTile
               participant={pinnedParticipant}
@@ -225,16 +305,20 @@ export function NativeCallParticipantGrid({ onPin, widgets }: NativeCallParticip
 
   // ── GRID MODE ────────────────────────────────────────────────────────────────
   return (
-    <div className={styles.gridWrapper}>
+    <div
+      ref={containerRef}
+      className={`${styles.gridWrapper}${isOverflowing ? ` ${styles.gridWrapperOverflowing}` : ''}`}
+    >
       <div
         ref={gridRef}
-        className={`${styles.grid}${isSingleParticipantView ? ` ${styles.gridSingle}` : ''}`}
+        className={styles.grid}
         data-overflowing={isOverflowing ? 'true' : 'false'}
-        style={{ '--voice-grid-columns': String(gridColumns) } as React.CSSProperties}
+        data-tile-count={String(gridTileCount)}
+        style={gridStyle}
       >
-        {/* App widget tiles first — full width, like screenshares */}
+        {/* Fluxer parity: in grid mode, everything is a regular tile, including screenshares. */}
         {(widgets ?? []).map((w) => (
-          <div key={`widget-${w.id}`} className={styles.screenTileWrap}>
+          <div key={`widget-${w.id}`} className={styles.gridItem}>
             <AppTile
               widget={w}
               onPin={handlePin}
@@ -245,10 +329,11 @@ export function NativeCallParticipantGrid({ onPin, widgets }: NativeCallParticip
 
         {/* Screenshare tiles */}
         {screenShareTracks.map((t) => (
-          <div key={`ss-${t.participant?.identity}`} className={styles.screenTileWrap}>
+          <div key={`ss-${t.participant?.identity}`} className={styles.gridItem}>
             <ScreenShareTile
               trackRef={t}
               livekitRoom={livekitRoom}
+              matrixRoom={activeRoom}
               onWatch={() => {
                 if (t.participant?.identity) {
                   pinParticipant(t.participant.identity);
@@ -259,24 +344,15 @@ export function NativeCallParticipantGrid({ onPin, widgets }: NativeCallParticip
         ))}
 
         {/* Regular participant camera tiles */}
-        {participants.map((participant) =>
-          isSingleParticipantView ? (
-            <div key={participant.identity} className={styles.gridSingleCard}>
-              <NativeCallParticipantTile
-                participant={participant}
-                onPin={handlePin}
-                className={styles.tile}
-              />
-            </div>
-          ) : (
+        {participants.map((participant) => (
+          <div key={participant.identity} className={styles.gridItem}>
             <NativeCallParticipantTile
-              key={participant.identity}
               participant={participant}
               onPin={handlePin}
               className={styles.tile}
             />
-          )
-        )}
+          </div>
+        ))}
       </div>
     </div>
   );

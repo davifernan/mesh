@@ -348,8 +348,9 @@ export function RoomNavItem({
     : callMemberships.filter((id) => id !== myUserId);
 
   // Voice state service: bridge-backed participant state for badges and sidebar UI.
-  // Subscribe for every call room so non-active rooms still get authoritative live badges.
-  const voiceStateService = useVoiceStateService(room.roomId, room.isCallRoom());
+  // Only subscribe while the room actually has active call members; opening SSE
+  // for every call room can exhaust browser/proxy connection limits in dev.
+  const voiceStateService = useVoiceStateService(room.roomId, hasActiveCall);
   const bridgePresenceMap = voiceStateService.bridgeSnapshot;
 
   const hasSpeakingMember =

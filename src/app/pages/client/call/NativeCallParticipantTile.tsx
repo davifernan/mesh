@@ -10,10 +10,13 @@ import {
 } from '@phosphor-icons/react';
 import { useMatrixClient } from '../../../hooks/useMatrixClient';
 import { useMediaAuthentication } from '../../../hooks/useMediaAuthentication';
-import { resolveParticipantUserId } from '../../../features/call/participantIdentity';
+import {
+  resolveParticipantDisplayName,
+  resolveParticipantUserId,
+} from '../../../features/call/participantIdentity';
 import { useCallState } from './CallProvider';
-import { getPresenceBadgeKinds, getPresenceSummary, PRESENCE_BADGE_LABEL } from '../../../features/call/presenceBadges';
-import { getMemberAvatarMxc, getMemberDisplayName } from '../../../utils/room';
+import { getPresenceBadgeKinds, getPresenceSummary } from '../../../features/call/presenceBadges';
+import { getMemberAvatarMxc } from '../../../utils/room';
 import styles from './NativeCallParticipantTile.module.css';
 
 // ── Avatar accent colors (Discord-like palette) ────────────────────────────
@@ -97,23 +100,7 @@ export function NativeCallParticipantTile({
     () => resolveParticipantUserId(participant, room),
     [participant, room]
   );
-  const displayName = useMemo(() => {
-    // 1. Matrix room member display name (most reliable)
-    const matrixName = room ? getMemberDisplayName(room, userId) : undefined;
-    if (matrixName) return matrixName;
-
-    // 2. LiveKit participant.name — only if it looks like a real display name
-    //    (not a Matrix ID, which would just repeat the identity noise)
-    const livekitName = participant.name;
-    if (livekitName && !livekitName.startsWith('@')) return livekitName;
-
-    // 3. Clean Matrix userId resolved from identity (strips device suffix)
-    //    Prefer this over raw identity which includes `_DEVICEID` clutter
-    if (userId && userId !== participant.identity) return userId;
-
-    // 4. Raw identity as last resort
-    return participant.identity;
-  }, [room, userId, participant.name, participant.identity]);
+  const displayName = useMemo(() => resolveParticipantDisplayName(participant, room), [participant, room]);
   const isSpeaking = speakingUsers.has(userId);
 
   // ── Matrix avatar ─────────────────────────────────────────────────────
@@ -171,7 +158,7 @@ export function NativeCallParticipantTile({
 
   useEffect(() => {
     const el = tileRef.current;
-    if (!el) return;
+    if (!el) return undefined;
     const observer = new ResizeObserver(([entry]) => {
       const { width, height } = entry.contentRect;
       const base = Math.min(width, height);

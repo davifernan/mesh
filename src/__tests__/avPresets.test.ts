@@ -60,7 +60,6 @@ describe('avPresets', () => {
       echoCancellation: true,
       noiseSuppression: true,
       autoGainControl: false,
-      voiceIsolation: false,
     });
     expect(options.videoCaptureDefaults).toMatchObject({
       deviceId: 'cam-1',

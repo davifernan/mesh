@@ -20,7 +20,7 @@
  */
 
 import { useEffect, useRef, useState, useCallback } from 'react';
-import { Room, RoomEvent, Track, LocalAudioTrack, LocalVideoTrack } from 'livekit-client';
+import { Room, RoomEvent, Track, VideoQuality, LocalAudioTrack, LocalVideoTrack } from 'livekit-client';
 import {
   getSoundboardMixer,
   getSoundboardMixerIfActive,
@@ -28,7 +28,8 @@ import {
   type SoundboardMixer,
 } from './soundboardMixer';
 import type { MatrixClient } from 'matrix-js-sdk';
-import { useAtomValue } from 'jotai';
+import { useSetAtom, useAtomValue } from 'jotai';
+import { watchedScreenSharesAtom } from '../../pages/client/call/screenShareStore';
 import { useMatrixClient } from '../../hooks/useMatrixClient';
 import { useClientConfig } from '../../hooks/useClientConfig';
 import { effectiveAVSettingsAtom } from '../../state/avQuality';
@@ -77,6 +78,10 @@ export interface NativeCallEngine {
   startScreenShare: (ssRes: string, ssFps: number, ssAudio: boolean) => Promise<void>;
   stopScreenShare: () => Promise<void>;
   toggleDeafen: () => Promise<void>;
+  watchedScreenShares: ReadonlySet<string>;
+  watchScreenShare: (identity: string) => Promise<void>;
+  unwatchScreenShare: (identity: string) => Promise<void>;
+  updateActiveScreenShareSettings: (ssRes: string, ssFps: number, ssAudio: boolean) => Promise<void>;
 }
 
 // ─── Internal Helpers ─────────────────────────────────────────────────────────
@@ -157,6 +162,9 @@ export function useNativeCall(roomId: string | null): NativeCallEngine {
   const callSoundsEnabledRef = useRef(callSoundsEnabled);
   useEffect(() => { callSoundsEnabledRef.current = callSoundsEnabled; }, [callSoundsEnabled]);
 
+  const setWatchedScreenShares = useSetAtom(watchedScreenSharesAtom);
+  const watchedScreenShares = useAtomValue(watchedScreenSharesAtom);
+
   // Refs so the connect() closure always sees fresh values without re-running
   const effectiveAVRef = useRef(effectiveAV);
   effectiveAVRef.current = effectiveAV;
@@ -210,6 +218,10 @@ export function useNativeCall(roomId: string | null): NativeCallEngine {
     const activateTimers = new Map<string, ReturnType<typeof setTimeout>>();
     const deactivateTimers = new Map<string, ReturnType<typeof setTimeout>>();
     const confirmedSpeakers = new Set<string>();
+    // Maps LiveKit participant.identity → resolved Matrix userId.
+    // Built once per participant connect so ActiveSpeakersChanged always uses
+    // the same key as remoteParticipantStates, regardless of attribute availability.
+    const identityToUserIdMap = new Map<string, string>();
 
     async function connect() {
       setStatus('connecting');
@@ -399,13 +411,20 @@ export function useNativeCall(roomId: string | null): NativeCallEngine {
           },
           isDisconnecting = false
         ) => {
-          const userId = resolveParticipantUserId(participant, matrixRoom);
+          const resolvedUserId = resolveParticipantUserId(participant, matrixRoom);
+          // Keep identity→userId mapping in sync so ActiveSpeakersChanged uses
+          // consistent keys even if participant attributes aren't set by the bridge.
+          if (isDisconnecting) {
+            identityToUserIdMap.delete(participant.identity);
+          } else {
+            identityToUserIdMap.set(participant.identity, resolvedUserId);
+          }
           setRemoteParticipantStates((prev) => {
             const next = new Map(prev);
             if (isDisconnecting) {
-              next.delete(userId);
+              next.delete(resolvedUserId);
             } else {
-              next.set(userId, {
+              next.set(resolvedUserId, {
                 audioEnabled: participant.isMicrophoneEnabled,
                 videoEnabled: participant.isCameraEnabled,
                 isScreenSharing: participant.isScreenShareEnabled,
@@ -422,7 +441,12 @@ export function useNativeCall(roomId: string | null): NativeCallEngine {
 
         room.on(RoomEvent.ActiveSpeakersChanged, (speakers) => {
           const nextSpeakers = new Set(
-            speakers.map((s) => resolveParticipantUserId(s, matrixRoom))
+            speakers.map((s) =>
+              // Prefer the pre-resolved userId from the identity map — ensures the
+              // key always matches what remoteParticipantStates and RoomNavUser use,
+              // even when LiveKit participant attributes aren't set by the bridge.
+              identityToUserIdMap.get(s.identity) ?? resolveParticipantUserId(s, matrixRoom)
+            )
           );
           if (room.localParticipant.isSpeaking) nextSpeakers.add(userId);
 
@@ -478,9 +502,28 @@ export function useNativeCall(roomId: string | null): NativeCallEngine {
         // TrackPublished/Unpublished only fire for RemoteParticipants in LiveKit v2
         room.on(RoomEvent.TrackPublished, (_pub, participant) => {
           updateRemote(participant);
+          // Manual subscription management (autoSubscribe: false)
+          if (_pub.source === Track.Source.Microphone) {
+            // Subscribe to mic immediately unless deafened
+            _pub.setSubscribed(!isDeafenedRef.current);
+          } else if (_pub.source === Track.Source.Camera) {
+            // Subscribe to camera — adaptiveStream manages quality based on tile size
+            _pub.setSubscribed(true);
+          }
+          // ScreenShare + ScreenShareAudio: NOT subscribed here — user must click Watch
         });
         room.on(RoomEvent.TrackUnpublished, (_pub, participant) => {
           updateRemote(participant);
+          // When a remote screenshare track disappears, remove them from watchedScreenShares
+          // so the Watch overlay is shown again if they start sharing again later.
+          if (_pub.source === Track.Source.ScreenShare) {
+            setWatchedScreenShares((prev) => {
+              if (!prev.has(participant.identity)) return prev;
+              const next = new Set(prev);
+              next.delete(participant.identity);
+              return next as ReadonlySet<string>;
+            });
+          }
         });
         room.on(RoomEvent.ParticipantConnected, (participant) => {
           updateRemote(participant);
@@ -490,6 +533,15 @@ export function useNativeCall(roomId: string | null): NativeCallEngine {
             for (const pub of participant.audioTrackPublications.values()) {
               if (pub.track) pub.track.mediaStreamTrack.enabled = false;
             }
+          }
+          // Catch already-published tracks from this participant (race condition on join)
+          for (const pub of participant.trackPublications.values()) {
+            if (pub.source === Track.Source.Microphone) {
+              pub.setSubscribed(!isDeafenedRef.current);
+            } else if (pub.source === Track.Source.Camera) {
+              pub.setSubscribed(true);
+            }
+            // ScreenShare: not subscribed — user must watch
           }
         });
         room.on(RoomEvent.ParticipantDisconnected, (participant) => {
@@ -504,6 +556,13 @@ export function useNativeCall(roomId: string | null): NativeCallEngine {
           if (confirmedSpeakers.delete(disconnectedUid)) {
             setSpeakingUsers(new Set(confirmedSpeakers));
           }
+          // Remove from watched set — screenshare is gone with the participant.
+          setWatchedScreenShares((prev) => {
+            if (!prev.has(participant.identity)) return prev;
+            const next = new Set(prev);
+            next.delete(participant.identity);
+            return next as ReadonlySet<string>;
+          });
         });
 
         room.on(RoomEvent.LocalTrackPublished, (pub) => {
@@ -519,7 +578,7 @@ export function useNativeCall(roomId: string | null): NativeCallEngine {
         });
 
         // 8. Connect to the LiveKit SFU
-        await room.connect(sfuConfig.url, sfuConfig.jwt, { autoSubscribe: true });
+        await room.connect(sfuConfig.url, sfuConfig.jwt, { autoSubscribe: false });
 
         if (aborted) {
           void room.disconnect();
@@ -626,6 +685,7 @@ export function useNativeCall(roomId: string | null): NativeCallEngine {
       confirmedSpeakers.clear();
       setSpeakingUsers(new Set());
       setRemoteParticipantStates(new Map());
+      setWatchedScreenShares(new Set() as ReadonlySet<string>);
     };
   }, [roomId, mx]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -736,6 +796,7 @@ export function useNativeCall(roomId: string | null): NativeCallEngine {
     setLivekitRoom(null);
     setSpeakingUsers(new Set());
     setRemoteParticipantStates(new Map());
+    setWatchedScreenShares(new Set() as ReadonlySet<string>);
   }, [mx, roomId]);
 
   const toggleAudio = useCallback(async () => {
@@ -888,6 +949,111 @@ export function useNativeCall(roomId: string | null): NativeCallEngine {
     void roomRef.current.localParticipant.setAttributes({ isDeafened: next ? '1' : '0' });
   }, []);
 
+  const watchScreenShare = useCallback(
+    async (identity: string) => {
+      const room = roomRef.current;
+      if (!room) return;
+      const participant = room.remoteParticipants.get(identity);
+      if (!participant) return;
+      for (const pub of participant.trackPublications.values()) {
+        if (
+          pub.source === Track.Source.ScreenShare ||
+          pub.source === Track.Source.ScreenShareAudio
+        ) {
+          pub.setSubscribed(true);
+          // Explicitly request highest quality — screenshare is single-layer
+          // (simulcast: false) so this is a hint to adaptiveStream to prioritise
+          // this track and not downgrade it when the tile is initially small.
+          if (pub.source === Track.Source.ScreenShare && 'setVideoQuality' in pub) {
+            try { (pub as any).setVideoQuality(VideoQuality.HIGH); } catch { /* best-effort */ }
+          }
+        }
+      }
+      setWatchedScreenShares((prev) => {
+        const next = new Set(prev);
+        next.add(identity);
+        return next as ReadonlySet<string>;
+      });
+    },
+    [setWatchedScreenShares],
+  );
+
+  const unwatchScreenShare = useCallback(
+    async (identity: string) => {
+      const room = roomRef.current;
+      if (room) {
+        const participant = room.remoteParticipants.get(identity);
+        if (participant) {
+          for (const pub of participant.trackPublications.values()) {
+            if (
+              pub.source === Track.Source.ScreenShare ||
+              pub.source === Track.Source.ScreenShareAudio
+            ) {
+              pub.setSubscribed(false);
+            }
+          }
+        }
+      }
+      setWatchedScreenShares((prev) => {
+        const next = new Set(prev);
+        next.delete(identity);
+        return next as ReadonlySet<string>;
+      });
+    },
+    [setWatchedScreenShares],
+  );
+
+  const updateActiveScreenShareSettings = useCallback(
+    async (ssRes: string, ssFps: number, ssAudio: boolean) => {
+      const room = roomRef.current;
+      if (!room) return;
+      const lp = room.localParticipant;
+      if (!lp.isScreenShareEnabled) return;
+
+      const ssPub = lp.getTrackPublication(Track.Source.ScreenShare);
+      const ssTrack = ssPub?.track as LocalVideoTrack | undefined;
+      if (!ssTrack) return;
+
+      // 1. Apply capture constraints on the MediaStreamTrack
+      const targetWidth = ssRes === 'source' ? undefined : resolutionToWidth(ssRes);
+      const targetHeight = ssRes === 'source' ? undefined : resolutionToHeight(ssRes);
+      const constraints: MediaTrackConstraints = {
+        ...(targetWidth  !== undefined && { width:     { ideal: targetWidth  } }),
+        ...(targetHeight !== undefined && { height:    { ideal: targetHeight } }),
+        ...(ssFps        > 0           && { frameRate: { ideal: ssFps, max: ssFps } }),
+      };
+      if (Object.keys(constraints).length > 0) {
+        await ssTrack.mediaStreamTrack.applyConstraints(constraints).catch(() => {});
+      }
+
+      // 2. Update RTCRtpSender encoding params (no track restart)
+      const publishOpts = buildSSPublishOptions(ssRes, ssFps);
+      const encoding = publishOpts.screenShareEncoding;
+      if (encoding) {
+        const sender = (ssTrack as any).sender as RTCRtpSender | undefined;
+        if (sender) {
+          const params = sender.getParameters();
+          if (params.encodings?.length) {
+            params.encodings = params.encodings.map((enc) => ({
+              ...enc,
+              maxBitrate:   encoding.maxBitrate,
+              maxFramerate: encoding.maxFramerate ?? enc.maxFramerate,
+            }));
+            await sender.setParameters(params).catch(() => {});
+          }
+        }
+      }
+
+      // 3. Toggle ScreenShareAudio mute/unmute
+      const audioPub = lp.getTrackPublication(Track.Source.ScreenShareAudio);
+      if (audioPub) {
+        if (ssAudio) await audioPub.unmute().catch(() => {});
+        else         await audioPub.mute().catch(() => {});
+      }
+    },
+    [],
+  );
+
   // ── Return ─────────────────────────────────────────────────────────────────
 
   return {
@@ -909,6 +1075,10 @@ export function useNativeCall(roomId: string | null): NativeCallEngine {
     startScreenShare,
     stopScreenShare,
     toggleDeafen,
+    watchedScreenShares,
+    watchScreenShare,
+    unwatchScreenShare,
+    updateActiveScreenShareSettings,
   };
 }
 

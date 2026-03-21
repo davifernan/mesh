@@ -11,7 +11,7 @@
   },
 
   "livekitServiceUrl": "https://livekit-jwt.nilo.live",
-  "presenceUrl": "/api/presence",
+  "presenceUrl": "https://chat.nilo.live/api/presence",
 
   "voiceStateMode": "livekit",
   "featureFlags": {

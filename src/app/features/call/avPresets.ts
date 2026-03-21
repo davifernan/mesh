@@ -220,9 +220,14 @@ export function buildSSCaptureOptions(
 ): ScreenShareCaptureOptions {
   const preset = resolutionToSSPreset(ssResolution, ssFps);
 
+  const videoConstraint: boolean | MediaTrackConstraints =
+    !preset && ssFps
+      ? { frameRate: { ideal: ssFps, max: ssFps } }
+      : true;
+
   return {
     audio: ssAudio,
-    video: true,
+    video: videoConstraint,
     resolution: preset?.resolution,
     contentHint: getScreenShareContentHint(ssResolution, ssFps),
     preferCurrentTab: false,

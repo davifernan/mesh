@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { createPortal } from 'react-dom';
-import { useAtomValue, useSetAtom } from 'jotai';
+import { useAtomValue } from 'jotai';
 import { settingsAtom, Settings } from '../../../state/settings';
 import { effectiveAVSettingsAtom } from '../../../state/avQuality';
 import * as css from './ScreenShareModal.css';
@@ -23,13 +23,16 @@ function isResolutionAllowed(res: SSResolution, maxRes: string): boolean {
 interface ScreenShareModalProps {
   onConfirm: (ssResolution: SSResolution, ssFps: SSFps, ssAudio: boolean) => void;
   onCancel: () => void;
+  mode?: 'start' | 'update';
+  /** When true, the audio toggle is locked — mid-share audio cannot be toggled
+   *  without restarting the share (no ScreenShareAudio track exists). */
+  audioLocked?: boolean;
 }
 
-export function ScreenShareModal({ onConfirm, onCancel }: ScreenShareModalProps) {
+export function ScreenShareModal({ onConfirm, onCancel, mode = 'start', audioLocked = false }: ScreenShareModalProps) {
   if (typeof document === 'undefined') return null;
 
   const settings = useAtomValue(settingsAtom);
-  const setSettings = useSetAtom(settingsAtom);
   const effective = useAtomValue(effectiveAVSettingsAtom);
 
   const [ssResolution, setSsResolution] = useState<SSResolution>(effective.ssResolution);
@@ -40,7 +43,8 @@ export function ScreenShareModal({ onConfirm, onCancel }: ScreenShareModalProps)
   const serverMaxFps = effective.serverMaxSSFps;
 
   const handleConfirm = () => {
-    setSettings({ ...settings, ssResolution, ssFps, ssAudio });
+    // Settings persistence is the caller's responsibility (NativeCallControlBar).
+    // Writing here too caused stale-closure overwrite of concurrently changed settings.
     onConfirm(ssResolution, ssFps, ssAudio);
   };
 
@@ -108,13 +112,21 @@ export function ScreenShareModal({ onConfirm, onCancel }: ScreenShareModalProps)
           </div>
 
           {/* System Audio */}
-          <div className={css.AudioRow}>
-            <span className={css.AudioLabel}>Capture System Audio</span>
+          <div className={css.AudioRow} style={audioLocked ? { opacity: 0.45, pointerEvents: 'none' } : undefined}>
+            <span className={css.AudioLabel}>
+              Capture System Audio
+              {audioLocked && (
+                <span style={{ marginLeft: 6, fontSize: '11px', color: 'var(--text-muted)' }}>
+                  (restart share to change)
+                </span>
+              )}
+            </span>
             <label className={css.Toggle}>
               <input
                 type="checkbox"
                 className={css.ToggleInput}
                 checked={ssAudio}
+                disabled={audioLocked}
                 onChange={(e) => setSsAudio(e.target.checked)}
               />
               <span className={css.ToggleSlider} />
@@ -136,7 +148,7 @@ export function ScreenShareModal({ onConfirm, onCancel }: ScreenShareModalProps)
             Cancel
           </button>
           <button type="button" className={css.BtnConfirm} onClick={handleConfirm}>
-            Save &amp; Join Call →
+            {mode === 'update' ? 'Apply Settings' : 'Start Sharing'}
           </button>
         </div>
 
