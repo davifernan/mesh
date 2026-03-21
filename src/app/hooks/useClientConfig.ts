@@ -49,6 +49,13 @@ export type ClientConfig = {
   voiceStateMode?: 'livekit' | 'bridge';
 
   /**
+   * Default audio bitrate in kbps applied to new user profiles.
+   * Operator-configurable override for the in-app default (128 kbps).
+   * Supported values: 32 | 64 | 128 | 256 | 510
+   */
+  defaultAudioBitrate?: 32 | 64 | 128 | 256 | 510;
+
+  /**
    * Feature flags for the authoritative bridge migration.
    */
   featureFlags?: {

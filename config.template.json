@@ -13,6 +13,8 @@
   "livekitServiceUrl": "${BETTERCORD_LIVEKIT_URL}",
   "presenceUrl": "${BETTERCORD_PRESENCE_URL}",
 
+  "defaultAudioBitrate": 128,
+
   "voiceStateMode": "${BETTERCORD_VOICE_STATE_MODE}",
   "featureFlags": {
     "authoritativeBridgeMode": ${BETTERCORD_AUTHORITATIVE_BRIDGE_MODE}

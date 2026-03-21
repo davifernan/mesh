@@ -197,7 +197,7 @@ combined with space/channel overrides in `src/app/state/avQuality.ts` (effective
 
 | Setting | Type | Default | Notes |
 |---------|------|---------|-------|
-| audioBitrate | 32\|64\|128\|256\|510 kbps | 64 | Mic bitrate |
+| audioBitrate | 32\|64\|128\|256\|510 kbps | 128 | Mic bitrate |
 | echoCancellation | boolean | true | Browser constraint |
 | noiseSuppression | boolean | true | Browser constraint |
 | autoGainControl | boolean | true | Browser constraint |

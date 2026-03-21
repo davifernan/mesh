@@ -13,6 +13,8 @@
   "livekitServiceUrl": "https://livekit-jwt.nilo.live",
   "presenceUrl": "https://chat.nilo.live/api/presence",
 
+  "defaultAudioBitrate": 128,
+
   "voiceStateMode": "livekit",
   "featureFlags": {
     "authoritativeBridgeMode": false
