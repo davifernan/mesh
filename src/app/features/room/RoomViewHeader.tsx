@@ -771,7 +771,8 @@ export function RoomViewHeader({ isIssueBoard, onToggleIssueBoard, isThreadsDraw
             </TooltipProvider>
           )}
 
-          {/* Pinned messages — greyed when issue board covers the chat */}
+          {/* Pinned messages — secondary action, only shown when pins exist */}
+          {pinnedEvents.length > 0 && (
           <TooltipProvider
             position="Bottom"
             offset={4}
@@ -789,7 +790,7 @@ export function RoomViewHeader({ isIssueBoard, onToggleIssueBoard, isThreadsDraw
                 onClick={handleOpenPinMenu}
                 ref={triggerRef}
                 aria-pressed={!!pinMenuAnchor}
-                aria-label={`Pinned messages${pinnedEvents.length > 0 ? ` (${pinnedEvents.length} pinned)` : ''}`}
+                aria-label={`Pinned messages (${pinnedEvents.length} pinned)`}
               >
                 {pinnedEvents.length > 0 && (
                   <Badge
@@ -812,6 +813,7 @@ export function RoomViewHeader({ isIssueBoard, onToggleIssueBoard, isThreadsDraw
               </IconButton>
             )}
           </TooltipProvider>
+          )}
           <PopOut
             anchor={pinMenuAnchor}
             position="Bottom"
