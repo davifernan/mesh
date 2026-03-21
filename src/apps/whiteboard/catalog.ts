@@ -16,5 +16,6 @@ if (whiteboardUrl) {
     icon: '🖊️',
     category: 'collaborate',
     widgetUrl: `${whiteboardUrl}?widgetId=$matrix_widget_id&parentUrl=$matrix_client_origin`,
+    waitForIframeLoad: false, // nordeck widget sends ContentLoaded first; parent must wait for it
   });
 }

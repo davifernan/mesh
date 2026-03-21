@@ -287,10 +287,11 @@ export class RedisVoiceStateStore implements VoiceStateStore {
     let cursor = '0';
 
     do {
-      const [nextCursor, keys] = await this.redis.scan(cursor, 'MATCH', pattern, 'COUNT', 100);
-      cursor = nextCursor;
+      const result = await this.redis.send('SCAN', [cursor, 'MATCH', pattern, 'COUNT', '100']) as [string, string[]];
+      cursor = result[0];
+      const keys = result[1];
       if (keys.length > 0) {
-        await this.redis.del(...keys);
+        await this.redis.send('DEL', keys);
       }
     } while (cursor !== '0');
 
@@ -317,9 +318,9 @@ export class RedisVoiceStateStore implements VoiceStateStore {
     let count = 0;
 
     do {
-      // scan(cursor, "MATCH", pattern, "COUNT", hint)
-      const [nextCursor, keys] = await this.redis.scan(cursor, 'MATCH', pattern, 'COUNT', 100);
-      cursor = nextCursor;
+      const result = await this.redis.send('SCAN', [cursor, 'MATCH', pattern, 'COUNT', '100']) as [string, string[]];
+      cursor = result[0];
+      const keys = result[1];
 
       if (keys.length > 0) {
         const values = await this.redis.mget(...keys);
@@ -353,8 +354,9 @@ export class RedisVoiceStateStore implements VoiceStateStore {
     const candidates: ParticipantPresence[] = [];
 
     do {
-      const [nextCursor, keys] = await this.redis.scan(cursor, 'MATCH', pattern, 'COUNT', 100);
-      cursor = nextCursor;
+      const result = await this.redis.send('SCAN', [cursor, 'MATCH', pattern, 'COUNT', '100']) as [string, string[]];
+      cursor = result[0];
+      const keys = result[1];
 
       if (keys.length > 0) {
         const values = await this.redis.mget(...keys);
