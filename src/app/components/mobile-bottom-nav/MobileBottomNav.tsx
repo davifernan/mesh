@@ -1,6 +1,6 @@
 import React, { useEffect } from 'react';
 import { NavLink } from 'react-router-dom';
-import { House, ChatCircle, Bell, List, X } from '@phosphor-icons/react';
+import { House, ChatCircle, Bell, SquaresFour } from '@phosphor-icons/react';
 import { ScreenSize, useScreenSizeContext } from '../../hooks/useScreenSize';
 import { HOME_PATH, DIRECT_PATH, INBOX_PATH } from '../../pages/paths';
 import { useMobileDrawer } from '../mobile-drawer';
@@ -27,40 +27,10 @@ function NavTab({ to, icon, label, onClick }: NavTabProps) {
   );
 }
 
-type ButtonTabProps = {
-  icon: React.ReactNode;
-  label: string;
-  onClick: () => void;
-  active?: boolean;
-  ariaControls?: string;
-  ariaExpanded?: boolean;
-};
-function ButtonTab({
-  icon,
-  label,
-  onClick,
-  active,
-  ariaControls,
-  ariaExpanded,
-}: ButtonTabProps) {
-  return (
-    <button
-      type="button"
-      className={`${css.Tab} ${css.ButtonTab} ${active ? css.TabActive : ''}`}
-      aria-label={label}
-      aria-controls={ariaControls}
-      aria-expanded={ariaExpanded}
-      onClick={onClick}
-    >
-      {icon}
-      <span className={css.TabLabel}>{label}</span>
-    </button>
-  );
-}
 
 export function MobileBottomNav() {
   const screenSize = useScreenSizeContext();
-  const { isOpen, toggle, close } = useMobileDrawer();
+  const { close } = useMobileDrawer();
   const callState = useCallStateOptional();
   const hideForActiveCall =
     screenSize === ScreenSize.Mobile &&
@@ -80,14 +50,7 @@ export function MobileBottomNav() {
 
   return (
     <nav className={css.BottomNav} aria-label="Mobile navigation">
-      <ButtonTab
-        icon={isOpen ? <X size={22} weight="bold" /> : <List size={22} weight="bold" />}
-        label={isOpen ? 'Close' : 'Menu'}
-        onClick={toggle}
-        active={isOpen}
-        ariaControls="mobile-sidebar-drawer"
-        ariaExpanded={isOpen}
-      />
+      <NavTab to={HOME_PATH} icon={<SquaresFour size={22} weight="fill" />} label="Spaces" onClick={close} />
       <NavTab to={HOME_PATH} icon={<House size={22} weight="fill" />} label="Home" onClick={close} />
       <NavTab to={DIRECT_PATH} icon={<ChatCircle size={22} weight="fill" />} label="DMs" onClick={close} />
       <NavTab to={INBOX_PATH} icon={<Bell size={22} weight="fill" />} label="Inbox" onClick={close} />

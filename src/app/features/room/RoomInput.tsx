@@ -257,22 +257,40 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
       useCallback((width) => setIsNarrowPicker(width < 500), [])
     );
 
+    // Load draft from localStorage on mount (roomId change), if Jotai atom is empty
+    useEffect(() => {
+      const storageKey = `bc:draft:${draftKey}`;
+      try {
+        const stored = localStorage.getItem(storageKey);
+        if (stored && msgDraft.length === 0) {
+          const parsed = JSON.parse(stored);
+          setMsgDraft(parsed);
+        }
+      } catch {
+        // ignore storage errors
+      }
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [draftKey]);
+
     useEffect(() => {
       Transforms.insertFragment(editor, msgDraft);
     }, [editor, msgDraft]);
 
     useEffect(
       () => () => {
+        const storageKey = `bc:draft:${draftKey}`;
         if (!isEmptyEditor(editor)) {
           const parsedDraft = JSON.parse(JSON.stringify(editor.children));
           setMsgDraft(parsedDraft);
+          try { localStorage.setItem(storageKey, JSON.stringify(parsedDraft)); } catch { /* ignore */ }
         } else {
           setMsgDraft([]);
+          try { localStorage.removeItem(storageKey); } catch { /* ignore */ }
         }
         resetEditor(editor);
         resetEditorHistory(editor);
       },
-      [roomId, editor, setMsgDraft]
+      [draftKey, editor, setMsgDraft]
     );
 
     const handleFileMetadata = useCallback(
@@ -423,9 +441,11 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
       resetEditorHistory(editor);
       setReplyDraft(undefined);
       sendTypingStatus(false);
+      try { localStorage.removeItem(`bc:draft:${draftKey}`); } catch { /* ignore */ }
     }, [
       mx,
       roomId,
+      draftKey,
       threadId,
       editor,
       replyDraft,
@@ -836,7 +856,7 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
               <IconButton
                 onClick={submit}
                 aria-label="Send message"
-                variant="SurfaceVariant"
+                variant="Primary"
                 size="300"
                 radii="300"
               >
