@@ -1,4 +1,4 @@
-import React, { useCallback, useRef } from 'react';
+import React, { useCallback, useRef, useState } from 'react';
 import { useNavigate, useLocation, matchPath } from 'react-router-dom';
 import { useAtomValue } from 'jotai';
 import { isKeyHotkey } from 'is-hotkey';
@@ -28,6 +28,7 @@ import { useSetSetting } from '../state/hooks/settings';
 import { settingsAtom } from '../state/settings';
 import { getSecondarySessions } from '../state/sessions';
 import { useClientConfig } from '../hooks/useClientConfig';
+import { QuickSwitcherModal } from './quick-switcher/QuickSwitcherModal';
 
 const CALL_SHORTCUTS: DisplayShortcut[] = [
   { key: 'mod+shift+m', description: 'Toggle mute (in call)', category: 'Actions' },
@@ -162,6 +163,7 @@ export function GlobalKeyboardShortcuts() {
   const { hangUp, toggleAudio, toggleVideo, activeCallRoomId, setActiveCallRoomId, setSoundboardOpen, isSoundboardOpen } = useCallState();
   const setPeopleDrawer = useSetSetting(settingsAtom, 'isPeopleDrawer');
   const unreadIndexRef = useRef(0);
+  const [quickSwitcherOpen, setQuickSwitcherOpen] = useState(false);
   const mx = useMatrixClient();
   const roomToParents = useAtomValue(roomToParentsAtom);
   const orphanSpaces = useOrphanSpaces(mx, allRoomsAtom, roomToParents);
@@ -381,6 +383,16 @@ export function GlobalKeyboardShortcuts() {
     [hasMainSession, secondarySessions, hashRouter]
   );
 
+  const handleQuickSwitcherKeyDown = useCallback((evt: KeyboardEvent) => {
+    if (isKeyHotkey('mod+k', evt)) {
+      evt.preventDefault();
+      setQuickSwitcherOpen((open) => !open);
+    }
+    if (evt.key === 'Escape' && quickSwitcherOpen) {
+      setQuickSwitcherOpen(false);
+    }
+  }, [quickSwitcherOpen]);
+
   useKeyDown(window, handleCallKeyDown);
   useKeyDown(window, handleSpaceKeyDown);
   useKeyDown(window, handleNextUnreadKeyDown);
@@ -389,6 +401,13 @@ export function GlobalKeyboardShortcuts() {
   useKeyDown(window, handlePeopleDrawerKeyDown);
   useKeyDown(window, handleSectionTabKeyDown);
   useKeyDown(window, handleAccountSwitchKeyDown);
+  useKeyDown(window, handleQuickSwitcherKeyDown);
 
-  return null;
+  return (
+    <>
+      {quickSwitcherOpen && (
+        <QuickSwitcherModal onClose={() => setQuickSwitcherOpen(false)} />
+      )}
+    </>
+  );
 }
