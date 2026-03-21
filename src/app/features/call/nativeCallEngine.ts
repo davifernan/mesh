@@ -214,7 +214,7 @@ export function useNativeCall(roomId: string | null): NativeCallEngine {
     if (!roomId) return;
 
     let aborted = false;
-    const SPEAK_ACTIVATE_MS = 180;
+    const SPEAK_ACTIVATE_MS = 50;
     const SPEAK_DEACTIVATE_MS = 500;
     const activateTimers = new Map<string, ReturnType<typeof setTimeout>>();
     const deactivateTimers = new Map<string, ReturnType<typeof setTimeout>>();
@@ -587,6 +587,16 @@ export function useNativeCall(roomId: string | null): NativeCallEngine {
 
         // 8. Connect to the LiveKit SFU
         await room.connect(sfuConfig.url, sfuConfig.jwt, { autoSubscribe: false });
+
+        // Set participant attributes so other clients can resolve our display name
+        try {
+          await room.localParticipant.setAttributes({
+            displayName: mx.getUser(mx.getUserId()!)?.displayName ?? mx.getUserId() ?? '',
+            userId: mx.getUserId() ?? '',
+          });
+        } catch {
+          // non-critical — attributes are best-effort
+        }
 
         if (aborted) {
           room.removeAllListeners();
