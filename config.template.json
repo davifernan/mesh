@@ -15,6 +15,7 @@
 
   "voiceStateMode": "${BETTERCORD_VOICE_STATE_MODE}",
   "featureFlags": {
-    "authoritativeBridgeMode": ${BETTERCORD_AUTHORITATIVE_BRIDGE_MODE}
+    "authoritativeBridgeMode": ${BETTERCORD_AUTHORITATIVE_BRIDGE_MODE},
+    "experimentalAV1": false
   }
 }

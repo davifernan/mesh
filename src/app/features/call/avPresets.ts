@@ -21,6 +21,7 @@ import {
   type TrackPublishOptions,
   ScreenSharePresets,
   type TrackPublishDefaults,
+  type VideoEncoding,
   VideoPreset,
   VideoPresets,
 } from 'livekit-client';
@@ -73,7 +74,8 @@ export function resolutionToVideoPreset(res?: string): VideoPreset {
     case '720p': return VideoPresets.h720;
     case '1080p': return VideoPresets.h1080;
     case '1440p': return new VideoPreset(2560, 1440, 5_000_000, 30, 'high');
-    case '2160p': return new VideoPreset(3840, 2160, 10_000_000, 30, 'high');
+    // Issue #67: 4K needs 15 Mbps for crisp text/UI at full resolution
+    case '2160p': return new VideoPreset(3840, 2160, 15_000_000, 30, 'high');
     default: return VideoPresets.h720;
   }
 }
@@ -128,13 +130,30 @@ export function bitrateToAudioPreset(kbps?: number): AudioPreset {
  */
 export function getSimulcastLayers(res?: string): VideoPreset[] {
   switch (res) {
-    case '360p': return [];
+    // Issue #68: 360p needs an h180 fallback layer so the SFU always has a downgrade path
+    case '360p': return [new VideoPreset(320, 180, 80_000, 15)];
     case '480p': return [VideoPresets.h180];
     case '720p': return [VideoPresets.h180, VideoPresets.h360];
     case '1080p': return [VideoPresets.h180, VideoPresets.h360, VideoPresets.h720];
     case '1440p':
     case '2160p': return [VideoPresets.h180, VideoPresets.h360, VideoPresets.h720, VideoPresets.h1080];
     default: return [VideoPresets.h180, VideoPresets.h360];
+  }
+}
+
+/**
+ * Issue #69: Returns a backupCodec VP8 encoding that matches the active camera resolution.
+ * Prevents the backup codec from always defaulting to h720 regardless of camera quality.
+ */
+export function getBackupCodecEncoding(res?: string): VideoEncoding {
+  switch (res) {
+    case '360p': return VideoPresets.h360.encoding;
+    case '480p': return new VideoPreset(854, 480, 600_000, 30).encoding;
+    case '720p': return VideoPresets.h720.encoding;
+    case '1080p': return VideoPresets.h1080.encoding;
+    case '1440p': return new VideoPreset(2560, 1440, 5_000_000, 30).encoding;
+    case '2160p': return new VideoPreset(3840, 2160, 15_000_000, 30).encoding;
+    default: return VideoPresets.h720.encoding;
   }
 }
 
@@ -212,12 +231,21 @@ export function buildAudioCaptureDefaults(av: AudioCaptureSettings): AudioCaptur
 
 /**
  * Builds LiveKit ScreenShareCaptureOptions for setScreenShareEnabled().
+ *
+ * Issue #46: stopScreenShareTrackOnMute: false prevents OS capture teardown on mute.
+ * Issue #48: Chrome-only getDisplayMedia extensions are guarded behind isChrome — Firefox
+ *   and Safari throw on unknown constraints (systemAudio, surfaceSwitching, etc.)
  */
 export function buildSSCaptureOptions(
   ssResolution: string,
   ssFps: number,
   ssAudio: boolean,
 ): ScreenShareCaptureOptions {
+  const isChrome =
+    typeof navigator !== 'undefined' &&
+    /Chrome/.test(navigator.userAgent) &&
+    /Google Inc/.test(navigator.vendor);
+
   const preset = resolutionToSSPreset(ssResolution, ssFps);
 
   const videoConstraint: boolean | MediaTrackConstraints =
@@ -225,15 +253,26 @@ export function buildSSCaptureOptions(
       ? { frameRate: { ideal: ssFps, max: ssFps } }
       : true;
 
+  // suppressLocalAudioPlayback is Chrome-only — prevents system audio loopback in the mic
+  const audioConstraint: boolean | MediaTrackConstraints = ssAudio
+    ? isChrome
+      ? ({ suppressLocalAudioPlayback: true } as MediaTrackConstraints)
+      : true
+    : false;
+
   return {
-    audio: ssAudio,
+    stopScreenShareTrackOnMute: false, // Issue #46: keep OS capture alive when track is muted
+    audio: audioConstraint,
     video: videoConstraint,
     resolution: preset?.resolution,
     contentHint: getScreenShareContentHint(ssResolution, ssFps),
-    preferCurrentTab: false,
-    selfBrowserSurface: 'include',
-    surfaceSwitching: 'include',
-    systemAudio: ssAudio ? 'include' : 'exclude',
+    // Issue #48: Chrome-specific getDisplayMedia extensions — omit on Firefox/Safari
+    ...(isChrome && {
+      preferCurrentTab: false as const,
+      selfBrowserSurface: 'include' as const,
+      surfaceSwitching: 'include' as const,
+      systemAudio: (ssAudio ? 'include' : 'exclude') as 'include' | 'exclude',
+    }),
   };
 }
 
@@ -244,7 +283,7 @@ const defaultPublishOptions: TrackPublishDefaults = {
   screenShareEncoding: ScreenSharePresets.h1080fps30.encoding,
   videoSimulcastLayers: [VideoPresets.h180, VideoPresets.h360] as VideoPreset[],
   stopMicTrackOnMute: false, // NEVER set true — causes PublishTrackError on reconnect
-  videoCodec: 'vp8',         // Keep vp8 — VP9 causes codec mismatches
+  videoCodec: 'vp8',         // Keep vp8 — VP9 causes codec mismatches; AV1 opt-in via experimentalAV1 flag
   dtx: true,
   red: true,
   forceStereo: false,
@@ -257,11 +296,23 @@ const defaultPublishOptions: TrackPublishDefaults = {
  *
  * CRITICAL: adaptiveStream and dynacast are kept at upstream defaults (true).
  * Only publishDefaults is customized with user quality preferences.
+ *
+ * Issue #72: experimentalAV1=true switches videoCodec to 'av1' when the browser supports it.
+ *   AV1 is NOT VP9 — the AGENTS.md warning against VP9 does NOT apply here.
+ *   Fallback: if RTCRtpSender reports no AV1 capability, vp8 is used instead.
  */
 export function buildLiveKitRoomOptions(
   av: AVSettings,
   e2eeOptions?: E2EEManagerOptions,
+  experimentalAV1 = false,
 ): RoomOptions {
+  // Issue #72: check browser AV1 support at runtime before enabling
+  const supportsAV1 =
+    experimentalAV1 &&
+    (RTCRtpSender.getCapabilities?.('video')?.codecs?.some(
+      (c) => c.mimeType.toLowerCase() === 'video/av1',
+    ) ?? false);
+  const videoCodec: 'vp8' | 'av1' = supportsAV1 ? 'av1' : 'vp8';
   const videoPreset = resolutionToVideoPreset(av.videoResolution);
   const baseVideoFps = videoPreset.encoding.maxFramerate ?? 30;
   const targetVideoFps = av.videoFps || baseVideoFps;
@@ -301,6 +352,10 @@ export function buildLiveKitRoomOptions(
       audioPreset: bitrateToAudioPreset(av.audioBitrate),
       videoEncoding,
       videoSimulcastLayers: getSimulcastLayers(av.videoResolution),
+      // Issue #69: backupCodec encoding matches active camera resolution (not always h720)
+      backupCodec: { codec: 'vp8', encoding: getBackupCodecEncoding(av.videoResolution) },
+      // Issue #72: AV1 opt-in via experimentalAV1 config flag (requires browser support)
+      videoCodec,
     },
 
     // E2EE — only set if key provider is supplied

@@ -49,7 +49,7 @@ export type ClientConfig = {
   voiceStateMode?: 'livekit' | 'bridge';
 
   /**
-   * Feature flags for the authoritative bridge migration.
+   * Feature flags for the authoritative bridge migration and experimental features.
    */
   featureFlags?: {
     /**
@@ -62,6 +62,17 @@ export type ClientConfig = {
      * bridge is a fallback for remote users).
      */
     authoritativeBridgeMode?: boolean;
+
+    /**
+     * Issue #72: When true, enables AV1 video codec for camera tracks.
+     * AV1 offers 30-50% better compression than VP8 at equal quality.
+     *
+     * IMPORTANT: This is NOT VP9. The VP9 ban in AGENTS.md does not apply here.
+     * Automatic fallback to VP8 if the browser does not support AV1 encoding.
+     *
+     * Default: false (safe — VP8 is always supported).
+     */
+    experimentalAV1?: boolean;
   };
 };
 
