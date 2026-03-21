@@ -11,23 +11,24 @@ import {
   ChartBar,
   ChatCircle,
   Waveform,
-  SpeakerHigh,
-  SpeakerSlash,
   CaretDown,
   ArrowsClockwise,
   MusicNote,
   Rocket,
+  CornersOut,
 } from '@phosphor-icons/react';
 import { ScreenSize, useScreenSizeContext } from '../../../hooks/useScreenSize';
 import { useLocalParticipant } from '@livekit/components-react';
 import { Track } from 'livekit-client';
 import { useAtom } from 'jotai';
 import { useCallState } from './CallProvider';
+import { useMatrixClient } from '../../../hooks/useMatrixClient';
 import { settingsAtom } from '../../../state/settings';
 import { ScreenShareModal } from '../../../components/voice/ScreenShareModal/ScreenShareModal';
 import { SoundboardPanel } from '../../../components/soundboard';
 import { showStatsAtom } from './VoiceCallLayoutStore';
 import { ActivityPicker } from './ActivityPicker';
+import { ConnectionQualityBadge } from './ConnectionQualityBadge';
 import styles from './NativeCallControlBar.module.css';
 
 function formatDuration(s: number): string {
@@ -41,6 +42,7 @@ function formatDuration(s: number): string {
 export function NativeCallControlBar() {
   const screenSize = useScreenSizeContext();
   const isMobile = screenSize === ScreenSize.Mobile;
+  const mx = useMatrixClient();
 
   const {
     hangUp,
@@ -52,8 +54,6 @@ export function NativeCallControlBar() {
     isChatOpen,
     toggleChat,
     activeCallRoomId,
-    isDeafened,
-    toggleDeafen,
     callStatus,
     startScreenShare,
     stopScreenShare,
@@ -231,9 +231,17 @@ export function NativeCallControlBar() {
     setUserSettings({ ...userSettings, noiseSuppression: next });
   }, [setUserSettings, userSettings]);
 
-  // Derive a human-readable room display name from the Matrix room ID.
+  const handleFullscreen = useCallback(() => {
+    if (!document.fullscreenElement) {
+      void document.documentElement.requestFullscreen();
+    } else {
+      void document.exitFullscreen();
+    }
+  }, []);
+
+  // Derive a human-readable room display name from the Matrix room.
   const roomDisplayName = activeCallRoomId
-    ? (activeCallRoomId.replace(/^!/, '').split(':')[0] ?? activeCallRoomId)
+    ? (mx.getRoom(activeCallRoomId)?.name ?? activeCallRoomId)
     : null;
 
   return (
@@ -247,6 +255,7 @@ export function NativeCallControlBar() {
         />
       )}
       <div className={styles.bar}>
+        {/* Left: room name + timer */}
         <div className={styles.leftSection}>
           {roomDisplayName && (
             <span className={styles.roomName} title={activeCallRoomId ?? undefined}>
@@ -254,105 +263,85 @@ export function NativeCallControlBar() {
             </span>
           )}
           {callStatus === 'connected' && (
-            <span className={styles.durationText}>{formatDuration(duration)}</span>
+            <>
+              <span className={styles.durationText}>{formatDuration(duration)}</span>
+              <ConnectionQualityBadge />
+            </>
           )}
         </div>
 
         <div className={styles.controls}>
-          {/* Microphone + device caret */}
-          <div className={styles.btnWrap} ref={micMenuRef}>
-            <button
-              className={`${styles.btn} ${!isAudioEnabled ? styles.btnMuted : ''}`}
-              onClick={() => void toggleAudio()}
-              title={isAudioEnabled ? 'Mute microphone' : 'Unmute microphone'}
-              aria-label={isAudioEnabled ? 'Mute microphone' : 'Unmute microphone'}
-              aria-pressed={!isAudioEnabled}
-            >
-              {isAudioEnabled ? <Microphone size={20} /> : <MicrophoneSlash size={20} />}
-            </button>
-            <button
-              className={styles.caretBtn}
-              onClick={openMicMenu}
-              title="Switch microphone"
-              aria-label="Switch microphone device"
-            >
-              <CaretDown size={12} />
-            </button>
-            {showMicMenu && (
-              <div className={styles.deviceMenu}>
-                {micDevices.length === 0 && (
-                  <div className={styles.deviceItem} style={{ color: 'var(--text-secondary)' }}>
-                    No microphones found
-                  </div>
-                )}
-                {micDevices.map((d) => (
-                  <div
-                    key={d.deviceId}
-                    className={styles.deviceItem}
-                    onClick={() => selectMicDevice(d.deviceId)}
-                    role="button"
-                    tabIndex={0}
-                    onKeyDown={(e) => e.key === 'Enter' && selectMicDevice(d.deviceId)}
-                    aria-pressed={userSettings.micDeviceId === d.deviceId}
-                    style={userSettings.micDeviceId === d.deviceId ? { color: 'var(--brand-primary)' } : undefined}
-                  >
-                    {d.label || `Microphone ${d.deviceId.slice(0, 8)}`}
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-
-          {/* Deafen */}
-          <button
-            className={`${styles.btn} ${isDeafened ? styles.btnMuted : ''}`}
-            onClick={toggleDeafen}
-            title={isDeafened ? 'Undeafen' : 'Deafen'}
-            aria-label={isDeafened ? 'Undeafen' : 'Deafen'}
-            aria-pressed={isDeafened}
-          >
-            {isDeafened ? <SpeakerSlash size={20} /> : <SpeakerHigh size={20} />}
-          </button>
-
-          {isMobile ? (
-            <>
+          {/* ── Left pill: mic + cam ──────────────────────────────────── */}
+          <div className={styles.pillGroup}>
+            {/* Microphone + device caret */}
+            <div className={styles.btnWrap} ref={micMenuRef}>
               <button
-                className={`${styles.btn} ${!isVideoEnabled ? styles.btnMuted : ''}`}
-                onClick={() => void toggleVideo()}
-                title={isVideoEnabled ? 'Disable camera' : 'Enable camera'}
-                aria-label={isVideoEnabled ? 'Disable camera' : 'Enable camera'}
-                aria-pressed={!isVideoEnabled}
+                className={`${styles.btn} ${!isAudioEnabled ? styles.btnMuted : ''}`}
+                onClick={() => void toggleAudio()}
+                title={isAudioEnabled ? 'Mute microphone' : 'Unmute microphone'}
+                aria-label={isAudioEnabled ? 'Mute microphone' : 'Unmute microphone'}
+                aria-pressed={!isAudioEnabled}
               >
-                {isVideoEnabled ? <VideoCamera size={20} /> : <VideoCameraSlash size={20} />}
+                {isAudioEnabled ? <Microphone size={20} /> : <MicrophoneSlash size={20} />}
               </button>
-
               <button
-                className={styles.btn}
-                onClick={() => void flipCamera()}
-                title="Flip camera"
-                aria-label="Flip camera"
+                className={styles.caretBtn}
+                onClick={openMicMenu}
+                title="Switch microphone"
+                aria-label="Switch microphone device"
               >
-                <ArrowsClockwise size={20} />
+                <CaretDown size={12} />
               </button>
+              {showMicMenu && (
+                <div className={styles.deviceMenu}>
+                  {micDevices.length === 0 && (
+                    <div className={styles.deviceItem} style={{ color: 'var(--text-secondary)' }}>
+                      No microphones found
+                    </div>
+                  )}
+                  {micDevices.map((d) => (
+                    <div
+                      key={d.deviceId}
+                      className={styles.deviceItem}
+                      onClick={() => selectMicDevice(d.deviceId)}
+                      role="button"
+                      tabIndex={0}
+                      onKeyDown={(e) => e.key === 'Enter' && selectMicDevice(d.deviceId)}
+                      aria-pressed={userSettings.micDeviceId === d.deviceId}
+                      style={userSettings.micDeviceId === d.deviceId ? { color: 'var(--brand-primary)' } : undefined}
+                    >
+                      {d.label || `Microphone ${d.deviceId.slice(0, 8)}`}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
 
-              <div className={styles.btnWrap} ref={soundboardMenuRef}>
+            <div className={styles.pillDivider} />
+
+            {isMobile ? (
+              <>
                 <button
-                  className={`${styles.btn} ${isSoundboardOpen ? styles.btnActive : ''}`}
-                  onClick={() => setSoundboardOpen(!isSoundboardOpen)}
-                  title="Soundboard"
-                  aria-label="Toggle soundboard"
-                  aria-pressed={isSoundboardOpen}
+                  className={`${styles.btn} ${!isVideoEnabled ? styles.btnMuted : ''}`}
+                  onClick={() => void toggleVideo()}
+                  title={isVideoEnabled ? 'Disable camera' : 'Enable camera'}
+                  aria-label={isVideoEnabled ? 'Disable camera' : 'Enable camera'}
+                  aria-pressed={!isVideoEnabled}
                 >
-                  <MusicNote size={20} />
+                  {isVideoEnabled ? <VideoCamera size={20} /> : <VideoCameraSlash size={20} />}
                 </button>
-                {isSoundboardOpen && (
-                  <SoundboardPanel onClose={() => setSoundboardOpen(false)} />
-                )}
-              </div>
-            </>
-          ) : (
-            <>
-              {/* Camera + device caret (desktop) */}
+
+                <button
+                  className={styles.btn}
+                  onClick={() => void flipCamera()}
+                  title="Flip camera"
+                  aria-label="Flip camera"
+                >
+                  <ArrowsClockwise size={20} />
+                </button>
+              </>
+            ) : (
+              /* Camera + device caret (desktop) */
               <div className={styles.btnWrap} ref={camMenuRef}>
                 <button
                   className={`${styles.btn} ${!isVideoEnabled ? styles.btnMuted : ''}`}
@@ -395,60 +384,116 @@ export function NativeCallControlBar() {
                   </div>
                 )}
               </div>
+            )}
+          </div>
 
-              {/* Screen Share + context menu when active */}
-              <div className={styles.btnWrap} ref={ssMenuRef}>
+          {/* ── Right pill: screen share, noise, soundboard, activities, stats, chat, watch ── */}
+          <div className={styles.pillGroup}>
+            {!isMobile && (
+              <>
+                {/* Screen Share + context menu when active */}
+                <div className={styles.btnWrap} ref={ssMenuRef}>
+                  <button
+                    className={`${styles.btn} ${isScreenShareEnabled ? styles.btnActive : ''}`}
+                    onClick={handleScreenShare}
+                    onContextMenu={(e) => {
+                      if (isScreenShareEnabled) {
+                        e.preventDefault();
+                        setShowSSMenu(true);
+                      }
+                    }}
+                    title={isScreenShareEnabled ? 'Screen share options' : 'Share screen'}
+                    aria-label={isScreenShareEnabled ? 'Screen share options' : 'Share screen'}
+                    aria-pressed={isScreenShareEnabled}
+                  >
+                    {isScreenShareEnabled ? <Monitor size={20} /> : <MonitorArrowUp size={20} />}
+                  </button>
+                  {showSSMenu && (
+                    <div className={styles.ssMenu}>
+                      <div
+                        className={styles.deviceItem}
+                        onClick={handleStopSharing}
+                        role="button"
+                        tabIndex={0}
+                        onKeyDown={(e) => e.key === 'Enter' && handleStopSharing()}
+                      >
+                        Stop Sharing
+                      </div>
+                      <div
+                        className={styles.deviceItem}
+                        onClick={handleShareSettings}
+                        role="button"
+                        tabIndex={0}
+                        onKeyDown={(e) => e.key === 'Enter' && handleShareSettings()}
+                      >
+                        Quality Settings
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                <div className={styles.pillDivider} />
+
+                {/* Noise Suppression */}
                 <button
-                  className={`${styles.btn} ${isScreenShareEnabled ? styles.btnActive : ''}`}
-                  onClick={handleScreenShare}
-                  onContextMenu={(e) => {
-                    if (isScreenShareEnabled) {
-                      e.preventDefault();
-                      setShowSSMenu(true);
-                    }
-                  }}
-                  title={isScreenShareEnabled ? 'Screen share options' : 'Share screen'}
-                  aria-label={isScreenShareEnabled ? 'Screen share options' : 'Share screen'}
-                  aria-pressed={isScreenShareEnabled}
+                  className={`${styles.btn} ${userSettings.noiseSuppression ? styles.btnActive : styles.btnMuted}`}
+                  onClick={handleToggleNoiseSup}
+                  title={userSettings.noiseSuppression ? 'Noise suppression on' : 'Noise suppression off'}
+                  aria-label={userSettings.noiseSuppression ? 'Disable noise suppression' : 'Enable noise suppression'}
+                  aria-pressed={userSettings.noiseSuppression}
                 >
-                  {isScreenShareEnabled ? <Monitor size={20} /> : <MonitorArrowUp size={20} />}
+                  <Waveform size={20} />
                 </button>
-                {showSSMenu && (
-                  <div className={styles.ssMenu}>
-                    <div
-                      className={styles.deviceItem}
-                      onClick={handleStopSharing}
-                      role="button"
-                      tabIndex={0}
-                      onKeyDown={(e) => e.key === 'Enter' && handleStopSharing()}
-                    >
-                      Stop Sharing
-                    </div>
-                    <div
-                      className={styles.deviceItem}
-                      onClick={handleShareSettings}
-                      role="button"
-                      tabIndex={0}
-                      onKeyDown={(e) => e.key === 'Enter' && handleShareSettings()}
-                    >
-                      Quality Settings
-                    </div>
-                  </div>
-                )}
-              </div>
 
-              {/* Noise Suppression */}
-              <button
-                className={`${styles.btn} ${userSettings.noiseSuppression ? styles.btnActive : styles.btnMuted}`}
-                onClick={handleToggleNoiseSup}
-                title={userSettings.noiseSuppression ? 'Noise suppression on' : 'Noise suppression off'}
-                aria-label={userSettings.noiseSuppression ? 'Disable noise suppression' : 'Enable noise suppression'}
-                aria-pressed={userSettings.noiseSuppression}
-              >
-                <Waveform size={20} />
-              </button>
+                {/* Soundboard */}
+                <div className={styles.btnWrap} ref={soundboardMenuRef}>
+                  <button
+                    className={`${styles.btn} ${isSoundboardOpen ? styles.btnActive : ''}`}
+                    onClick={() => setSoundboardOpen(!isSoundboardOpen)}
+                    title="Soundboard"
+                    aria-label="Toggle soundboard"
+                    aria-pressed={isSoundboardOpen}
+                  >
+                    <MusicNote size={20} />
+                  </button>
+                  {isSoundboardOpen && (
+                    <SoundboardPanel onClose={() => setSoundboardOpen(false)} />
+                  )}
+                </div>
 
-              {/* Soundboard */}
+                {/* Activities */}
+                <div className={styles.btnWrap} ref={activitiesRef}>
+                  <button
+                    className={`${styles.btn} ${showActivities ? styles.btnActive : ''}`}
+                    onClick={toggleActivities}
+                    title="Activities"
+                    aria-label="Open activities picker"
+                    aria-pressed={showActivities}
+                  >
+                    <Rocket size={20} />
+                  </button>
+                  {showActivities && (
+                    <ActivityPicker onClose={() => setShowActivities(false)} />
+                  )}
+                </div>
+
+                {/* Stats */}
+                <button
+                  className={`${styles.btn} ${showStats ? styles.btnActive : ''}`}
+                  onClick={() => setShowStats((s) => !s)}
+                  title="Call stats"
+                  aria-label="Toggle call stats"
+                  aria-pressed={showStats}
+                >
+                  <ChartBar size={20} />
+                </button>
+
+                <div className={styles.pillDivider} />
+              </>
+            )}
+
+            {isMobile && (
+              /* Soundboard on mobile */
               <div className={styles.btnWrap} ref={soundboardMenuRef}>
                 <button
                   className={`${styles.btn} ${isSoundboardOpen ? styles.btnActive : ''}`}
@@ -463,69 +508,54 @@ export function NativeCallControlBar() {
                   <SoundboardPanel onClose={() => setSoundboardOpen(false)} />
                 )}
               </div>
+            )}
 
-              {/* Activities */}
-              <div className={styles.btnWrap} ref={activitiesRef}>
-                <button
-                  className={`${styles.btn} ${showActivities ? styles.btnActive : ''}`}
-                  onClick={toggleActivities}
-                  title="Activities"
-                  aria-label="Open activities picker"
-                  aria-pressed={showActivities}
-                >
-                  <Rocket size={20} />
-                </button>
-                {showActivities && (
-                  <ActivityPicker onClose={() => setShowActivities(false)} />
-                )}
-              </div>
-
-              {/* Stats */}
-              <button
-                className={`${styles.btn} ${showStats ? styles.btnActive : ''}`}
-                onClick={() => setShowStats((s) => !s)}
-                title="Call stats"
-                aria-label="Toggle call stats"
-                aria-pressed={showStats}
-              >
-                <ChartBar size={20} />
-              </button>
-            </>
-          )}
-
-          {/* Chat */}
-          <button
-            className={`${styles.btn} ${isChatOpen ? styles.btnActive : ''}`}
-            onClick={() => void toggleChat()}
-            title={isChatOpen ? 'Hide chat' : 'Show chat'}
-            aria-label={isChatOpen ? 'Hide chat' : 'Show chat'}
-            aria-pressed={isChatOpen}
-          >
-            <ChatCircle size={20} />
-          </button>
-
-          {/* Stop Watching screen share */}
-          {isWatchingScreenShare && (
+            {/* Chat */}
             <button
-              type="button"
-              className={`${styles.btn} ${styles.btnActive}`}
-              onClick={stopWatchingAll}
-              title="Stop Watching"
-              aria-label="Stop watching screen share"
+              className={`${styles.btn} ${isChatOpen ? styles.btnActive : ''}`}
+              onClick={() => void toggleChat()}
+              title={isChatOpen ? 'Hide chat' : 'Show chat'}
+              aria-label={isChatOpen ? 'Hide chat' : 'Show chat'}
+              aria-pressed={isChatOpen}
             >
-              <EyeSlash size={20} />
+              <ChatCircle size={20} />
             </button>
-          )}
 
-          {/* Hang up */}
+            {/* Stop Watching screen share */}
+            {isWatchingScreenShare && (
+              <button
+                type="button"
+                className={`${styles.btn} ${styles.btnActive}`}
+                onClick={stopWatchingAll}
+                title="Stop Watching"
+                aria-label="Stop watching screen share"
+              >
+                <EyeSlash size={20} />
+              </button>
+            )}
+          </div>
+
+          {/* ── Hang up — outside pills ───────────────────────────────── */}
           <button
-            className={`${styles.btn} ${styles.btnHangup}`}
+            className={`${styles.btn} ${styles.btnHangupOutside}`}
             onClick={hangUp}
             title="Leave call"
             aria-label="Leave call"
           >
             <PhoneDisconnect size={20} />
           </button>
+
+          {/* ── Fullscreen ────────────────────────────────────────────── */}
+          {!isMobile && (
+            <button
+              className={`${styles.btn} ${styles.fullscreenBtn}`}
+              onClick={handleFullscreen}
+              title="Toggle fullscreen"
+              aria-label="Toggle fullscreen"
+            >
+              <CornersOut size={20} />
+            </button>
+          )}
         </div>
 
         <div className={styles.rightSection} />

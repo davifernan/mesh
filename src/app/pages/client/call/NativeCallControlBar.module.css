@@ -128,6 +128,55 @@
   z-index: 100;
 }
 
+/* ── Pill groups ────────────────────────────────────────────────────────────── */
+.pillGroup {
+  display: flex;
+  align-items: center;
+  background: rgba(255, 255, 255, 0.06);
+  border-radius: 9999px;
+  gap: 1px;
+  overflow: visible;
+}
+.pillGroup .btn {
+  background: transparent;
+  border-radius: 9999px;
+}
+.pillGroup .btn:hover {
+  background: rgba(255, 255, 255, 0.10);
+}
+.pillDivider {
+  width: 1px;
+  height: 20px;
+  background: rgba(255, 255, 255, 0.10);
+  flex-shrink: 0;
+}
+.btnHangupOutside {
+  background: var(--voice-status-danger);
+  color: white;
+  border-radius: 9999px;
+  width: 40px;
+  height: 40px;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: background 100ms;
+}
+.btnHangupOutside:hover {
+  background: color-mix(in srgb, var(--voice-status-danger) 85%, black);
+}
+.fullscreenBtn {
+  background: rgba(255, 255, 255, 0.06);
+  border-radius: 9999px;
+  color: var(--text-secondary);
+}
+.fullscreenBtn:hover {
+  background: rgba(255, 255, 255, 0.12);
+  color: var(--text-primary);
+}
+
 /* ── Mobile: full-width solid bottom navbar ────────────────────────────────── */
 @media (max-width: 768px) {
   .bar {
