@@ -55,7 +55,9 @@ export class SoundboardMixer {
    *                   May be null; call setMicTrack() later.
    */
   constructor(micTrack: MediaStreamTrack | null) {
-    this.ctx = new AudioContext();
+    // 'balanced' = larger audio buffers vs 'interactive', reducing quantization
+    // artifacts for soundboard clips without adding perceptible latency.
+    this.ctx = new AudioContext({ latencyHint: 'balanced' });
     this.destination = this.ctx.createMediaStreamDestination();
 
     // Mic gain — starts at 1 (pass-through). Set to 0 when muted.
