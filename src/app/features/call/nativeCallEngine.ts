@@ -191,6 +191,7 @@ export function useNativeCall(roomId: string | null): NativeCallEngine {
   const roomRef = useRef<Room | null>(null);
   const rtcSessionRef = useRef<any>(null);
   const e2eeWorkerRef = useRef<Worker | null>(null);
+  const keyProviderRef = useRef<MatrixKeyProvider | null>(null);
   const isDeafenedRef = useRef(false);
   // True when the mic was muted automatically by deafen (so we can restore it on undeafen).
   // Stays false if the user manually muted before deafening — we don't touch their manual mute.
@@ -362,14 +363,18 @@ export function useNativeCall(roomId: string | null): NativeCallEngine {
         roomRef.current = room;
         rtcSessionRef.current = rtcSession;
         e2eeWorkerRef.current = e2eeWorker;
+        keyProviderRef.current = keyProvider;
 
         if (keyProvider) keyProvider.setRTCSession(rtcSession);
 
         if (aborted) {
+          room.removeAllListeners();
           void room.disconnect();
           void rtcSession.leaveRoomSession?.();
           roomRef.current = null;
           rtcSessionRef.current = null;
+          keyProvider?.dispose();
+          keyProviderRef.current = null;
           e2eeWorker?.terminate();
           e2eeWorkerRef.current = null;
           return;
@@ -385,10 +390,13 @@ export function useNativeCall(roomId: string | null): NativeCallEngine {
         );
 
         if (aborted) {
+          room.removeAllListeners();
           void room.disconnect();
           void rtcSession.leaveRoomSession?.();
           roomRef.current = null;
           rtcSessionRef.current = null;
+          keyProvider?.dispose();
+          keyProviderRef.current = null;
           e2eeWorker?.terminate();
           e2eeWorkerRef.current = null;
           return;
@@ -581,7 +589,15 @@ export function useNativeCall(roomId: string | null): NativeCallEngine {
         await room.connect(sfuConfig.url, sfuConfig.jwt, { autoSubscribe: false });
 
         if (aborted) {
+          room.removeAllListeners();
           void room.disconnect();
+          void rtcSession.leaveRoomSession?.();
+          roomRef.current = null;
+          rtcSessionRef.current = null;
+          keyProviderRef.current?.dispose();
+          keyProviderRef.current = null;
+          e2eeWorkerRef.current?.terminate();
+          e2eeWorkerRef.current = null;
           return;
         }
 
@@ -668,10 +684,13 @@ export function useNativeCall(roomId: string | null): NativeCallEngine {
       // Tear down the soundboard mixer before disconnecting the room.
       destroySoundboardMixerSingleton();
       mixerRef.current = null;
+      roomRef.current?.removeAllListeners();
       void roomRef.current?.disconnect();
       roomRef.current = null;
       void rtcSessionRef.current?.leaveRoomSession?.();
       rtcSessionRef.current = null;
+      keyProviderRef.current?.dispose();
+      keyProviderRef.current = null;
       e2eeWorkerRef.current?.terminate();
       e2eeWorkerRef.current = null;
       setStatus('idle');
@@ -785,10 +804,13 @@ export function useNativeCall(roomId: string | null): NativeCallEngine {
     // Tear down the soundboard mixer before disconnecting the room.
     destroySoundboardMixerSingleton();
     mixerRef.current = null;
+    roomRef.current?.removeAllListeners();
     void roomRef.current?.disconnect();
     roomRef.current = null;
     void rtcSessionRef.current?.leaveRoomSession?.();
     rtcSessionRef.current = null;
+    keyProviderRef.current?.dispose();
+    keyProviderRef.current = null;
     e2eeWorkerRef.current?.terminate();
     e2eeWorkerRef.current = null;
     setStatus('idle');

@@ -116,7 +116,8 @@ export function NativeCallControlBar() {
   const soundboardMenuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    if (!showMicMenu && !showCamMenu && !showSSMenu && !isSoundboardOpen) return;
+    const anyOpen = showMicMenu || showCamMenu || showSSMenu || isSoundboardOpen;
+    if (!anyOpen) return;
     const handler = (e: MouseEvent) => {
       if (showMicMenu && micMenuRef.current && !micMenuRef.current.contains(e.target as Node)) {
         setShowMicMenu(false);

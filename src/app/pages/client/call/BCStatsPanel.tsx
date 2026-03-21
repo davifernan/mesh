@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useRoomContext, useConnectionState } from '@livekit/components-react';
 import { ConnectionState, ConnectionQuality, RoomEvent, Track } from 'livekit-client';
 import { X } from '@phosphor-icons/react';
@@ -57,9 +57,17 @@ export function BCStatsPanel({ onClose }: BCStatsPanelProps) {
   }, [room]);
 
   useEffect(() => {
+    const isMountedRef = { current: true };
     const update = () => {
-      const lat = (room as any).engine?.latency ?? null;
-      setLatencyMs(typeof lat === 'number' ? Math.round(lat) : null);
+      if (!isMountedRef.current) return;
+      // Note: engine.latency and engine.subscriber.pc are internal LiveKit APIs.
+      // They may break on LiveKit version upgrades — wrapped in try/catch for safety.
+      try {
+        const lat = (room as any).engine?.latency ?? null;
+        setLatencyMs(typeof lat === 'number' ? Math.round(lat) : null);
+      } catch {
+        setLatencyMs(null);
+      }
       setParticipantCount(room.numParticipants ?? 0);
 
       // Audio/video bitrate from local participant track objects
@@ -69,32 +77,40 @@ export function BCStatsPanel({ onClose }: BCStatsPanelProps) {
       const videoPub = room.localParticipant.getTrackPublication(Track.Source.Camera);
       setVideoKbps(Math.round((videoPub?.track?.currentBitrate ?? 0) / 1000));
 
-      const pc: RTCPeerConnection | undefined = (room as any).engine?.subscriber?.pc;
-      if (pc) {
-        pc.getStats().then((report) => {
-          let lostPackets = 0;
-          let totalPackets = 0;
-          let jitter = 0;
-          let hasInbound = false;
-          report.forEach((stat) => {
-            if (stat.type === 'inbound-rtp' && stat.kind === 'audio') {
-              lostPackets = stat.packetsLost ?? 0;
-              totalPackets = (stat.packetsReceived ?? 0) + lostPackets;
-              jitter = Math.round((stat.jitter ?? 0) * 1000);
-              hasInbound = true;
+      try {
+        const pc: RTCPeerConnection | undefined = (room as any).engine?.subscriber?.pc;
+        if (pc) {
+          pc.getStats().then((report) => {
+            if (!isMountedRef.current) return;
+            let lostPackets = 0;
+            let totalPackets = 0;
+            let jitter = 0;
+            let hasInbound = false;
+            report.forEach((stat) => {
+              if (stat.type === 'inbound-rtp' && stat.kind === 'audio') {
+                lostPackets = stat.packetsLost ?? 0;
+                totalPackets = (stat.packetsReceived ?? 0) + lostPackets;
+                jitter = Math.round((stat.jitter ?? 0) * 1000);
+                hasInbound = true;
+              }
+            });
+            if (hasInbound) {
+              setPacketsLost(lostPackets);
+              setPacketsTotal(totalPackets);
+              setJitterMs(jitter);
             }
-          });
-          if (hasInbound) {
-            setPacketsLost(lostPackets);
-            setPacketsTotal(totalPackets);
-            setJitterMs(jitter);
-          }
-        }).catch(() => {});
+          }).catch(() => {});
+        }
+      } catch {
+        // Internal API access failed — stats will show as unavailable
       }
     };
     update();
     const interval = setInterval(update, 3000);
-    return () => clearInterval(interval);
+    return () => {
+      isMountedRef.current = false;
+      clearInterval(interval);
+    };
   }, [room]);
 
   const stateLabel: Record<ConnectionState, string> = {

@@ -32,7 +32,7 @@ function useVoiceHUDIdle(timeoutMs = 3000) {
 
 /** Shows an "Allow Audio" overlay when browser autoplay is blocked */
 function AudioUnblockButton() {
-  const { canPlayAudio } = useAudioPlayback();
+  const { canPlayAudio, startAudio } = useAudioPlayback();
   if (canPlayAudio) return null;
   return (
     <div style={{
@@ -57,10 +57,7 @@ function AudioUnblockButton() {
           fontWeight: 600,
           cursor: 'pointer',
         }}
-        onClick={() => {
-          // LiveKit's useAudioPlayback / startAudio is triggered by any user gesture;
-          // rendering this button inside RoomContext means clicking it unblocks audio.
-        }}
+        onClick={() => startAudio()}
       >
         Allow Audio
       </button>
