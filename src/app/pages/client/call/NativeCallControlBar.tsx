@@ -16,6 +16,7 @@ import {
   MusicNote,
   Rocket,
   CornersOut,
+  ArrowSquareOut,
 } from '@phosphor-icons/react';
 import { ScreenSize, useScreenSizeContext } from '../../../hooks/useScreenSize';
 import { useLocalParticipant } from '@livekit/components-react';
@@ -53,6 +54,7 @@ export function NativeCallControlBar() {
     isVideoEnabled,
     isChatOpen,
     toggleChat,
+    toggleCallView,
     activeCallRoomId,
     callStatus,
     startScreenShare,
@@ -238,6 +240,18 @@ export function NativeCallControlBar() {
       void document.exitFullscreen();
     }
   }, []);
+
+  const handlePopout = useCallback(() => {
+    if (!window.electron || !activeCallRoomId) return;
+    const encoded = encodeURIComponent(activeCallRoomId);
+    // Support both browser router (/popout) and hash router (/#/popout)
+    const isHashRoute = window.location.hash.length > 1;
+    const popoutUrl = isHashRoute
+      ? `${window.location.origin}${window.location.pathname}#/popout?room=${encoded}`
+      : `${window.location.origin}/popout?room=${encoded}`;
+    window.open(popoutUrl, `bettercord_${activeCallRoomId}`, 'width=960,height=640');
+    toggleCallView();
+  }, [activeCallRoomId, toggleCallView]);
 
   // Derive a human-readable room display name from the Matrix room.
   const roomDisplayName = activeCallRoomId
@@ -544,6 +558,18 @@ export function NativeCallControlBar() {
           >
             <PhoneDisconnect size={20} />
           </button>
+
+          {/* ── Popout (Electron only) ────────────────────────────────── */}
+          {!isMobile && !!window.electron && (
+            <button
+              className={`${styles.btn}`}
+              onClick={handlePopout}
+              title="Open call in separate window"
+              aria-label="Open call in separate window"
+            >
+              <ArrowSquareOut size={20} />
+            </button>
+          )}
 
           {/* ── Fullscreen ────────────────────────────────────────────── */}
           {!isMobile && (

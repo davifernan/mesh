@@ -92,6 +92,15 @@ function getSanitizedPath(rawUrl: string): string | null {
 	}
 }
 
+function getSanitizedHash(rawUrl: string): string {
+	try {
+		return new URL(rawUrl).hash;
+	} catch (error) {
+		log.warn('Invalid URL for hash check', {rawUrl, error});
+		return '';
+	}
+}
+
 interface WindowBounds {
 	x: number;
 	y: number;
@@ -698,8 +707,14 @@ export function createWindow(): BrowserWindow {
 
 	webContents.setWindowOpenHandler(({url, frameName}) => {
 		const pathname = getSanitizedPath(url);
+		const urlHash = getSanitizedHash(url);
 		const namespacedPopout = frameName?.startsWith(POPOUT_NAMESPACE);
-		const trustedRoutePopout = namespacedPopout && pathname === '/popout' && isTrustedOrigin(url);
+		// Support both browser router (/popout) and hash router (/#/popout?...)
+		const isPopoutRoute =
+			pathname === '/popout' ||
+			urlHash === '#/popout' ||
+			urlHash.startsWith('#/popout?');
+		const trustedRoutePopout = namespacedPopout && isPopoutRoute && isTrustedOrigin(url);
 		const blankPopout = namespacedPopout && url === 'about:blank';
 
 		if (trustedRoutePopout || blankPopout) {

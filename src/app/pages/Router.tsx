@@ -78,6 +78,7 @@ import { MobileBottomNav } from '../components/mobile-bottom-nav';
 import { MobileDrawerProvider, SidebarDrawerWrapper } from '../components/mobile-drawer';
 import { ElectronUpdateBanner } from '../components/electron/ElectronUpdateBanner';
 import { ElectronScreensharePicker } from '../components/electron/ElectronScreensharePicker';
+import { CallPopoutPage } from './call-popout/CallPopoutPage';
 
 export const createRouter = (clientConfig: ClientConfig, screenSize: ScreenSize, basePath?: string) => {
   const { hashRouter } = clientConfig;
@@ -303,6 +304,7 @@ export const createRouter = (clientConfig: ClientConfig, screenSize: ScreenSize,
           <Route path={_SERVER_PATH} element={<PublicRooms />} />
         </Route>
         <Route path={CREATE_PATH} element={<Create />} />
+        <Route path="/popout" element={<CallPopoutPage />} />
         <Route
           path={INBOX_PATH}
           element={
