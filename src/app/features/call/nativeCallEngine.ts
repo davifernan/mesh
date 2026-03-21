@@ -639,8 +639,10 @@ export function useNativeCall(roomId: string | null): NativeCallEngine {
             await room.localParticipant.unpublishTrack(rawMicTrack, false);
 
             // Publish the mixer's blended output track as the microphone source.
+            // userProvidedTrack=true: the track is owned by SoundboardMixer (keepDeviceAlive),
+            // so LiveKit must not stop the underlying MediaStreamTrack on unpublish.
             const mixedMst = mixer.getMixedTrack();
-            const mixedLocalTrack = new LocalAudioTrack(mixedMst, undefined, false);
+            const mixedLocalTrack = new LocalAudioTrack(mixedMst, undefined, true);
             await room.localParticipant.publishTrack(mixedLocalTrack, {
               audioPreset: bitrateToAudioPreset(av.audioBitrate),
               source: Track.Source.Microphone,
@@ -786,6 +788,41 @@ export function useNativeCall(roomId: string | null): NativeCallEngine {
     userSettings.echoCancellation,
     userSettings.noiseSuppression,
   ]);
+
+  // ── Live speaker device switching (#30) ──────────────────────────────────
+  // When the user changes their output device during a call, switch immediately
+  // via Room.switchActiveDevice so the change takes effect without rejoining.
+  useEffect(() => {
+    if (!livekitRoom || !userSettings.speakerDeviceId || status !== 'connected') return;
+    livekitRoom
+      .switchActiveDevice('audiooutput', userSettings.speakerDeviceId)
+      .catch((err) => console.warn('[BetterCord] Speaker switch failed:', err));
+  }, [livekitRoom, userSettings.speakerDeviceId, status]);
+
+  // ── Receive video quality (#31) ───────────────────────────────────────────
+  // Apply the user's preferred receive quality to all subscribed remote video
+  // tracks. LiveKit's adaptiveStream will still lower quality for off-screen
+  // tiles; this setting acts as a ceiling when tiles are visible.
+  useEffect(() => {
+    const room = roomRef.current;
+    if (!room || status !== 'connected') return;
+
+    const qualityMap: Record<string, VideoQuality> = {
+      auto: VideoQuality.HIGH,
+      high: VideoQuality.HIGH,
+      medium: VideoQuality.MEDIUM,
+      low: VideoQuality.LOW,
+    };
+    const targetQuality = qualityMap[userSettings.receiveVideoQuality] ?? VideoQuality.HIGH;
+
+    for (const participant of room.remoteParticipants.values()) {
+      for (const pub of participant.videoTrackPublications.values()) {
+        if (pub.isSubscribed && 'setVideoQuality' in pub) {
+          try { (pub as any).setVideoQuality(targetQuality); } catch { /* best-effort */ }
+        }
+      }
+    }
+  }, [userSettings.receiveVideoQuality, status]);
 
   // ── Audio-wins-over-video quality fallback ────────────────────────────────
   // When connection quality degrades (Poor/Lost), screenshare + camera video
