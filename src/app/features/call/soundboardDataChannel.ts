@@ -42,9 +42,10 @@ export async function deriveSoundboardAesKey(sharedSecret: string): Promise<Cryp
   );
 }
 
-async function encryptPayload(key: CryptoKey, plaintext: Uint8Array): Promise<Uint8Array> {
+async function encryptPayload(key: CryptoKey, plaintext: Uint8Array): Promise<Uint8Array<ArrayBuffer>> {
   const iv = crypto.getRandomValues(new Uint8Array(12));
-  const ciphertext = await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, key, plaintext);
+  // Cast plaintext to Uint8Array<ArrayBuffer> — SharedArrayBuffer is disallowed in crypto APIs (Spectre mitigation)
+  const ciphertext = await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, key, plaintext as Uint8Array<ArrayBuffer>);
   const out = new Uint8Array(12 + ciphertext.byteLength);
   out.set(iv, 0);
   out.set(new Uint8Array(ciphertext), 12);

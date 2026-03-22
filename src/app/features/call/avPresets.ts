@@ -270,9 +270,10 @@ export function buildSSCaptureOptions(
     : false;
 
   return {
-    stopScreenShareTrackOnMute: false, // Issue #46: keep OS capture alive when track is muted
+    // Issue #46: LiveKit does not expose stopScreenShareTrackOnMute — OS capture remains alive by default for screen share
     audio: audioConstraint,
-    video: videoConstraint,
+    // Cast: frameRate-only constraint doesn't use displaySurface — ConstrainDOMString vs literal union mismatch
+    video: videoConstraint as ScreenShareCaptureOptions['video'],
     resolution: preset?.resolution,
     contentHint: getScreenShareContentHint(ssResolution, ssFps),
     // Issue #48: Chrome-specific getDisplayMedia extensions — omit on Firefox/Safari
