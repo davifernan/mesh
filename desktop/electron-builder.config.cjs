@@ -49,6 +49,14 @@ module.exports = {
 			to: 'badges',
 			filter: ['**/*'],
 		},
+		{
+			// Bundle the built web app so users can download & run without hosting anything.
+			// The app:// protocol handler (AppProtocol.tsx) serves these files.
+			// Build order: npm run build (root) THEN npm run build (desktop/).
+			from: '../dist',
+			to: 'webapp',
+			filter: ['**/*'],
+		},
 	],
 
 	asar: true,

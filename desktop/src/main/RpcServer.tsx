@@ -21,7 +21,7 @@
 
 import http from 'node:http';
 import {BUILD_CHANNEL} from '@electron/common/BuildChannel';
-import {CANARY_APP_URL, STABLE_APP_URL} from '@electron/common/Constants';
+import {BUNDLED_APP_ORIGIN, CANARY_APP_URL, STABLE_APP_URL} from '@electron/common/Constants';
 import {getCustomAppUrl} from '@electron/common/DesktopConfig';
 import {getMainWindow, showWindow} from '@electron/main/Window';
 import {app} from 'electron';
@@ -29,7 +29,11 @@ import log from 'electron-log';
 
 export const RPC_PORT = BUILD_CHANNEL === 'canary' ? 21864 : 21863;
 
-const ALLOWED_ORIGINS = [STABLE_APP_URL, CANARY_APP_URL];
+const ALLOWED_ORIGINS = [
+	BUNDLED_APP_ORIGIN,
+	...(STABLE_APP_URL ? [STABLE_APP_URL] : []),
+	...(CANARY_APP_URL ? [CANARY_APP_URL] : []),
+];
 
 const isAllowedOrigin = (origin?: string): boolean => {
 	if (!origin) return false;

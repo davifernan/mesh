@@ -22,7 +22,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import {BUILD_CHANNEL} from '@electron/common/BuildChannel';
-import {CANARY_APP_URL, STABLE_APP_URL} from '@electron/common/Constants';
+import {BUNDLED_APP_URL, CANARY_APP_URL, STABLE_APP_URL} from '@electron/common/Constants';
 import log from 'electron-log';
 
 const CONFIG_FILE_NAME = 'settings.json';
@@ -62,15 +62,27 @@ export function loadDesktopConfig(userDataPath: string): void {
 }
 
 export function getAppUrl(): string {
-	// mesh: allow overriding URL via env variable for dev mode
-	// Usage: MESH_APP_URL=http://localhost:8080 electron .
+	// 1. Dev override via env var: MESH_APP_URL=http://localhost:8080 npm run dev
 	if (process.env.MESH_APP_URL) {
 		return process.env.MESH_APP_URL;
 	}
+	// 2. User-configured custom instance (saved in settings.json)
+	//    Power users who self-host can point the desktop app at their own URL.
 	if (config.app_url) {
 		return config.app_url;
 	}
-	return BUILD_CHANNEL === 'canary' ? CANARY_APP_URL : STABLE_APP_URL;
+	// 3. Canary remote URL (only if explicitly set at build time via MESH_CANARY_URL)
+	if (BUILD_CHANNEL === 'canary' && CANARY_APP_URL) {
+		return CANARY_APP_URL;
+	}
+	// 4. Stable remote URL (only if explicitly set at build time via MESH_APP_URL)
+	if (STABLE_APP_URL) {
+		return STABLE_APP_URL;
+	}
+	// 5. Default: bundled web app served via app://mesh/ protocol
+	//    No remote URL needed — the web app is included in the Electron package.
+	//    Users enter their Matrix homeserver in the login screen.
+	return BUNDLED_APP_URL;
 }
 
 export function getCustomAppUrl(): string | null {

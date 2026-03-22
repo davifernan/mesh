@@ -21,7 +21,16 @@
 
 export const APP_PROTOCOL = 'mesh';
 
-export const STABLE_APP_URL = process.env.MESH_APP_URL ?? 'https://hostmesh.diy';
+// Bundled web app — served via custom app:// protocol from resources/webapp/
+// This is the default when no custom instance URL is configured.
+export const BUNDLED_APP_SCHEME = 'app';
+export const BUNDLED_APP_HOST = 'mesh';
+export const BUNDLED_APP_ORIGIN = `${BUNDLED_APP_SCHEME}://${BUNDLED_APP_HOST}`;
+export const BUNDLED_APP_URL = `${BUNDLED_APP_ORIGIN}/`;
+
+// Remote instance URLs — used when the user has configured a custom hosted instance.
+// MESH_APP_URL env var overrides for development / CI builds.
+export const STABLE_APP_URL = process.env.MESH_APP_URL ?? null;
 export const CANARY_APP_URL = process.env.MESH_CANARY_URL ?? STABLE_APP_URL;
 export const DEFAULT_WINDOW_WIDTH = 1280;
 export const DEFAULT_WINDOW_HEIGHT = 800;
