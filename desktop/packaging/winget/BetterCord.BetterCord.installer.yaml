@@ -1,4 +1,4 @@
-PackageIdentifier: Fluxer.Fluxer
+PackageIdentifier: BetterCord.BetterCord
 PackageVersion: PLACEHOLDER_VERSION
 MinimumOSVersion: 10.0.17763.0
 InstallerType: nullsoft
@@ -10,10 +10,10 @@ InstallModes:
 UpgradeBehavior: install
 Installers:
   - Architecture: x64
-    InstallerUrl: https://api.fluxer.app/dl/desktop/stable/win32/x64/PLACEHOLDER_VERSION/setup
+    InstallerUrl: https://github.com/davifernan/BetterCord/releases/download/PLACEHOLDER_VERSION/BetterCord-x64-PLACEHOLDER_VERSION-setup.exe
     InstallerSha256: PLACEHOLDER_SHA256_X64
   - Architecture: arm64
-    InstallerUrl: https://api.fluxer.app/dl/desktop/stable/win32/arm64/PLACEHOLDER_VERSION/setup
+    InstallerUrl: https://github.com/davifernan/BetterCord/releases/download/PLACEHOLDER_VERSION/BetterCord-arm64-PLACEHOLDER_VERSION-setup.exe
     InstallerSha256: PLACEHOLDER_SHA256_ARM64
 ManifestType: installer
 ManifestVersion: 1.6.0
