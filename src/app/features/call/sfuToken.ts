@@ -68,7 +68,7 @@ export async function getSFUConfigWithOpenID(
     }),
   });
 
-  if (newEndpointResponse.status === 404) {
+  if (newEndpointResponse.status === 404 || newEndpointResponse.status >= 500) {
     // Fall back to legacy endpoint
     const legacyResponse = await fetch(`${baseUrl}/sfu/get`, {
       method: 'POST',

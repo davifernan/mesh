@@ -62,6 +62,16 @@ export type ClientConfig = {
      * bridge is a fallback for remote users).
      */
     authoritativeBridgeMode?: boolean;
+
+    /**
+     * When true, AV1 is used as the primary video codec (with VP8 as backupCodec).
+     * AV1 provides ~30–50% better compression than VP8 at the same quality.
+     * Requires Chrome 70+, Edge 79+, or Firefox 93+.
+     * Falls back to VP8 automatically on unsupported clients via backupCodec.
+     *
+     * Default: false (keep VP8 for backward compat — safe to enable for modern clients).
+     */
+    av1Video?: boolean;
   };
 };
 

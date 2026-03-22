@@ -20,7 +20,7 @@
  */
 
 import { useEffect, useRef, useState, useCallback } from 'react';
-import { Room, RoomEvent, Track, VideoQuality, LocalAudioTrack, LocalVideoTrack } from 'livekit-client';
+import { Room, RoomEvent, Track, VideoQuality, LocalAudioTrack, LocalVideoTrack, type E2EEManagerOptions } from 'livekit-client';
 import {
   getSoundboardMixer,
   getSoundboardMixerIfActive,
@@ -45,6 +45,7 @@ import {
   type AVSettings,
 } from './avPresets';
 import { MatrixKeyProvider } from './matrixKeyProvider';
+import { parseSoundboardMessage, type SoundboardActivity } from './soundboardDataChannel';
 import { resolveParticipantUserId } from './participantIdentity';
 import { CALL_INFO_EVENT } from '../../hooks/useCallMemberships';
 import { getSFUConfigWithOpenID } from './sfuToken';
@@ -61,6 +62,7 @@ export type CallStatus = 'idle' | 'connecting' | 'connected' | 'error';
 
 export interface NativeCallEngine {
   status: CallStatus;
+  isReconnecting: boolean;
   livekitRoom: Room | null;
   isAudioEnabled: boolean;
   isVideoEnabled: boolean;
@@ -71,6 +73,7 @@ export interface NativeCallEngine {
   remoteParticipantStates: Map<string, { audioEnabled: boolean; videoEnabled: boolean; isScreenSharing: boolean }>;
   error: Error | null;
   callJoinTime: Date | null;
+  soundboardActivity: SoundboardActivity | null;
   hangUp: () => void;
   toggleAudio: () => Promise<void>;
   toggleVideo: () => Promise<void>;
@@ -173,6 +176,7 @@ export function useNativeCall(roomId: string | null): NativeCallEngine {
 
   // ── State ──────────────────────────────────────────────────────────────────
   const [status, setStatus] = useState<CallStatus>('idle');
+  const [isReconnecting, setIsReconnecting] = useState(false);
   const [livekitRoom, setLivekitRoom] = useState<Room | null>(null);
   const [isAudioEnabled, setIsAudioEnabled] = useState(true);
   const [isVideoEnabled, setIsVideoEnabled] = useState(false);
@@ -186,8 +190,17 @@ export function useNativeCall(roomId: string | null): NativeCallEngine {
   const [remoteParticipantStates, setRemoteParticipantStates] = useState<Map<string, { audioEnabled: boolean; videoEnabled: boolean; isScreenSharing: boolean }>>(new Map());
   const [error, setError] = useState<Error | null>(null);
   const [callJoinTime, setCallJoinTime] = useState<Date | null>(null);
+  // #80 — soundboard data channel: last clip played by any participant
+  const [soundboardActivity, setSoundboardActivity] = useState<SoundboardActivity | null>(null);
 
   // ── Refs for imperative cleanup (survive re-renders) ──────────────────────
+  // #58 — guard all setState calls inside async timers against post-unmount updates
+  const isMountedRef = useRef(true);
+  useEffect(() => {
+    isMountedRef.current = true;
+    return () => { isMountedRef.current = false; };
+  }, []);
+
   const roomRef = useRef<Room | null>(null);
   const rtcSessionRef = useRef<any>(null);
   const e2eeWorkerRef = useRef<Worker | null>(null);
@@ -313,11 +326,14 @@ export function useNativeCall(roomId: string | null): NativeCallEngine {
         const isEncrypted = !!matrixRoom.currentState.getStateEvents('m.room.encryption', '');
         let e2eeWorker: Worker | null = null;
         let keyProvider: MatrixKeyProvider | null = null;
-        let e2eeOptions: any;
+        // #61 — proper typing instead of any
+        let e2eeOptions: E2EEManagerOptions | undefined;
 
         if (isEncrypted) {
           e2eeWorker = new E2EEWorker();
           keyProvider = new MatrixKeyProvider();
+          // #62 — E2EE is set up before connect(); mid-call key rotation is handled
+          // by MatrixKeyProvider via MatrixRTCSessionEvent.EncryptionKeyChanged.
           e2eeOptions = { keyProvider, worker: e2eeWorker };
         }
 
@@ -326,8 +342,8 @@ export function useNativeCall(roomId: string | null): NativeCallEngine {
           return;
         }
 
-        // 3. Build LiveKit Room with AV + optional E2EE options
-        const room = new Room(buildLiveKitRoomOptions(av, e2eeOptions));
+        // 3. Build LiveKit Room with AV + optional E2EE + feature flags
+        const room = new Room(buildLiveKitRoomOptions(av, e2eeOptions, clientConfig.featureFlags));
 
         // 4. Join Matrix RTC session (writes membership state event + delayed keepalive)
         const rtcSession = (mx as any).matrixRTC.getRoomSession(matrixRoom);
@@ -466,7 +482,7 @@ export function useNativeCall(roomId: string | null): NativeCallEngine {
               activateTimers.set(uid, setTimeout(() => {
                 activateTimers.delete(uid);
                 confirmedSpeakers.add(uid);
-                setSpeakingUsers(new Set(confirmedSpeakers));
+                if (isMountedRef.current) setSpeakingUsers(new Set(confirmedSpeakers));
               }, SPEAK_ACTIVATE_MS));
             }
           }
@@ -481,7 +497,7 @@ export function useNativeCall(roomId: string | null): NativeCallEngine {
               deactivateTimers.set(uid, setTimeout(() => {
                 deactivateTimers.delete(uid);
                 confirmedSpeakers.delete(uid);
-                setSpeakingUsers(new Set(confirmedSpeakers));
+                if (isMountedRef.current) setSpeakingUsers(new Set(confirmedSpeakers));
               }, SPEAK_DEACTIVATE_MS));
             }
           }
@@ -534,12 +550,15 @@ export function useNativeCall(roomId: string | null): NativeCallEngine {
           }
         });
         room.on(RoomEvent.ParticipantConnected, (participant) => {
+          try {
           updateRemote(participant);
           playCallSound(CallSoundType.UserJoin, { enabled: callSoundsEnabledRef.current });
-          // If currently deafened, mute this new participant's audio tracks immediately
+          // If currently deafened, unsubscribe from new participant's audio tracks.
+          // setSubscribed(false) stops receiving the encoded audio data entirely —
+          // SFU-level bandwidth saving vs. just disabling the local MediaStreamTrack.
           if (isDeafenedRef.current) {
             for (const pub of participant.audioTrackPublications.values()) {
-              if (pub.track) pub.track.mediaStreamTrack.enabled = false;
+              pub.setSubscribed(false);
             }
           }
           // Catch already-published tracks from this participant (race condition on join)
@@ -550,6 +569,9 @@ export function useNativeCall(roomId: string | null): NativeCallEngine {
               pub.setSubscribed(true);
             }
             // ScreenShare: not subscribed — user must watch
+          }
+          } catch (err) {
+            console.error('[NativeCall] ParticipantConnected handler error:', err);
           }
         });
         room.on(RoomEvent.ParticipantDisconnected, (participant) => {
@@ -577,12 +599,54 @@ export function useNativeCall(roomId: string | null): NativeCallEngine {
           if (pub.source === Track.Source.ScreenShare) setIsScreenShareEnabled(true);
         });
 
+        // #80 — soundboard data channel: receive clip metadata from other participants
+        room.on(RoomEvent.DataReceived, (payload, participant, _kind, topic) => {
+          const msg = parseSoundboardMessage(payload, topic);
+          if (!msg || !participant) return;
+          if (msg.type === 'clip_start') {
+            setSoundboardActivity({
+              participantIdentity: participant.identity,
+              clipName: msg.clipName,
+              clipId: msg.clipId,
+            });
+            // Auto-clear after 5s so the indicator doesn't linger
+            setTimeout(() => {
+              setSoundboardActivity((prev) =>
+                prev?.clipId === msg.clipId ? null : prev
+              );
+            }, 5_000);
+          } else if (msg.type === 'clip_stop') {
+            setSoundboardActivity((prev) =>
+              prev?.clipId === msg.clipId ? null : prev
+            );
+          }
+        });
+
         room.on(RoomEvent.LocalTrackUnpublished, (pub) => {
           if (pub.source === Track.Source.ScreenShare) setIsScreenShareEnabled(false);
         });
 
         room.on(RoomEvent.Disconnected, () => {
           if (!aborted) setStatus('idle');
+        });
+
+        // #42 — track reconnect state so UI can show a reconnecting indicator
+        room.on(RoomEvent.Reconnecting, () => {
+          if (!aborted) setIsReconnecting(true);
+        });
+
+        // #43 — after reconnect, re-apply deafen state (subscriptions are reset by LiveKit)
+        room.on(RoomEvent.Reconnected, () => {
+          if (!aborted) {
+            setIsReconnecting(false);
+            if (isDeafenedRef.current) {
+              for (const p of room.remoteParticipants.values()) {
+                for (const pub of p.audioTrackPublications.values()) {
+                  pub.setSubscribed(false);
+                }
+              }
+            }
+          }
         });
 
         // 8. Connect to the LiveKit SFU
@@ -635,8 +699,9 @@ export function useNativeCall(roomId: string | null): NativeCallEngine {
             const mixer = getSoundboardMixer(rawMst);
             mixerRef.current = mixer;
 
-            // Unpublish the raw mic track (keepDeviceAlive=true so the OS mic stays open).
-            await room.localParticipant.unpublishTrack(rawMicTrack, false);
+            // Unpublish the raw mic track; keepDeviceAlive=true keeps the OS mic LED
+            // on and prevents a re-acquire delay when the mixer track is published.
+            await room.localParticipant.unpublishTrack(rawMicTrack, true);
 
             // Publish the mixer's blended output track as the microphone source.
             const mixedMst = mixer.getMixedTrack();
@@ -787,6 +852,17 @@ export function useNativeCall(roomId: string | null): NativeCallEngine {
     userSettings.noiseSuppression,
   ]);
 
+  // ── Speaker device switching (#30) ────────────────────────────────────────
+  // When the user picks a new speaker in Settings during a call, switch it live.
+  useEffect(() => {
+    if (status !== 'connected' || !roomRef.current) return;
+    const deviceId = userSettings.speakerDeviceId;
+    if (!deviceId) return;
+    roomRef.current.switchActiveDevice('audiooutput', deviceId).catch((err: unknown) => {
+      console.warn('[NativeCall] switchActiveDevice(audiooutput) failed:', err);
+    });
+  }, [userSettings.speakerDeviceId, status]);
+
   // ── Audio-wins-over-video quality fallback ────────────────────────────────
   // When connection quality degrades (Poor/Lost), screenshare + camera video
   // are throttled automatically. Microphone audio is never touched.
@@ -829,8 +905,22 @@ export function useNativeCall(roomId: string | null): NativeCallEngine {
     playCallSound(newEnabled ? CallSoundType.Unmute : CallSoundType.Mute, { enabled: callSoundsEnabledRef.current });
     // Gate the mic branch in the Web Audio graph (clips continue unaffected).
     mixerRef.current?.setMicEnabled(newEnabled);
+
+    // #66 Option B — PTT: update speaking state directly on mic toggle instead
+    // of waiting for ActiveSpeakersChanged (which has a 180ms activation delay).
+    // PTT presses are explicit user intent — no debounce needed.
+    if (userSettingsRef.current.voiceActivityMode === 'ptt') {
+      const localUserId = mx.getUserId() ?? '';
+      setSpeakingUsers((prev) => {
+        const next = new Set(prev);
+        if (newEnabled) next.add(localUserId);
+        else next.delete(localUserId);
+        return next;
+      });
+    }
+
     await lp.setMicrophoneEnabled(newEnabled);
-  }, []);
+  }, [mx]);
 
   const toggleVideo = useCallback(async () => {
     if (!roomRef.current) return;
@@ -865,48 +955,59 @@ export function useNativeCall(roomId: string | null): NativeCallEngine {
     setIsFrontCamera(facingModeRef.current === 'user');
   }, []);
 
-  const enforceScreenShareConstraints = useCallback(async (ssRes: string, ssFps: number) => {
-    if (!roomRef.current) return;
-
-    let mediaTrack: MediaStreamTrack | undefined;
-    for (let attempt = 0; attempt < 10; attempt += 1) {
-      const ssPub = roomRef.current.localParticipant.getTrackPublication(Track.Source.ScreenShare);
-      const track = ssPub?.track as LocalVideoTrack | undefined;
-      mediaTrack = track?.mediaStreamTrack;
-      if (mediaTrack?.applyConstraints) {
-        break;
-      }
-      await new Promise((resolve) => {
-        window.setTimeout(resolve, 100);
-      });
-    }
-
-    if (!mediaTrack?.applyConstraints) return;
+  /**
+   * #47 — Apply screenshare capture constraints via RoomEvent.LocalTrackPublished
+   * instead of a polling loop. The event fires exactly once when the local track
+   * is ready; no CPU-wasting busy-wait, no silent drop if track takes > 1 second.
+   */
+  const enforceScreenShareConstraints = useCallback((ssRes: string, ssFps: number) => {
+    const room = roomRef.current;
+    if (!room) return;
 
     const targetWidth = ssRes === 'source' ? undefined : resolutionToWidth(ssRes);
     const targetHeight = ssRes === 'source' ? undefined : resolutionToHeight(ssRes);
+    if (!targetWidth && !targetHeight && !ssFps) return;
 
     const exactConstraints: MediaTrackConstraints = {
-      ...(targetWidth && { width: { exact: targetWidth } }),
-      ...(targetHeight && { height: { exact: targetHeight } }),
-      ...(ssFps ? { frameRate: { exact: ssFps } } : {}),
+      ...(targetWidth  && { width:     { exact: targetWidth } }),
+      ...(targetHeight && { height:    { exact: targetHeight } }),
+      ...(ssFps        && { frameRate: { exact: ssFps } }),
     };
-
     const fallbackConstraints: MediaTrackConstraints = {
-      ...(targetWidth && { width: { ideal: targetWidth, max: targetWidth } }),
-      ...(targetHeight && { height: { ideal: targetHeight, max: targetHeight } }),
-      ...(ssFps ? { frameRate: { ideal: ssFps, max: ssFps } } : {}),
+      ...(targetWidth  && { width:     { ideal: targetWidth,  max: targetWidth } }),
+      ...(targetHeight && { height:    { ideal: targetHeight, max: targetHeight } }),
+      ...(ssFps        && { frameRate: { ideal: ssFps, max: ssFps } }),
     };
 
-    try {
-      if (Object.keys(exactConstraints).length > 0) {
+    async function applyToTrack(mediaTrack: MediaStreamTrack) {
+      try {
         await mediaTrack.applyConstraints(exactConstraints);
-      }
-    } catch {
-      if (Object.keys(fallbackConstraints).length > 0) {
+      } catch {
         await mediaTrack.applyConstraints(fallbackConstraints).catch(() => {});
       }
     }
+
+    // Fast path: track is already published (e.g. called from updateActiveScreenShareSettings)
+    const existing = room.localParticipant.getTrackPublication(Track.Source.ScreenShare);
+    if (existing?.track?.mediaStreamTrack) {
+      void applyToTrack(existing.track.mediaStreamTrack);
+      return;
+    }
+
+    // Slow path: wait for LocalTrackPublished, then self-remove
+    const onPublished = (pub: { source: Track.Source; track?: { mediaStreamTrack?: MediaStreamTrack } }) => {
+      if (pub.source !== Track.Source.ScreenShare) return;
+      room.off(RoomEvent.LocalTrackPublished, onPublished as any);
+      clearTimeout(safetyTimer);
+      if (pub.track?.mediaStreamTrack) void applyToTrack(pub.track.mediaStreamTrack);
+    };
+
+    room.on(RoomEvent.LocalTrackPublished, onPublished as any);
+
+    // Safety: remove listener after 10s if share was cancelled or never published
+    const safetyTimer = setTimeout(() => {
+      room.off(RoomEvent.LocalTrackPublished, onPublished as any);
+    }, 10_000);
   }, []);
 
   const startScreenShare = useCallback(
@@ -914,8 +1015,10 @@ export function useNativeCall(roomId: string | null): NativeCallEngine {
       if (!roomRef.current) return;
       const captureOpts = buildSSCaptureOptions(ssRes, ssFps, ssAudio);
       const publishOpts = buildSSPublishOptions(ssRes, ssFps);
+      // Register the constraint enforcer BEFORE enabling screenshare so the
+      // LocalTrackPublished event is never missed (no race condition).
+      enforceScreenShareConstraints(ssRes, ssFps);
       await roomRef.current.localParticipant.setScreenShareEnabled(true, captureOpts, publishOpts);
-      await enforceScreenShareConstraints(ssRes, ssFps);
       setIsScreenShareEnabled(true);
       playCallSound(CallSoundType.ScreenShareStart, { enabled: callSoundsEnabledRef.current });
     },
@@ -936,10 +1039,12 @@ export function useNativeCall(roomId: string | null): NativeCallEngine {
     setIsDeafened(next);
     playCallSound(next ? CallSoundType.Deaf : CallSoundType.Undeaf, { enabled: callSoundsEnabledRef.current });
 
-    // Mute/unmute all remote audio output locally (deafen is client-side only in LiveKit)
+    // Subscribe/unsubscribe all remote audio tracks.
+    // setSubscribed(false) stops SFU-to-client audio delivery entirely —
+    // better bandwidth efficiency than locally disabling the MediaStreamTrack.
     for (const p of roomRef.current.remoteParticipants.values()) {
       for (const pub of p.audioTrackPublications.values()) {
-        if (pub.track) pub.track.mediaStreamTrack.enabled = !next;
+        pub.setSubscribed(!next);
       }
     }
 
@@ -1080,6 +1185,7 @@ export function useNativeCall(roomId: string | null): NativeCallEngine {
 
   return {
     status,
+    isReconnecting,
     livekitRoom,
     isAudioEnabled,
     isVideoEnabled,
@@ -1090,6 +1196,7 @@ export function useNativeCall(roomId: string | null): NativeCallEngine {
     remoteParticipantStates,
     error,
     callJoinTime,
+    soundboardActivity,
     hangUp,
     toggleAudio,
     toggleVideo,

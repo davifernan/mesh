@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { X } from '@phosphor-icons/react';
+import { X, ChatCircle } from '@phosphor-icons/react';
 import { RoomContext, RoomAudioRenderer, useAudioPlayback } from '@livekit/components-react';
 import { useAtomValue, useSetAtom } from 'jotai';
 import { useCallState } from './CallProvider';
@@ -66,7 +66,7 @@ function AudioUnblockButton() {
 }
 
 export function NativeCallView() {
-  const { livekitRoom, callStatus, callError, activeCallRoomId, toggleCallView } = useCallState();
+  const { livekitRoom, callStatus, callError, activeCallRoomId, toggleCallView, isChatOpen, toggleChat } = useCallState();
   const mx = useMatrixClient();
   const screenSize = useScreenSizeContext();
   const isMobileLike = screenSize !== ScreenSize.Desktop;
@@ -143,6 +143,17 @@ export function NativeCallView() {
               : ''}
           </span>
         </div>
+        {/* #71 — Chat button moved from control bar to header top-right */}
+        <button
+          type="button"
+          className={`${styles.headerChatBtn}${isChatOpen ? ` ${styles.headerChatBtnActive}` : ''}`}
+          onClick={() => void toggleChat()}
+          title={isChatOpen ? 'Hide chat' : 'Show chat'}
+          aria-label={isChatOpen ? 'Hide chat' : 'Show chat'}
+          aria-pressed={isChatOpen}
+        >
+          <ChatCircle size={18} />
+        </button>
       </div>
 
       {/* RoomContext wraps grid, stats panel, and control bar */}

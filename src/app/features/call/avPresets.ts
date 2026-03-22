@@ -14,6 +14,7 @@ import {
   AudioPresets,
   type AudioCaptureOptions,
   type AudioPreset,
+  BackupCodecPolicy,
   DefaultReconnectPolicy,
   type E2EEManagerOptions,
   type RoomOptions,
@@ -23,6 +24,7 @@ import {
   type TrackPublishDefaults,
   VideoPreset,
   VideoPresets,
+  supportsAV1,
 } from 'livekit-client';
 
 // ─── Screen Share Presets (extends LiveKit built-ins beyond 1080p30) ──────────
@@ -73,7 +75,9 @@ export function resolutionToVideoPreset(res?: string): VideoPreset {
     case '720p': return VideoPresets.h720;
     case '1080p': return VideoPresets.h1080;
     case '1440p': return new VideoPreset(2560, 1440, 5_000_000, 30, 'high');
-    case '2160p': return new VideoPreset(3840, 2160, 10_000_000, 30, 'high');
+    // 15 Mbps is the WebRTC VP8 reference for 4K@30fps; +5 Mbps headroom so the
+    // encoder can burst when network allows — adaptive bitrate caps actual usage.
+    case '2160p': return new VideoPreset(3840, 2160, 20_000_000, 30, 'high');
     default: return VideoPresets.h720;
   }
 }
@@ -128,7 +132,7 @@ export function bitrateToAudioPreset(kbps?: number): AudioPreset {
  */
 export function getSimulcastLayers(res?: string): VideoPreset[] {
   switch (res) {
-    case '360p': return [];
+    case '360p': return [VideoPresets.h180];
     case '480p': return [VideoPresets.h180];
     case '720p': return [VideoPresets.h180, VideoPresets.h360];
     case '1080p': return [VideoPresets.h180, VideoPresets.h360, VideoPresets.h720];
@@ -145,7 +149,7 @@ function getCameraBitrateCap(res?: string): number | undefined {
     case '720p': return 4_000_000;
     case '1080p': return 7_000_000;
     case '1440p': return 12_000_000;
-    case '2160p': return 20_000_000;
+    case '2160p': return 25_000_000;
     default: return undefined;
   }
 }
@@ -200,15 +204,32 @@ export type AudioCaptureSettings = Pick<
 >;
 
 export function buildAudioCaptureDefaults(av: AudioCaptureSettings): AudioCaptureOptions {
+  // voiceIsolation is a Chrome 116+ MediaTrackConstraints property that suppresses
+  // background voice bleed — not yet in all TypeScript lib.dom.d.ts versions,
+  // so we merge it via unknown cast to avoid TS2353.
+  const extra = { voiceIsolation: true } as unknown as Partial<AudioCaptureOptions>;
   return {
     deviceId: av.micDeviceId,
     echoCancellation: av.echoCancellation,
     noiseSuppression: av.noiseSuppression,
     autoGainControl: av.autoGainControl,
+    ...extra,
   };
 }
 
 // ─── Screenshare Capture Options ──────────────────────────────────────────────
+
+/**
+ * Returns true when running in a Chromium-based browser.
+ * Chrome-specific getDisplayMedia constraints (preferCurrentTab,
+ * selfBrowserSurface, surfaceSwitching) throw in Firefox/Safari.
+ * #48 — guard Chrome-only constraints behind browser detection.
+ */
+function isChromiumBrowser(): boolean {
+  if (typeof navigator === 'undefined') return false;
+  return /Chrome|Chromium|Edg/.test(navigator.userAgent) &&
+    !/Firefox/.test(navigator.userAgent);
+}
 
 /**
  * Builds LiveKit ScreenShareCaptureOptions for setScreenShareEnabled().
@@ -225,15 +246,23 @@ export function buildSSCaptureOptions(
       ? { frameRate: { ideal: ssFps, max: ssFps } }
       : true;
 
+  // Chrome-only getDisplayMedia constraints — excluded on Firefox/Safari
+  // to prevent TypeError on browsers that reject unknown constraint keys.
+  const chromiumExtras = isChromiumBrowser()
+    ? {
+        preferCurrentTab: false,
+        selfBrowserSurface: 'include' as const,
+        surfaceSwitching: 'include' as const,
+      }
+    : {};
+
   return {
     audio: ssAudio,
     video: videoConstraint,
     resolution: preset?.resolution,
     contentHint: getScreenShareContentHint(ssResolution, ssFps),
-    preferCurrentTab: false,
-    selfBrowserSurface: 'include',
-    surfaceSwitching: 'include',
     systemAudio: ssAudio ? 'include' : 'exclude',
+    ...chromiumExtras,
   };
 }
 
@@ -249,7 +278,8 @@ const defaultPublishOptions: TrackPublishDefaults = {
   red: true,
   forceStereo: false,
   videoEncoding: VideoPresets.h720.encoding,
-  backupCodec: { codec: 'vp8', encoding: VideoPresets.h720.encoding },
+  // backupCodec is set dynamically in buildLiveKitRoomOptions to match the chosen
+  // video preset rather than always falling back to h720 encoding.
 };
 
 /**
@@ -257,10 +287,13 @@ const defaultPublishOptions: TrackPublishDefaults = {
  *
  * CRITICAL: adaptiveStream and dynacast are kept at upstream defaults (true).
  * Only publishDefaults is customized with user quality preferences.
+ *
+ * @param featureFlags - Optional config.json feature flags (e.g. av1Video).
  */
 export function buildLiveKitRoomOptions(
   av: AVSettings,
   e2eeOptions?: E2EEManagerOptions,
+  featureFlags?: { av1Video?: boolean },
 ): RoomOptions {
   const videoPreset = resolutionToVideoPreset(av.videoResolution);
   const baseVideoFps = videoPreset.encoding.maxFramerate ?? 30;
@@ -301,6 +334,15 @@ export function buildLiveKitRoomOptions(
       audioPreset: bitrateToAudioPreset(av.audioBitrate),
       videoEncoding,
       videoSimulcastLayers: getSimulcastLayers(av.videoResolution),
+      // backupCodec uses the same base encoding as the primary preset so the SFU
+      // falls back to VP8 at comparable quality, not always h720.
+      backupCodec: { codec: 'vp8', encoding: videoPreset.encoding },
+      // #72 — AV1 feature flag: use AV1 as primary codec when enabled in config.json
+      // and the browser supports it. VP8 is always the backupCodec for compat.
+      ...(featureFlags?.av1Video && supportsAV1() && {
+        videoCodec: 'av1' as const,
+        backupCodecPolicy: BackupCodecPolicy.PREFER_REGRESSION,
+      }),
     },
 
     // E2EE — only set if key provider is supplied
