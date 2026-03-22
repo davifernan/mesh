@@ -308,6 +308,7 @@ export function RoomNavItem({
     toggleChat,
     hangUp,
     callStatus,
+    livekitRoom,
   } = useCallState();
 
   // isActiveCall: true as soon as this room is set as active call (including while connecting)
@@ -350,7 +351,14 @@ export function RoomNavItem({
   // Voice state service: bridge-backed participant state for badges and sidebar UI.
   // Only subscribe while the room actually has active call members; opening SSE
   // for every call room can exhaust browser/proxy connection limits in dev.
-  const voiceStateService = useVoiceStateService(room.roomId, hasActiveCall);
+  //
+  // The bridge stores state under the LiveKit room alias (from the JWT), NOT
+  // the Matrix room ID. When we are in the call, livekitRoom.name IS that alias;
+  // use it so the SSE subscription key matches what the bridge broadcasts on.
+  // Fall back to the Matrix room ID when not in the call (non-participants).
+  const sseRoomId =
+    isActiveCall && livekitRoom?.name ? livekitRoom.name : room.roomId;
+  const voiceStateService = useVoiceStateService(sseRoomId, hasActiveCall);
   const bridgePresenceMap = voiceStateService.bridgeSnapshot;
 
   const hasSpeakingMember =
