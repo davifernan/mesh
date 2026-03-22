@@ -1,4 +1,4 @@
 contact_links:
-  - name: 💬 Matrix Chat
-    url: https://matrix.to/#/#mesh:matrix.org
-    about: Ask questions and talk to other mesh users and the maintainers
+  - name: 💬 Discussions
+    url: https://github.com/davifernan/mesh/discussions
+    about: Ask questions and discuss with other mesh users and the maintainers
