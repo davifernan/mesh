@@ -30,7 +30,7 @@ jobs:
 
       - name: Extract metadata (tags, labels) for mesh
         id: meta
-        uses: docker/metadata-action@v5
+        uses: docker/metadata-action@v6
         with:
           images: ghcr.io/${{ github.repository }}
 
@@ -68,7 +68,7 @@ jobs:
 
       - name: Extract metadata (tags, labels) for bridge
         id: bridge-meta
-        uses: docker/metadata-action@v5
+        uses: docker/metadata-action@v6
         with:
           images: ghcr.io/${{ github.repository }}-bridge
 
