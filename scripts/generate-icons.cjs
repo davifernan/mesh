@@ -17,7 +17,7 @@ const fs = require('fs');
 
 const SVG_SRC = path.resolve(__dirname, '../public/res/svg/bettercord-icon.svg');
 
-// hsl(242, 70%, 55%) = #413CDD — Fluxer brand color
+// hsl(242, 70%, 55%) = #413CDD — BetterCord brand color
 const BRAND_BG = '#413CDD';
 const TEXT_COLOR = '#ffffff';
 

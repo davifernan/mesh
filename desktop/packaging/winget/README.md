@@ -1,6 +1,6 @@
-# Fluxer Winget manifest
+# BetterCord Winget manifest
 
-Windows Package Manager (winget) manifest for installing Fluxer on Windows.
+Windows Package Manager (winget) manifest for installing BetterCord on Windows.
 
 ## Placeholders
 
@@ -8,9 +8,9 @@ The `PackageVersion` and `InstallerSha256` fields are set to placeholder values 
 
 ## Manifest files
 
-- `Fluxer.Fluxer.yaml` -- version manifest (required)
-- `Fluxer.Fluxer.installer.yaml` -- installer details for x64 and arm64
-- `Fluxer.Fluxer.locale.en-US.yaml` -- default locale metadata
+- `BetterCord.BetterCord.yaml` -- version manifest (required)
+- `BetterCord.BetterCord.installer.yaml` -- installer details for x64 and arm64
+- `BetterCord.BetterCord.locale.en-US.yaml` -- default locale metadata
 
 ## Validating
 
@@ -27,7 +27,7 @@ winget install --manifest .
 ## Fetching the latest version
 
 ```bash
-curl -s https://api.fluxer.app/dl/desktop/stable/win32/x64/latest | jq
+curl -s https://api.github.com/repos/davifernan/BetterCord/releases/latest | jq
 ```
 
-This returns a JSON object containing `version`, `pub_date`, and `files` with download URLs and SHA256 checksums for each format.
+This returns a JSON object containing `tag_name`, `published_at`, and `assets` with download URLs and SHA256 checksums for each format.

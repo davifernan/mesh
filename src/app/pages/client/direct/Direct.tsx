@@ -341,7 +341,7 @@ export function Direct() {
                 </RoomNavCategoryButton>
               </NavCategoryHeader>
               <RoomListbox
-                id="cinny-room-listbox"
+                id="bettercord-room-listbox"
                 aria-label="Direct messages list"
                 items={sortedDirects}
                 focusedIndex={keyboardNav.focusedIndex}

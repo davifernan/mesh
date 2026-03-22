@@ -1,6 +1,6 @@
-# BetterCord — Fluxer UX Backlog
+# BetterCord — UX Backlog
 
-Analysiert aus dem Fluxer-Frontend-Quellcode (`fluxer_app/`).
+Analysiert aus dem BetterCord-Frontend-Quellcode.
 Nur Features die **im Frontend umsetzbar** sind — entweder rein clientseitig oder mit nativer Matrix-API-Unterstützung.
 
 ---
@@ -23,7 +23,7 @@ Nur Features die **im Frontend umsetzbar** sind — entweder rein clientseitig o
 
 **Wie:** Im Textarea-Keydown-Handler prüfen ob `key === "ArrowUp"` + textarea leer + kein Autocomplete offen. Dann letzte eigene Nachricht aus der Timeline suchen und `editEvent(lastMessage)` aufrufen.
 
-**Fluxer-Referenz:** `src/hooks/useTextareaKeyboard.tsx` Zeile 162–179
+**Referenz:** `src/hooks/useTextareaKeyboard.tsx` Zeile 162–179
 
 **Aufwand:** ~2h
 
@@ -38,7 +38,7 @@ Nur Features die **im Frontend umsetzbar** sind — entweder rein clientseitig o
 
 **Wie:** Im globalen Keydown-Handler (oder Textarea-Handler) die Reihenfolge prüfen. BetterCord hat bereits `stopReply()` und edit-cancel-Logik — nur zusammenführen.
 
-**Fluxer-Referenz:** `src/hooks/useTextareaKeyboard.tsx` Zeile 130–160
+**Referenz:** `src/hooks/useTextareaKeyboard.tsx` Zeile 130–160
 
 **Aufwand:** ~2h
 
@@ -50,7 +50,7 @@ Nur Features die **im Frontend umsetzbar** sind — entweder rein clientseitig o
 
 **Wie:** Auf `onChange` des Textareas debounced `localStorage.setItem("draft_${roomId}", value)` schreiben. Beim Mounten des Textareas `localStorage.getItem(...)` auslesen und als Initialwert setzen.
 
-**Fluxer-Referenz:** `src/hooks/useTextareaDraftAndTyping.tsx`
+**Referenz:** `src/hooks/useTextareaDraftAndTyping.tsx`
 
 **Aufwand:** ~2h
 
@@ -66,7 +66,7 @@ Nur Features die **im Frontend umsetzbar** sind — entweder rein clientseitig o
 
 **Wie:** Im Textarea-Keydown-Handler die Kombination erkennen, aktuelle Selection um das Markdown-Delimiter wrappen (oder bei leerem Selection Delimiter einfügen und Cursor zwischen die Delimiter setzen).
 
-**Fluxer-Referenz:** `src/hooks/useMarkdownKeybinds.tsx`
+**Referenz:** `src/hooks/useMarkdownKeybinds.tsx`
 
 **Aufwand:** ~4h
 
@@ -100,7 +100,7 @@ Nur Features die **im Frontend umsetzbar** sind — entweder rein clientseitig o
 - Overflow-Logik: erste 3 Namen anzeigen, Rest als `+ N weitere`
 - CSS-Transition für mount/unmount: kurzer `translateY`-Slide
 
-**Fluxer-Referenz:** `src/components/channel/TypingUsers.tsx` (Zeile 1–176) — dort ist die Text-Tier-Logik und Avatar-Stack zu sehen
+**Referenz:** `src/components/channel/TypingUsers.tsx` (Zeile 1–176) — dort ist die Text-Tier-Logik und Avatar-Stack zu sehen
 
 **Aufwand:** ~3–4h
 
@@ -143,7 +143,7 @@ Die Sektion-Überschriften `ONLINE — 12` / `OFFLINE — 34` bekommen ihre Zahl
 
 **Wie:** Eigene kleine Komponente unter der Textarea. `characterCount / MAX_MESSAGE_LENGTH * 100 >= 80` → sichtbar. Farbe wechselt zu Rot wenn bei 100%.
 
-**Fluxer-Referenz:** `src/components/channel/MessageCharacterCounter.tsx`
+**Referenz:** `src/components/channel/MessageCharacterCounter.tsx`
 
 **Aufwand:** ~1h
 
@@ -155,7 +155,7 @@ Die Sektion-Überschriften `ONLINE — 12` / `OFFLINE — 34` bekommen ihre Zahl
 
 **Wie:** Für jede Reaction-Komponente den `prevCount` tracken. Bei Änderung: `key={count}` auf einem `motion.div` mit `initial={{ y: direction * 20, opacity: 0 }}` → `animate={{ y: 0, opacity: 1 }}`. CSS-Alternative ohne Framer: `@keyframes slideUp/slideDown`.
 
-**Fluxer-Referenz:** `src/components/channel/MessageReactions.tsx` Zeile 71–163
+**Referenz:** `src/components/channel/MessageReactions.tsx` Zeile 71–163
 
 **Aufwand:** ~2h
 
@@ -169,7 +169,7 @@ Die Sektion-Überschriften `ONLINE — 12` / `OFFLINE — 34` bekommen ihre Zahl
 
 **Wie:** Unread-Count aus `roomToUnread`-Atom lesen. `oldestUnreadEventId` tracken. Beim Rendern der Timeline an der passenden Position einen Divider-Slot einfügen. Die sticky Bar bekommt `position: sticky; top: 0` und verschwindet wenn der User ans Ende scrollt.
 
-**Fluxer-Referenz:**
+**Referenz:**
 - `src/components/channel/NewMessagesBar.tsx`
 - `src/components/channel/UnreadDividerSlot.tsx`
 
@@ -183,7 +183,7 @@ Die Sektion-Überschriften `ONLINE — 12` / `OFFLINE — 34` bekommen ihre Zahl
 
 **Wie:** `hasMoreAfter`-State aus der Timeline tracken (BetterCord hat bereits "load more"-Logik). Wenn `!isAtBottom && hasMoreAfter` → Bar anzeigen. Klick → ans Ende springen.
 
-**Fluxer-Referenz:** `src/components/channel/Messages.tsx` Zeile 662–690
+**Referenz:** `src/components/channel/Messages.tsx` Zeile 662–690
 
 **Aufwand:** ~4h
 
@@ -199,7 +199,7 @@ Die Icons sind standardmäßig unsichtbar (`opacity: 0`) und werden auf `opacity
 
 **Wie:** Im Channel/Room-Item-Komponenten (SidebarItem) beim Hover-State die Icon-Buttons einblenden. Permission-Check: Matrix `mx.getRoom(roomId).currentState.maySendStateEvent(...)`.
 
-**Fluxer-Referenz:** `src/components/layout/ChannelItem.tsx` Zeile 665–742
+**Referenz:** `src/components/layout/ChannelItem.tsx` Zeile 665–742
 
 **Aufwand:** ~1 Tag
 
@@ -216,7 +216,7 @@ Nach der Erstellung wird automatisch zum neuen Channel navigiert.
 
 **Wie:** Neues `CreateChannelModal.tsx` mit `RadioGroup` für den Typ, Name-Input, optional `parentId` (für Space-Hierarchy). Matrix `mx.createRoom(...)` mit entsprechenden Optionen. Nach Success: `navigateRoom(result.room_id)`.
 
-**Fluxer-Referenz:** `src/components/modals/ChannelCreateModal.tsx`, `src/utils/modals/ChannelCreateModalUtils.tsx`
+**Referenz:** `src/components/modals/ChannelCreateModal.tsx`, `src/utils/modals/ChannelCreateModalUtils.tsx`
 
 **Aufwand:** ~1 Tag
 
@@ -228,7 +228,7 @@ Nach der Erstellung wird automatisch zum neuen Channel navigiert.
 
 **Wie:** Einfaches Modal mit Name-Input. Matrix-seitig als Space-Room mit `is_direct: false` und einem `m.space.parent`-Verweis erstellen.
 
-**Fluxer-Referenz:** `src/components/modals/CategoryCreateModal.tsx`
+**Referenz:** `src/components/modals/CategoryCreateModal.tsx`
 
 **Aufwand:** ~2h
 
@@ -243,7 +243,7 @@ Nach der Erstellung wird automatisch zum neuen Channel navigiert.
 
 **Wie:** Global-Keydown-Handler oder über das bestehende Keyboard-Shortcut-System. Matrix `mx.sendReadReceipt(latestEvent)` für einzelne Channel. Für "alle lesen": Alle Rooms des Space iterieren und jeweils das letzte Event ACK-en.
 
-**Fluxer-Referenz:** `src/lib/KeybindManager.tsx` Zeile 611–657
+**Referenz:** `src/lib/KeybindManager.tsx` Zeile 611–657
 
 **Aufwand:** ~4h
 
@@ -255,7 +255,7 @@ Nach der Erstellung wird automatisch zum neuen Channel navigiert.
 
 **Wie:** Im Pin-Action-Handler `event.shiftKey` prüfen. Wenn `true` → direkt `mx.sendStateEvent(...)` ohne Modal-Zwischenschritt.
 
-**Fluxer-Referenz:** `src/components/channel/MessageActionUtils.tsx` Zeile 401–436
+**Referenz:** `src/components/channel/MessageActionUtils.tsx` Zeile 401–436
 
 **Aufwand:** ~1h
 
@@ -267,7 +267,7 @@ Nach der Erstellung wird automatisch zum neuen Channel navigiert.
 
 **Wie:** Neues `ForwardMessageModal.tsx`. Zeigt eine durchsuchbare Liste von Rooms/DMs. Bei Auswahl: Nachrichteninhalt als neue Nachricht in den Ziel-Channel senden (mit optionalem "Weitergeleitet von"-Hinweis).
 
-**Fluxer-Referenz:** `src/components/modals/ForwardModal.tsx`
+**Referenz:** `src/components/modals/ForwardModal.tsx`
 
 **Aufwand:** ~1 Tag
 
@@ -279,7 +279,7 @@ Nach der Erstellung wird automatisch zum neuen Channel navigiert.
 
 **Wie:** Bookmarks in Matrix `account_data` unter `app.bettercord.bookmarks` (Array von `{eventId, roomId, timestamp}`) speichern. Max ~200 Einträge. UI: ein Icon in der Action-Bar (gefüllt wenn bereits gemerkt), ein Panel/Tab in der Sidebar.
 
-**Fluxer-Referenz:** `src/components/channel/MessageActionUtils.tsx` Zeile 272–288
+**Referenz:** `src/components/channel/MessageActionUtils.tsx` Zeile 272–288
 
 **Aufwand:** ~1 Tag
 
@@ -295,9 +295,9 @@ Nach der Erstellung wird automatisch zum neuen Channel navigiert.
 **Wie:**
 - Initialen: `getInitials(name)` berechnen, in das Placeholder-div rendern. CSS `font-size` via `clamp()` oder `cqi` Units.
 - Upload: `<input type="file" accept="image/*">` + Canvas-basiertes Cropping (oder `react-image-crop` Library).
-- 40 zufällige Placeholder-Namen für das Name-Input (wie Fluxer).
+- 40 zufällige Placeholder-Namen für das Name-Input.
 
-**Fluxer-Referenz:** `src/components/modals/AddGuildModal.tsx` Zeile 139–330
+**Referenz:** `src/components/modals/AddGuildModal.tsx` Zeile 139–330
 
 **Aufwand:** ~2 Tage
 
@@ -334,7 +334,7 @@ Nach der Erstellung wird automatisch zum neuen Channel navigiert.
 - `useHotkeys('ctrl+k', ...)` für den Trigger
 - Mobile: Bottom Sheet statt Modal
 
-**Fluxer-Referenz:**
+**Referenz:**
 - `src/stores/QuickSwitcherStore.tsx` (~1400 Zeilen)
 - `src/components/quick_switcher/QuickSwitcherModal.tsx`
 
@@ -344,7 +344,7 @@ Nach der Erstellung wird automatisch zum neuen Channel navigiert.
 
 ### 19. Keyboard Shortcuts System `[MX]`
 
-**Was:** ~20 essentielle Shortcuts (Subset von Fluxers 50):
+**Was:** ~20 essentielle Shortcuts (Subset von 50):
 
 | Shortcut | Aktion |
 |---|---|
@@ -366,7 +366,7 @@ Nach der Erstellung wird automatisch zum neuen Channel navigiert.
 - `useHotkeys` Library oder eigener `document.addEventListener('keydown', ...)` Handler
 - Settings-Tab "Tastenkürzel" zum Anzeigen (zunächst read-only, später anpassbar)
 
-**Fluxer-Referenz:**
+**Referenz:**
 - `src/stores/KeybindStore.tsx`
 - `src/lib/KeybindManager.tsx`
 
@@ -392,7 +392,7 @@ Nach der Erstellung wird automatisch zum neuen Channel navigiert.
 - Floating UI via `@floating-ui/react` (bereits im Projekt vorhanden)
 - Neues `UserProfilePopout.tsx` + `UserProfileCard.tsx`
 
-**Fluxer-Referenz:**
+**Referenz:**
 - `src/components/popouts/UserProfilePopout.tsx`
 - `src/components/profile/profile_card/*`
 
@@ -419,7 +419,7 @@ Klick auf ein Member → öffnet User Profile Popup.
 - Virtual Scroll (z.B. `@tanstack/react-virtual` — bereits im Projekt) für große Räume
 - State: `isMembersOpen` Atom, persistent in localStorage
 
-**Fluxer-Referenz:**
+**Referenz:**
 - `src/stores/MemberSidebarStore.tsx`
 - `src/hooks/useMemberListSubscription.tsx`
 
@@ -440,7 +440,7 @@ Klick auf ein Member → öffnet User Profile Popup.
 - Ablaufzeit + Max-Uses als custom state event (`app.bettercord.invite_settings`) speichern, server-seitig optional validieren
 - Minimal: nur Copy-Link + Einfache Optionen ohne server-seitiges Enforcement
 
-**Fluxer-Referenz:** `src/components/modals/InviteModal.tsx`
+**Referenz:** `src/components/modals/InviteModal.tsx`
 
 **Aufwand:** ~3 Tage
 
@@ -460,7 +460,7 @@ Der Status ist für andere sichtbar (in Profile Cards, Member List).
 - Anzeigen: `mx.getUser(userId).accountData` lesen (oder via Presence-Event broadcasten)
 - `CustomStatusModal.tsx` für das Eingabe-UI + Emoji-Picker
 
-**Fluxer-Referenz:**
+**Referenz:**
 - `src/components/modals/CustomStatusModal.tsx`
 - `src/components/common/custom_status_display/CustomStatusDisplay.tsx`
 - `src/hooks/usePresenceCustomStatus.tsx`
@@ -482,7 +482,7 @@ Der Status ist für andere sichtbar (in Profile Cards, Member List).
 - Nachrichtenlöschung via `mx.redactEvent()` für alle Events des Users innerhalb des Zeitfensters
 - `ConfirmModal` mit Grund-Input + Zeitraum-Select
 
-**Fluxer-Referenz:** `src/components/modals/BanMemberModal.tsx`
+**Referenz:** `src/components/modals/BanMemberModal.tsx`
 
 **Aufwand:** ~1 Tag
 
@@ -492,7 +492,7 @@ Der Status ist für andere sichtbar (in Profile Cards, Member List).
 
 **Was:** Dünne Bannerleisten ganz oben in der App für wichtige System-Hinweise:
 
-Sinnvolle Fluxer-Nagbars für BetterCord:
+Sinnvolle Nagbars für BetterCord:
 - **E-Mail nicht verifiziert** (falls Homeserver das meldet)
 - **Desktop-Benachrichtigungen erlauben** (wenn `Notification.permission === 'default'`)
 - **Verbindungsproblem** (wenn Matrix-Client disconnected)
@@ -505,7 +505,7 @@ Mehrere Nagbars stacken vertikal. Jede hat ein ✕ zum Dismissen (persistent in 
 - `<NagbarContainer>` über dem App-Content
 - Conditions prüfen beim App-Start: `Notification.permission`, Service-Worker-Update-Event, Matrix connection state
 
-**Fluxer-Referenz:**
+**Referenz:**
 - `src/stores/NagbarStore.tsx`
 - `src/components/layout/app_layout/NagbarContainer.tsx`
 
@@ -542,5 +542,4 @@ Woche 5+ — Social Features:
 
 ---
 
-*Erstellt nach Fluxer-Frontend-Analyse — Stand: März 2026*
-*Fluxer-Quellcode: `/Users/davifernandesrezende/WebstormProjects/voicechat/fluxer/fluxer_app/src/`*
+*Erstellt nach BetterCord-Frontend-Analyse — Stand: März 2026*

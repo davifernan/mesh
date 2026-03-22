@@ -16,6 +16,8 @@
  * You should have received a copy of the GNU Affero General Public License
  * along with Fluxer. If not, see <https://www.gnu.org/licenses/>.
  */
+// Copyright 2025-2026 BetterCord Contributors
+// SPDX-License-Identifier: AGPL-3.0-only
 
 import {BUILD_CHANNEL} from '@electron/common/BuildChannel';
 import {getMainWindow} from '@electron/main/Window';

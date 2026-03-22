@@ -37,6 +37,7 @@ export enum StateEvent {
   SpaceParent = 'm.space.parent',
 
   PoniesRoomEmotes = 'im.ponies.room_emotes',
+  /** Cinny-Namespace, beibehalten für Rückwärtskompatibilität mit Cinny-migrierten Usern */
   PowerLevelTags = 'in.cinny.room.power_level_tags',
 
   BetterCordSpaceSoundboard = 'io.bettercord.space.soundboard',

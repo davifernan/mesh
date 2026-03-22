@@ -1,10 +1,9 @@
 import { style } from '@vanilla-extract/css';
 
-/* === Fluxer-inspired Auth Layout ===
+/* === BetterCord Auth Layout ===
    - Full-screen brand-purple background
    - Split card: 33% logo side | 67% form side
    - border-radius: 1rem on card
-   - Matches Fluxer AuthLayout.module.css exactly
 */
 
 export const AuthLayout = style({

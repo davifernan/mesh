@@ -1,9 +1,9 @@
 [Desktop Entry]
-Name=Fluxer
+Name=BetterCord
 Comment=Instant messaging and VoIP application
-Exec=app.fluxer.Fluxer %U
+Exec=app.bettercord.BetterCord %U
 Terminal=false
 Type=Application
-Icon=app.fluxer.Fluxer
+Icon=app.bettercord.BetterCord
 Categories=Network;InstantMessaging;
-StartupWMClass=app.fluxer.Fluxer
+StartupWMClass=app.bettercord.BetterCord

@@ -4,7 +4,7 @@ import { Page, PageContent, PageHeader } from '../../../components/page';
 import { SequenceCard } from '../../../components/sequence-card';
 import { SequenceCardStyle } from '../styles.css';
 import { SettingTile } from '../../../components/setting-tile';
-import CinnySVG from '../../../../../public/res/svg/cinny.svg';
+import BetterCordSVG from '../../../../../public/res/svg/bettercord.svg';
 import { clearCacheAndReload } from '../../../../client/initMatrix';
 import { useMatrixClient } from '../../../hooks/useMatrixClient';
 
@@ -38,7 +38,7 @@ export function About({ requestClose }: AboutProps) {
                 <Box shrink="No">
                   <img
                     style={{ width: toRem(60), height: toRem(60) }}
-                    src={CinnySVG}
+                    src={BetterCordSVG}
                     alt="BetterCord logo"
                   />
                 </Box>
@@ -48,13 +48,13 @@ export function About({ requestClose }: AboutProps) {
                       <Text size="H3" as="h2">BetterCord</Text>
                       <Text size="T200">v4.10.5</Text>
                     </Box>
-                    <Text>A Cinny fork.</Text>
+                    <Text>A modern Matrix client.</Text>
                   </Box>
 
                   <Box gap="200" wrap="Wrap">
                     <Button
                       as="a"
-                      href="https://codeberg.org/lapingvino/cinny"
+                      href="https://github.com/davifernan/BetterCord"
                       rel="noreferrer noopener"
                       target="_blank"
                       variant="Secondary"
@@ -64,19 +64,6 @@ export function About({ requestClose }: AboutProps) {
                       before={<Icon src={Icons.Code} size="100" filled />}
                     >
                       <Text size="B300">Source Code</Text>
-                    </Button>
-                    <Button
-                      as="a"
-                      href="https://cinny.in/#sponsor"
-                      rel="noreferrer noopener"
-                      target="_blank"
-                      variant="Critical"
-                      fill="Soft"
-                      size="300"
-                      radii="300"
-                      before={<Icon src={Icons.Heart} size="100" filled />}
-                    >
-                      <Text size="B300">Support</Text>
                     </Button>
                   </Box>
                 </Box>

@@ -110,11 +110,11 @@ const SECTION_NAV_BACK_SHORTCUT: DisplayShortcut = {
 };
 
 const SECTION_LABELS: Record<string, string> = {
-  'cinny-room-listbox': 'Room list',
-  'cinny-lobby': 'Space lobby',
-  'cinny-timeline': 'Message timeline',
-  'cinny-members-panel': 'Members panel',
-  'cinny-threads-panel': 'Threads panel',
+  'bettercord-room-listbox': 'Room list',
+  'bettercord-lobby': 'Space lobby',
+  'bettercord-timeline': 'Message timeline',
+  'bettercord-members-panel': 'Members panel',
+  'bettercord-threads-panel': 'Threads panel',
 };
 
 function findSidebarFocus(): HTMLElement | null {
@@ -131,10 +131,10 @@ function findSidebarFocus(): HTMLElement | null {
 // Panels with role="region" + aria-label are auto-discovered by getRegionSections() below.
 const SECTION_FINDERS: Array<() => HTMLElement | null> = [
   findSidebarFocus,
-  () => document.querySelector('#cinny-room-listbox'),
+  () => document.querySelector('#bettercord-room-listbox'),
   // First enabled button in the room header toolbar (skips disabled buttons)
-  () => document.querySelector<HTMLElement>('#cinny-room-header-toolbar button:not([disabled])'),
-  () => document.querySelector('#cinny-timeline'),
+  () => document.querySelector<HTMLElement>('#bettercord-room-header-toolbar button:not([disabled])'),
+  () => document.querySelector('#bettercord-timeline'),
   () => document.querySelector('[data-slate-editor="true"]'),
 ];
 
@@ -217,7 +217,7 @@ export function GlobalKeyboardShortcuts() {
             evt.preventDefault();
             navigate(getSpaceLobbyPath(getCanonicalAliasOrRoomId(mx, spaceId)));
             announce(`${mx.getRoom(spaceId)?.name ?? 'Space'} space`);
-            setTimeout(() => document.getElementById('cinny-room-listbox')?.focus(), 80);
+            setTimeout(() => document.getElementById('bettercord-room-listbox')?.focus(), 80);
           }
           return;
         }
@@ -354,7 +354,7 @@ export function GlobalKeyboardShortcuts() {
 
   const { hashRouter } = useClientConfig();
   const hasMainSession =
-    !!localStorage.getItem('cinny_hs_base_url') && !!localStorage.getItem('cinny_user_id');
+    !!localStorage.getItem('bettercord_hs_base_url') && !!localStorage.getItem('bettercord_user_id');
   const secondarySessions = getSecondarySessions();
 
   const handleAccountSwitchKeyDown = useCallback(
@@ -371,11 +371,11 @@ export function GlobalKeyboardShortcuts() {
       if (target === undefined) return;
       evt.preventDefault();
       if (target === null) {
-        sessionStorage.removeItem('cinny-account-slot');
+        sessionStorage.removeItem('bettercord-account-slot');
         if (hashRouter?.enabled) window.location.reload();
         else window.location.assign('/');
       } else {
-        sessionStorage.setItem('cinny-account-slot', String(target));
+        sessionStorage.setItem('bettercord-account-slot', String(target));
         if (hashRouter?.enabled) window.location.reload();
         else window.location.assign(`/account/${target}/`);
       }

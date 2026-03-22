@@ -424,7 +424,7 @@ export function Home() {
                 </RoomNavCategoryButton>
               </NavCategoryHeader>
               <RoomListbox
-                id="cinny-room-listbox"
+                id="bettercord-room-listbox"
                 aria-label="Room list"
                 items={sortedRooms}
                 focusedIndex={keyboardNav.focusedIndex}
