@@ -458,10 +458,9 @@ export function useNativeCall(roomId: string | null): NativeCallEngine {
           });
         };
 
-        // Snapshot initial remote participants already in the room
-        for (const p of room.remoteParticipants.values()) {
-          updateRemote(p);
-        }
+        // Snapshot initial remote participants already in the room.
+        // NOTE: room.remoteParticipants is empty here (before connect) — this
+        // loop is a no-op. The real post-connect snapshot happens after step 8.
 
         room.on(RoomEvent.ActiveSpeakersChanged, (speakers) => {
           const nextSpeakers = new Set(
@@ -651,6 +650,25 @@ export function useNativeCall(roomId: string | null): NativeCallEngine {
 
         // 8. Connect to the LiveKit SFU
         await room.connect(sfuConfig.url, sfuConfig.jwt, { autoSubscribe: false });
+
+        // 8b. Subscribe to pre-existing remote participants.
+        //
+        // The LiveKit SDK intentionally drops ParticipantConnected and
+        // TrackPublished events for participants already in the room when WE
+        // join (see Room.ts applyJoinResponse: "populate remote participants,
+        // these should not trigger new events").  With autoSubscribe: false we
+        // must therefore manually subscribe here — otherwise the first person
+        // to join a room will never hear anyone who was already there.
+        for (const p of room.remoteParticipants.values()) {
+          updateRemote(p);
+          for (const pub of p.trackPublications.values()) {
+            if (pub.source === Track.Source.Microphone) {
+              pub.setSubscribed(!isDeafenedRef.current);
+            } else if (pub.source === Track.Source.Camera) {
+              pub.setSubscribed(true);
+            }
+          }
+        }
 
         if (aborted) {
           room.removeAllListeners();
