@@ -216,7 +216,8 @@ export class RedisVoiceStateStore implements VoiceStateStore {
     const roomKey = roomHashKey(roomId);
 
     // Guard: check if userId was tracked before deleting the identity key
-    const wasTracked = await this.redis.hexists(roomKey, userId);
+    // Bun.RedisClient does not expose hexists — use hget and check for null instead
+    const wasTracked = (await this.redis.hget(roomKey, userId)) !== null;
     this.connected = true;
 
     // Delete the identity key
