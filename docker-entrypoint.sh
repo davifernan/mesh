@@ -32,11 +32,13 @@ if [ -n "$MESH_HOMESERVER" ] || [ -n "$MESH_LIVEKIT_URL" ] || [ -n "$MESH_PRESEN
   : "${MESH_PRESENCE_URL:=/api/presence}"
   : "${MESH_VOICE_STATE_MODE:=livekit}"
   : "${MESH_AUTHORITATIVE_BRIDGE_MODE:=false}"
-  : "${MESH_ALLOW_CUSTOM_HOMESERVERS:=false}"
+  : "${MESH_ALLOW_CUSTOM_HOMESERVERS:=true}"
+  : "${BRIDGE_AUTH_SECRET:=}"
+  : "${MESH_TOKEN_STORAGE_MODE:=encrypted-local}"
 
   export MESH_HOMESERVER MESH_LIVEKIT_URL MESH_PRESENCE_URL \
     MESH_VOICE_STATE_MODE MESH_AUTHORITATIVE_BRIDGE_MODE \
-    MESH_ALLOW_CUSTOM_HOMESERVERS
+    MESH_ALLOW_CUSTOM_HOMESERVERS BRIDGE_AUTH_SECRET MESH_TOKEN_STORAGE_MODE
 
   envsubst < /app/config.template.json > /app/config.json
   echo "[entrypoint] Done. config.json:"

@@ -196,11 +196,19 @@ See [`docs/microapps.md`](docs/microapps.md) for details.
 | `REDIS_URL` | `redis://redis:6379` | Redis connection URL |
 | `BRIDGE_VOICE_STATE_AUTHORITATIVE` | `false` | Bridge-side authoritative mode flag |
 
+### Security (recommended for production)
+
+| Variable | Default | Description |
+|---|---|---|
+| `BRIDGE_AUTH_SECRET` | _(empty)_ | Shared secret for presence bridge auth. Generate with `openssl rand -hex 32`. Empty = no auth (dev mode). |
+| `BRIDGE_ALLOWED_ORIGINS` | _(empty)_ | Comma-separated CORS allow-list for the bridge. Empty = all origins (dev mode). Example: `https://mesh.example.com` |
+| `MESH_TOKEN_STORAGE_MODE` | `encrypted-local` | How the access token is stored in the browser: `encrypted-local` (AES-encrypted, recommended), `local` (plaintext, legacy), `session` (sessionStorage only, strictest) |
+
 ### Optional
 
 | Variable | Default | Description |
 |---|---|---|
-| `MESH_ALLOW_CUSTOM_HOMESERVERS` | `false` | Allow login with any homeserver |
+| `MESH_ALLOW_CUSTOM_HOMESERVERS` | `true` | Allow login with any homeserver |
 | `MESH_PRESENCE_URL` | `/api/presence` | Presence bridge URL (browser-facing) |
 | `CLOUDFLARE_TUNNEL_TOKEN` | _(empty)_ | Cloudflare Tunnel token for auto-HTTPS |
 | `MESH_POLLS_URL` | _(empty)_ | Public URL of polls widget |

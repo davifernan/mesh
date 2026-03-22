@@ -41,6 +41,9 @@ IMPORTANT:
 - The LIVEKIT_API_KEY and LIVEKIT_API_SECRET are secrets — write them to .env only,
   never echo them to the terminal or commit them to git.
 - REDIS_URL should be redis://redis:6379 (the built-in Redis container).
+- Generate a BRIDGE_AUTH_SECRET for production: openssl rand -hex 32
+  This protects the presence bridge endpoints from unauthorized access.
+- Set BRIDGE_ALLOWED_ORIGINS=https://[YOUR_DOMAIN] to restrict CORS.
 
 Ask me for any missing credentials. Do not guess or hardcode secrets.
 ```
@@ -142,3 +145,7 @@ Tunnels), the public hostname should be:
 - `config.json` is auto-generated at container startup from env vars — don't edit it manually
 - The bridge health endpoint is `GET http://localhost:3002/health`
 - LiveKit webhook URL pattern: `https://DOMAIN/api/presence/webhook`
+- For production security, always set:
+  - `BRIDGE_AUTH_SECRET` — protects presence bridge endpoints (generate with `openssl rand -hex 32`)
+  - `BRIDGE_ALLOWED_ORIGINS` — restricts CORS to your domain (e.g. `https://mesh.example.com`)
+  - `MESH_TOKEN_STORAGE_MODE=encrypted-local` — encrypts access tokens in browser (default)

@@ -182,9 +182,38 @@ else
   info "See: contrib/nginx/ or contrib/caddy/ for examples."
 fi
 
+# ── Bridge Auth Secret ────────────────────────────────────────────────────────
+
+printf "\n${BOLD}── Step 4: Bridge Security ──${RESET}\n\n"
+info "The presence bridge can be protected with a shared secret."
+info "This prevents unauthorized access to presence data."
+
+BRIDGE_AUTH_SECRET=""
+BRIDGE_ALLOWED_ORIGINS=""
+
+if ask_yn "Generate a bridge auth secret? (recommended for production)" "y"; then
+  # Try openssl first, fall back to /dev/urandom
+  if command -v openssl >/dev/null 2>&1; then
+    BRIDGE_AUTH_SECRET=$(openssl rand -hex 32)
+  else
+    BRIDGE_AUTH_SECRET=$(head -c 32 /dev/urandom | od -A n -t x1 | tr -d ' \n')
+  fi
+  ok "Bridge auth secret generated."
+
+  if [ "$USE_CLOUDFLARE" = "true" ] || ask_yn "Restrict bridge CORS to a specific domain?" "n"; then
+    ask "Your mesh domain (e.g. https://mesh.example.com):" ""
+    if [ -n "$REPLY" ]; then
+      BRIDGE_ALLOWED_ORIGINS="$REPLY"
+      ok "CORS restricted to: $BRIDGE_ALLOWED_ORIGINS"
+    fi
+  fi
+else
+  info "Skipping bridge auth (dev mode — all requests allowed)."
+fi
+
 # ── Voice State Mode ─────────────────────────────────────────────────────────
 
-printf "\n${BOLD}── Step 4: Presence Mode ──${RESET}\n\n"
+printf "\n${BOLD}── Step 5: Presence Mode ──${RESET}\n\n"
 info "The presence bridge shows who is muted/on camera in the sidebar."
 info "  'livekit' mode = client-side state (simpler, good for dev)"
 info "  'bridge'  mode = server-side authoritative state (recommended for production)"
@@ -239,6 +268,11 @@ MESH_AUTHORITATIVE_BRIDGE_MODE=$MESH_AUTHORITATIVE_BRIDGE_MODE
 MESH_PRESENCE_URL=
 REDIS_URL=redis://redis:6379
 BRIDGE_VOICE_STATE_AUTHORITATIVE=$MESH_AUTHORITATIVE_BRIDGE_MODE
+
+# ── Security ─────────────────────────────────────────────────────────────────
+BRIDGE_AUTH_SECRET=$BRIDGE_AUTH_SECRET
+BRIDGE_ALLOWED_ORIGINS=$BRIDGE_ALLOWED_ORIGINS
+MESH_TOKEN_STORAGE_MODE=encrypted-local
 
 # ── Cloudflare Tunnel ────────────────────────────────────────────────────────
 CLOUDFLARE_TUNNEL_TOKEN=$CLOUDFLARE_TUNNEL_TOKEN
