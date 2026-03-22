@@ -625,6 +625,15 @@ export function useNativeCall(roomId: string | null): NativeCallEngine {
           if (pub.source === Track.Source.ScreenShare) setIsScreenShareEnabled(false);
         });
 
+        room.on(RoomEvent.ParticipantAttributesChanged, (_changedAttributes, participant) => {
+          if (participant !== room.localParticipant) {
+            // Re-resolve now that attributes are populated
+            const resolvedId = resolveParticipantUserId(participant, matrixRoom);
+            identityToUserIdMap.set(participant.identity, resolvedId);
+            updateRemote(participant);
+          }
+        });
+
         room.on(RoomEvent.Disconnected, () => {
           if (!aborted) setStatus('idle');
         });
@@ -669,6 +678,11 @@ export function useNativeCall(roomId: string | null): NativeCallEngine {
             }
           }
         }
+
+        // Announce Matrix user ID via LiveKit participant attributes.
+        // The lk-jwt-service uses opaque identity hashes — without this,
+        // neither remote participants nor the bridge can resolve who we are.
+        void room.localParticipant.setAttributes({ claimed_user_id: userId });
 
         if (aborted) {
           room.removeAllListeners();

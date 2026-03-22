@@ -83,6 +83,19 @@ export interface VoiceStateStore {
 
   /** Remove all state for a room. Used by reconcile to drop stale snapshots. */
   clearRoom(roomId: string): Promise<void>;
+
+  /**
+   * Re-key an existing presence entry from an opaque identity-based userId
+   * to the real Matrix user ID now that we know it.
+   * Called when participant_attributes_changed reveals the Matrix user ID.
+   * If no entry exists under oldUserId, this is a no-op.
+   */
+  rekeyPresence(
+    roomId: string,
+    identity: string,
+    oldUserId: string,
+    newUserId: string,
+  ): Promise<{ presence: ParticipantPresence | null }>;
 }
 
 // ── Default presence ──────────────────────────────────────────────────────────
@@ -301,6 +314,36 @@ export class InMemoryVoiceStateStore implements VoiceStateStore {
     // Seq must never regress for clients connected across a reconcile cycle.
     this.roomState.delete(roomId);
     this.identityState.delete(roomId);
+  }
+
+  async rekeyPresence(
+    roomId: string,
+    identity: string,
+    oldUserId: string,
+    newUserId: string,
+  ): Promise<{ presence: ParticipantPresence | null }> {
+    const idRoom = this.identityState.get(roomId);
+    if (!idRoom) return { presence: null };
+
+    const entry = idRoom.get(identity);
+    if (!entry) return { presence: null };
+
+    // Already keyed by the right userId — nothing to do
+    if (entry.userId === newUserId) {
+      const existing = this.roomState.get(roomId)?.get(newUserId) ?? null;
+      return { presence: existing };
+    }
+
+    // Re-key the identity entry to the new userId
+    idRoom.set(identity, { userId: newUserId, presence: entry.presence });
+
+    // Move room hash entry from old key to new key
+    const room = this.ensureRoom(roomId);
+    const oldAgg = room.get(oldUserId) ?? entry.presence;
+    room.delete(oldUserId);
+    room.set(newUserId, oldAgg);
+
+    return { presence: oldAgg };
   }
 
   // ── Test-only accessors ─────────────────────────────────────────────────────

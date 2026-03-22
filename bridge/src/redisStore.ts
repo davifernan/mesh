@@ -306,6 +306,55 @@ export class RedisVoiceStateStore implements VoiceStateStore {
     this.connected = true;
   }
 
+  async rekeyPresence(
+    roomId: string,
+    identity: string,
+    oldUserId: string,
+    newUserId: string,
+  ): Promise<{ presence: ParticipantPresence | null }> {
+    const idKey = identityKey(roomId, identity);
+    const roomKey = roomHashKey(roomId);
+
+    // Read current identity entry
+    const raw = await this.redis.get(idKey);
+    this.connected = true;
+    if (!raw) return { presence: null };
+
+    let parsedPresence: ParticipantPresence;
+    try {
+      const obj = JSON.parse(raw) as { userId: string; presence: ParticipantPresence };
+      // Already keyed by the right userId — nothing to do
+      if (obj.userId === newUserId) {
+        const existing = parsePresence(await this.redis.hget(roomKey, newUserId));
+        return { presence: existing };
+      }
+      parsedPresence = obj.presence;
+    } catch {
+      return { presence: null };
+    }
+
+    // Get current aggregated value from room hash under the OLD key
+    const oldAggRaw = await this.redis.hget(roomKey, oldUserId);
+    const oldAgg = parsePresence(oldAggRaw) ?? parsedPresence;
+
+    // Update the identity key to reference the new userId
+    const newIdValue = JSON.stringify({ userId: newUserId, presence: parsedPresence });
+    await this.redis.set(idKey, newIdValue, 'EX', IDENTITY_TTL_SECONDS);
+
+    // Move room hash entry from old key to new key
+    if (oldAggRaw !== null) {
+      await Promise.all([
+        this.redis.send('HSET', [roomKey, newUserId, oldAggRaw]),
+        this.redis.send('HDEL', [roomKey, oldUserId]),
+      ]);
+    } else {
+      // No room hash entry yet — create one
+      await this.redis.send('HSET', [roomKey, newUserId, JSON.stringify(oldAgg)]);
+    }
+
+    return { presence: oldAgg };
+  }
+
   // ── Private helpers ─────────────────────────────────────────────────────────
 
   /**

@@ -147,8 +147,21 @@ export function createWebhookHandler(
 
       case 'participant_attributes_changed': {
         const attrs = (p?.attributes ?? {}) as Record<string, string>;
-        await applyPatch(store, sse, roomId, identity, userId, { isDeafened: attrs.isDeafened === '1' });
-        console.debug(`[attrs] ${userId} isDeafened=${attrs.isDeafened} in ${roomId}`);
+        const newUserId = resolveMatrixUserId(identity, attrs, pMeta);
+
+        // If the newly-resolved userId is a real Matrix user ID (not the opaque
+        // identity fallback), re-key the presence entry so subsequent lookups by
+        // Matrix user ID work correctly.
+        if (newUserId !== identity && newUserId.startsWith('@')) {
+          const rekeyResult = await store.rekeyPresence(roomId, identity, identity, newUserId);
+          if (rekeyResult.presence) {
+            sse.broadcast(roomId, newUserId, { ...rekeyResult.presence, type: 'update' }, 'update');
+          }
+        }
+
+        // Apply any deafen state change under the (now-correct) userId
+        await applyPatch(store, sse, roomId, identity, newUserId, { isDeafened: attrs.isDeafened === '1' });
+        console.debug(`[attrs] ${newUserId} isDeafened=${attrs.isDeafened} in ${roomId}`);
         break;
       }
 
