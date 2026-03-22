@@ -156,7 +156,9 @@ export const createRoom = async (mx: MatrixClient, data: CreateRoomData): Promis
 
   initialState.push(createRoomJoinRulesState(data.kind, data.parent, data.knock));
 
-  // For call rooms, set MSC3401 power levels at creation time (avoids a separate state event call)
+  // Set power levels at creation time.
+  // org.mesh.call.info is added to ALL room types so any member can start/join a call.
+  // For call rooms, also set MSC3401 levels (avoids a separate state event call).
   const callPowerLevels: IPowerLevels | undefined =
     data.type === RoomType.Call
       ? createPowerLevelContentOverrides(data.powerLevelContentOverrides ?? {}, {
@@ -166,7 +168,11 @@ export const createRoom = async (mx: MatrixClient, data: CreateRoomData): Promis
             'org.mesh.call.info': 0,
           },
         })
-      : data.powerLevelContentOverrides;
+      : createPowerLevelContentOverrides(data.powerLevelContentOverrides ?? {}, {
+          events: {
+            'org.mesh.call.info': 0,
+          },
+        });
 
   const options: ICreateRoomOpts = {
     room_version: data.version,
