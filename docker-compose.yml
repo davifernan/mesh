@@ -1,31 +1,31 @@
 version: '3.9'
 
 services:
-  # ── BetterCord frontend (nginx + static SPA) ─────────────────────────────────
-  bettercord:
+  # ── mesh frontend (nginx + static SPA) ─────────────────────────────────
+  mesh:
     build:
       context: .
       dockerfile: Dockerfile
     ports:
-      - '${BETTERCORD_PORT:-80}:80'
+      - '${MESH_PORT:-80}:80'
     environment:
-      BETTERCORD_HOMESERVER: '${BETTERCORD_HOMESERVER}'
-      BETTERCORD_LIVEKIT_URL: '${BETTERCORD_LIVEKIT_URL}'
-      BETTERCORD_PRESENCE_URL: '${BETTERCORD_PRESENCE_URL}'
+      MESH_HOMESERVER: '${MESH_HOMESERVER}'
+      MESH_LIVEKIT_URL: '${MESH_LIVEKIT_URL}'
+      MESH_PRESENCE_URL: '${MESH_PRESENCE_URL}'
       # Controls how the frontend resolves participant presence.
       # "bridge" = bridge is authoritative (recommended for production).
       # "livekit" = prefer live LiveKit client state (default for local dev).
-      BETTERCORD_VOICE_STATE_MODE: '${BETTERCORD_VOICE_STATE_MODE:-livekit}'
-      BETTERCORD_AUTHORITATIVE_BRIDGE_MODE: '${BETTERCORD_AUTHORITATIVE_BRIDGE_MODE:-false}'
+      MESH_VOICE_STATE_MODE: '${MESH_VOICE_STATE_MODE:-livekit}'
+      MESH_AUTHORITATIVE_BRIDGE_MODE: '${MESH_AUTHORITATIVE_BRIDGE_MODE:-false}'
       # Optional: set these to show Polls/Whiteboard in the Activities catalog.
       # Must be publicly reachable URLs (loaded by users' browsers, not the container).
-      BETTERCORD_POLLS_URL: '${BETTERCORD_POLLS_URL:-}'
-      BETTERCORD_WHITEBOARD_URL: '${BETTERCORD_WHITEBOARD_URL:-}'
+      MESH_POLLS_URL: '${MESH_POLLS_URL:-}'
+      MESH_WHITEBOARD_URL: '${MESH_WHITEBOARD_URL:-}'
     depends_on:
       bridge:
         condition: service_healthy
     networks:
-      - bettercord
+      - mesh
     restart: unless-stopped
 
   # ── Presence bridge (Bun + Hono) ──────────────────────────────────────────────
@@ -55,7 +55,7 @@ services:
       retries: 3
       start_period: 5s
     networks:
-      - bettercord
+      - mesh
       - voicechat
     restart: unless-stopped
 
@@ -78,7 +78,7 @@ services:
     volumes:
       - redis_data:/data
     networks:
-      - bettercord
+      - mesh
     profiles:
       - redis
     healthcheck:
@@ -88,15 +88,15 @@ services:
       retries: 3
 
   polls-widget:
-    # nordeck/matrix-poll-widget — self-hosted polls for BetterCord rooms.
+    # nordeck/matrix-poll-widget — self-hosted polls for mesh rooms.
     #
     # Setup (server admin):
     #   1. Start with: docker compose --profile microapps up -d polls-widget
     #   2. Expose port 3001 via your reverse proxy as a public URL,
     #      e.g. https://polls.your-domain.com
-    #   3. Set BETTERCORD_POLLS_URL=https://polls.your-domain.com in your .env
-    #      and restart the bettercord container so config-microapps.js is regenerated.
-    #   4. Polls will now appear in the BetterCord Activities catalog (🚀 button in call view).
+    #   3. Set MESH_POLLS_URL=https://polls.your-domain.com in your .env
+    #      and restart the mesh container so config-microapps.js is regenerated.
+    #   4. Polls will now appear in the mesh Activities catalog (🚀 button in call view).
     #
     # CORS: the nordeck image allows all origins by default, no extra config needed.
     image: ghcr.io/nordeck/matrix-poll-widget:latest
@@ -104,22 +104,22 @@ services:
     ports:
       - "${POLLS_HOST_PORT:-3001}:8080"
     environment:
-      REACT_APP_HOME_SERVER_URL: '${BETTERCORD_HOMESERVER:-https://matrix.org}'
+      REACT_APP_HOME_SERVER_URL: '${MESH_HOMESERVER:-https://matrix.org}'
     networks:
-      - bettercord
+      - mesh
     profiles:
       - microapps
 
   neoboard-widget:
-    # nordeck/matrix-neoboard-widget — collaborative whiteboard for BetterCord rooms.
+    # nordeck/matrix-neoboard-widget — collaborative whiteboard for mesh rooms.
     #
     # Setup (server admin):
     #   1. Start with: docker compose --profile microapps up -d neoboard-widget
     #   2. Expose port 3003 via your reverse proxy as a public URL,
     #      e.g. https://whiteboard.your-domain.com
-    #   3. Set BETTERCORD_WHITEBOARD_URL=https://whiteboard.your-domain.com in your .env
-    #      and restart the bettercord container so config-microapps.js is regenerated.
-    #   4. Whiteboard will now appear in the BetterCord Activities catalog (🚀 button).
+    #   3. Set MESH_WHITEBOARD_URL=https://whiteboard.your-domain.com in your .env
+    #      and restart the mesh container so config-microapps.js is regenerated.
+    #   4. Whiteboard will now appear in the mesh Activities catalog (🚀 button).
     #
     # Note: nordeck/matrix-neoboard stores whiteboard state as Matrix room events.
     # Ensure your homeserver has reasonable rate limits for state events.
@@ -129,13 +129,13 @@ services:
     ports:
       - "${WHITEBOARD_HOST_PORT:-3003}:8080"
     networks:
-      - bettercord
+      - mesh
     profiles:
       - microapps
 
 networks:
-  bettercord:
-    name: bettercord
+  mesh:
+    name: mesh
   voicechat:
     name: voicechat
     external: true

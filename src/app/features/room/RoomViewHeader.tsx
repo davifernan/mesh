@@ -51,7 +51,7 @@ import { LeaveRoomPrompt } from '../../components/leave-room-prompt';
 import { useRoomAvatar, useRoomName, useRoomTopic } from '../../hooks/useRoomMeta';
 import { ScreenSize, useScreenSizeContext } from '../../hooks/useScreenSize';
 import { stopPropagation } from '../../utils/keyboard';
-import { getBetterCordPermalink } from '../../plugins/permalink';
+import { getmeshPermalink } from '../../plugins/permalink';
 import { getViaServers } from '../../plugins/via-servers';
 import { BackRouteHandler } from '../../components/BackRouteHandler';
 import { useMediaAuthentication } from '../../hooks/useMediaAuthentication';
@@ -150,7 +150,7 @@ const RoomMenu = forwardRef<HTMLDivElement, RoomMenuProps>(({ room, requestClose
         ? guessPerfectParent(mx, room.roomId, orphanParents) ?? orphanParents[0]
         : undefined);
     copyToClipboard(
-      getBetterCordPermalink(
+      getmeshPermalink(
         {
           kind: 'room',
           roomIdOrAlias,
@@ -654,7 +654,7 @@ export function RoomViewHeader({ isIssueBoard, onToggleIssueBoard, isThreadsDraw
           </Box>
         </Box>
 
-        <Box id="cinny-room-header-toolbar" data-section-label="Room actions" role="toolbar" aria-label="Room actions" aria-orientation="horizontal" shrink="No" onKeyDown={handleToolbarKeyDown}>
+        <Box id="mesh-room-header-toolbar" data-section-label="Room actions" role="toolbar" aria-label="Room actions" aria-orientation="horizontal" shrink="No" onKeyDown={handleToolbarKeyDown}>
           {/* FRONT: feature buttons — hidden when the feature is impossible for this room.
               Wobble here (left side of group) is less noticeable than at the right. */}
 
@@ -771,7 +771,8 @@ export function RoomViewHeader({ isIssueBoard, onToggleIssueBoard, isThreadsDraw
             </TooltipProvider>
           )}
 
-          {/* Pinned messages — greyed when issue board covers the chat */}
+          {/* Pinned messages — secondary action, only shown when pins exist */}
+          {pinnedEvents.length > 0 && (
           <TooltipProvider
             position="Bottom"
             offset={4}
@@ -789,7 +790,7 @@ export function RoomViewHeader({ isIssueBoard, onToggleIssueBoard, isThreadsDraw
                 onClick={handleOpenPinMenu}
                 ref={triggerRef}
                 aria-pressed={!!pinMenuAnchor}
-                aria-label={`Pinned messages${pinnedEvents.length > 0 ? ` (${pinnedEvents.length} pinned)` : ''}`}
+                aria-label={`Pinned messages (${pinnedEvents.length} pinned)`}
               >
                 {pinnedEvents.length > 0 && (
                   <Badge
@@ -812,6 +813,7 @@ export function RoomViewHeader({ isIssueBoard, onToggleIssueBoard, isThreadsDraw
               </IconButton>
             )}
           </TooltipProvider>
+          )}
           <PopOut
             anchor={pinMenuAnchor}
             position="Bottom"

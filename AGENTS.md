@@ -1,14 +1,14 @@
-# BetterCord — Agent Rules & Learnings
+# mesh — Agent Rules & Learnings
 
 > This file documents hard-won knowledge from implementing Matrix RTC + LiveKit voice
-> in BetterCord. Read it before touching ANYTHING call/voice related.
+> in mesh. Read it before touching ANYTHING call/voice related.
 
 ---
 
 ## Architecture Overview
 
 ```
-BetterCord (one app, no iframe)
+mesh (one app, no iframe)
 │
 ├── matrix-js-sdk v38+
 │   ├── MatrixRTCSession        — memberships, delayed-events keepalive, E2EE key exchange
@@ -197,7 +197,7 @@ combined with space/channel overrides in `src/app/state/avQuality.ts` (effective
 
 | Setting | Type | Default | Notes |
 |---------|------|---------|-------|
-| audioBitrate | 32\|64\|128\|256\|510 kbps | 64 | Mic bitrate |
+| audioBitrate | 32\|64\|128\|256\|510 kbps | 128 | Mic bitrate |
 | echoCancellation | boolean | true | Browser constraint |
 | noiseSuppression | boolean | true | Browser constraint |
 | autoGainControl | boolean | true | Browser constraint |
@@ -356,7 +356,7 @@ await (pub.track as LocalAudioTrack).restartTrack({
 
 ## CSS / Styling System
 
-BetterCord uses **two** styling patterns — never mix them within a single file:
+mesh uses **two** styling patterns — never mix them within a single file:
 
 | Pattern | When | Files |
 |---------|------|-------|
@@ -390,7 +390,7 @@ export type SidebarItemVariants = RecipeVariants<typeof SidebarItem>;
 --status-online            /* #3ba55d */
 --status-idle              /* #faa61a */
 --status-offline           /* #747f8d */
---brand-primary            /* BetterCord accent color */
+--brand-primary            /* mesh accent color */
 ```
 
 ### Brand colors (hard-coded where tokens aren't available)
@@ -423,7 +423,7 @@ const myAtomFamily = atomFamily((key: string) => atom(defaultValue));
 
 ## CallProvider Context Interface
 
-Full shape of `CallContextState` (as of Phase 2 completion):
+Full shape of `CallContextState` (as of PR #95 / memory-deafen completion):
 
 ```typescript
 interface CallContextState {
@@ -438,11 +438,15 @@ interface CallContextState {
   hangUp: () => void;
   toggleAudio: () => Promise<void>;
   toggleVideo: () => Promise<void>;
+  flipCamera: () => Promise<void>;
   startScreenShare: (ssRes: string, ssFps: number, ssAudio: boolean) => Promise<void>;
   stopScreenShare: () => Promise<void>;
+  toggleDeafen: () => Promise<void>;
   isAudioEnabled: boolean;
   isVideoEnabled: boolean;
   isScreenShareEnabled: boolean;
+  isDeafened: boolean;
+  isFrontCamera: boolean;
   speakingUsers: Set<string>;
   remoteParticipantStates: Map<string, {
     audioEnabled: boolean;
@@ -452,6 +456,11 @@ interface CallContextState {
   livekitRoom: Room | null;
   callStatus: CallStatus;   // 'idle' | 'connecting' | 'connected' | 'error'
   callError: Error | null;
+  callJoinTime: Date | null;
+  watchedScreenShares: ReadonlySet<string>;
+  watchScreenShare: (identity: string) => Promise<void>;
+  unwatchScreenShare: (identity: string) => Promise<void>;
+  updateActiveScreenShareSettings: (ssRes: string, ssFps: number, ssAudio: boolean) => Promise<void>;
 }
 ```
 
@@ -476,6 +485,8 @@ export interface NativeCallEngine {
   isAudioEnabled: boolean;
   isVideoEnabled: boolean;
   isScreenShareEnabled: boolean;
+  isDeafened: boolean;
+  isFrontCamera: boolean;
   speakingUsers: Set<string>;
   remoteParticipantStates: Map<string, {
     audioEnabled: boolean;
@@ -483,11 +494,18 @@ export interface NativeCallEngine {
     isScreenSharing: boolean;
   }>;
   error: Error | null;
+  callJoinTime: Date | null;
   hangUp: () => void;
   toggleAudio: () => Promise<void>;
   toggleVideo: () => Promise<void>;
+  flipCamera: () => Promise<void>;
   startScreenShare: (ssRes: string, ssFps: number, ssAudio: boolean) => Promise<void>;
   stopScreenShare: () => Promise<void>;
+  toggleDeafen: () => Promise<void>;
+  watchedScreenShares: ReadonlySet<string>;
+  watchScreenShare: (identity: string) => Promise<void>;
+  unwatchScreenShare: (identity: string) => Promise<void>;
+  updateActiveScreenShareSettings: (ssRes: string, ssFps: number, ssAudio: boolean) => Promise<void>;
 }
 ```
 
@@ -495,26 +513,57 @@ export interface NativeCallEngine {
 
 ## Deafen Implementation Pattern
 
-Deafen = mute all remote audio output without changing your own mic publish state.
-LiveKit does this via `room.remoteParticipants` track muting on the receiving end:
+Deafen = stop receiving remote audio at the SFU level via `setSubscribed(false)`.
+**NEVER use `MediaStreamTrack.enabled` for deafen** — that only silences locally rendered
+audio while the SFU continues to send data, wasting ~480 kbps per call in a 10-person call.
+`setSubscribed(false)` tells the SFU to stop sending the track entirely.
 
 ```typescript
 // In nativeCallEngine.ts:
 const [isDeafened, setIsDeafened] = useState(false);
+const isDeafenedRef = useRef(false); // stable ref for event-handler closures
 
 const toggleDeafen = useCallback(async () => {
-  if (!livekitRoomRef.current) return;
-  const next = !isDeafened;
+  if (!roomRef.current) return;
+  const next = !isDeafenedRef.current;
+  isDeafenedRef.current = next;
   setIsDeafened(next);
-  // Mute/unmute all remote audio publications locally
-  for (const participant of livekitRoomRef.current.remoteParticipants.values()) {
-    for (const pub of participant.audioTrackPublications.values()) {
-      if (pub.track) {
-        pub.track.mediaStreamTrack.enabled = !next;
+  // setSubscribed(false) → SFU stops sending, 100% bandwidth reduction while deafened
+  for (const p of roomRef.current.remoteParticipants.values()) {
+    for (const pub of p.audioTrackPublications.values()) {
+      await pub.setSubscribed(!next);
+    }
+  }
+  // Propagate to bridge via participant attribute so sidebar shows deafen badge
+  void roomRef.current.localParticipant.setAttributes({ isDeafened: next ? '1' : '0' });
+}, []);
+
+// ParticipantConnected: apply deafen to newly joined participants
+room.on(RoomEvent.ParticipantConnected, (participant) => {
+  for (const pub of participant.trackPublications.values()) {
+    if (pub.source === Track.Source.Microphone) {
+      void pub.setSubscribed(!isDeafenedRef.current);
+    }
+  }
+});
+
+// TrackPublished: apply deafen to newly published tracks
+room.on(RoomEvent.TrackPublished, (_pub, participant) => {
+  if (_pub.source === Track.Source.Microphone) {
+    _pub.setSubscribed(!isDeafenedRef.current);
+  }
+});
+
+// ConnectionStateChanged: re-apply after reconnect (LiveKit resets subscriptions)
+room.on(RoomEvent.ConnectionStateChanged, (state) => {
+  if (state === ConnectionState.Connected && isDeafenedRef.current) {
+    for (const p of room.remoteParticipants.values()) {
+      for (const pub of p.audioTrackPublications.values()) {
+        void pub.setSubscribed(false);
       }
     }
   }
-}, [isDeafened]);
+});
 ```
 
 ---
@@ -549,6 +598,9 @@ Events that trigger `updateRemote(participant)`:
 | TS2367 on TrackPublished handler | Compared RemoteParticipant to LocalParticipant | Removed guard — TrackPublished is always remote |
 | E2EE keys not applied | EncryptionKeyChanged handler wired with 2 args instead of 3 | Use 3-arg handler: (key, index, participantId) |
 | Track restartTrack resets echoCancellation | Passed only noiseSuppression to restartTrack | Always pass ALL audio constraints to restartTrack |
+| Deafen didn't save bandwidth | Used `MediaStreamTrack.enabled` which only muted locally — SFU kept sending | Use `pub.setSubscribed(false)` — SFU stops sending, 100% bandwidth reduction |
+| Deafen lost after reconnect | LiveKit resets all subscriptions on reconnect | Re-apply `setSubscribed(false)` in `RoomEvent.ConnectionStateChanged` handler |
+| devicechange leak in VoiceVideo settings | Inline arrow function passed to addEventListener vs removeEventListener → listener never removed | Store handler as named ref inside useEffect, use same reference for both add/remove |
 
 ---
 

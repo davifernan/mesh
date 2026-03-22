@@ -30,7 +30,7 @@ import { ImageViewer } from './image-viewer';
 import { PdfViewer } from './Pdf-viewer';
 import { TextViewer } from './text-viewer';
 import { testMatrixTo } from '../plugins/matrix-to';
-import { testBetterCordPermalink } from '../plugins/permalink';
+import { testmeshPermalink } from '../plugins/permalink';
 import { IImageContent } from '../../types/matrix/common';
 
 type RenderMessageContentProps = {
@@ -61,7 +61,7 @@ export function RenderMessageContent({
 }: RenderMessageContentProps) {
   const renderUrlsPreview = (urls: string[]) => {
     const filteredUrls = urls.filter(
-      (url) => !testMatrixTo(url) && !testBetterCordPermalink(url)
+      (url) => !testMatrixTo(url) && !testmeshPermalink(url)
     );
     if (filteredUrls.length === 0) return undefined;
     return (

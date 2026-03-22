@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * BetterCord Icon Generator
+ * mesh Icon Generator
  * 
  * Generates all PWA + Apple touch icons from the BC SVG source.
  * 
@@ -15,13 +15,13 @@ const sharp = require('sharp');
 const path = require('path');
 const fs = require('fs');
 
-const SVG_SRC = path.resolve(__dirname, '../public/res/svg/bettercord-icon.svg');
+const SVG_SRC = path.resolve(__dirname, '../public/res/svg/mesh-icon.svg');
 
-// hsl(242, 70%, 55%) = #413CDD — Fluxer brand color
+// hsl(242, 70%, 55%) = #413CDD — mesh brand color
 const BRAND_BG = '#413CDD';
 const TEXT_COLOR = '#ffffff';
 
-// ── Inline SVG (same as bettercord-icon.svg) ──────────────────────────────
+// ── Inline SVG (same as mesh-icon.svg) ──────────────────────────────
 function makeSvg(size) {
   const radius = Math.round(size * 0.254); // ~30% for squircle feel
   const pad = Math.round(size * 0.078);
@@ -45,7 +45,7 @@ const APPLE_SIZES = [57, 60, 72, 76, 114, 120, 144, 152, 167, 180];
 const APPLE_DIR = path.resolve(__dirname, '../public/res/apple');
 
 async function generate() {
-  console.log('Generating BetterCord icons...\n');
+  console.log('Generating mesh icons...\n');
 
   // Android
   for (const size of ANDROID_SIZES) {

@@ -14,7 +14,7 @@ export function useToolbarConfig() {
     (id: ToolbarItemId, patch: Partial<ToolbarItemConfig>) => {
       setConfig((prev) => {
         const next = { ...prev, [id]: { ...getEffectiveItem(prev, id), ...patch } };
-        localStorage.setItem('cinny_toolbar_config', JSON.stringify(next));
+        localStorage.setItem('mesh_toolbar_config', JSON.stringify(next));
         return next;
       });
     },
@@ -25,7 +25,7 @@ export function useToolbarConfig() {
     (id: ToolbarItemId) => {
       setConfig((prev) => {
         const { [id]: _, ...rest } = prev as Record<string, ToolbarItemConfig>;
-        localStorage.setItem('cinny_toolbar_config', JSON.stringify(rest));
+        localStorage.setItem('mesh_toolbar_config', JSON.stringify(rest));
         return rest as typeof prev;
       });
     },

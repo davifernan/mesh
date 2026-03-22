@@ -16,6 +16,8 @@
  * You should have received a copy of the GNU Affero General Public License
  * along with Fluxer. If not, see <https://www.gnu.org/licenses/>.
  */
+// Copyright 2025-2026 mesh Contributors
+// SPDX-License-Identifier: AGPL-3.0-only
 
 import {createRequire} from 'node:module';
 import {BUILD_CHANNEL} from '@electron/common/BuildChannel';
@@ -68,12 +70,12 @@ if (process.platform === 'win32') {
 }
 
 if (process.platform === 'win32') {
-	const appId = isCanary ? 'com.bettercord.app.canary' : 'com.bettercord.app';
+	const appId = isCanary ? 'com.mesh.app.canary' : 'com.mesh.app';
 	app.setAppUserModelId(appId);
 }
 
 if (process.platform === 'linux') {
-	const linuxName = isCanary ? 'BetterCord Canary' : 'BetterCord';
+	const linuxName = isCanary ? 'mesh Canary' : 'mesh';
 	app.setName(linuxName);
 	app.commandLine.appendSwitch('enable-features', 'WebRTCPipeWireCapturer');
 }

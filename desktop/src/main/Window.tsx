@@ -16,6 +16,8 @@
  * You should have received a copy of the GNU Affero General Public License
  * along with Fluxer. If not, see <https://www.gnu.org/licenses/>.
  */
+// Copyright 2025-2026 mesh Contributors
+// SPDX-License-Identifier: AGPL-3.0-only
 
 import fs from 'node:fs';
 import path from 'node:path';
@@ -56,7 +58,7 @@ const trustedWebOrigins = new Set(
 
 const webAuthnDeviceTypes = new Set(['hid', 'usb', 'serial', 'bluetooth']);
 const webAuthnPermissionTypes = new Set(['hid', 'usb', 'serial', 'bluetooth']);
-const POPOUT_NAMESPACE = 'bettercord_';
+const POPOUT_NAMESPACE = 'mesh_';
 
 function getOrigin(url?: string): string | null {
 	if (!url) return null;
@@ -89,6 +91,15 @@ function getSanitizedPath(rawUrl: string): string | null {
 	} catch (error) {
 		log.warn('Invalid URL for path check', {rawUrl, error});
 		return null;
+	}
+}
+
+function getSanitizedHash(rawUrl: string): string {
+	try {
+		return new URL(rawUrl).hash;
+	} catch (error) {
+		log.warn('Invalid URL for hash check', {rawUrl, error});
+		return '';
 	}
 }
 
@@ -698,8 +709,14 @@ export function createWindow(): BrowserWindow {
 
 	webContents.setWindowOpenHandler(({url, frameName}) => {
 		const pathname = getSanitizedPath(url);
+		const urlHash = getSanitizedHash(url);
 		const namespacedPopout = frameName?.startsWith(POPOUT_NAMESPACE);
-		const trustedRoutePopout = namespacedPopout && pathname === '/popout' && isTrustedOrigin(url);
+		// Support both browser router (/popout) and hash router (/#/popout?...)
+		const isPopoutRoute =
+			pathname === '/popout' ||
+			urlHash === '#/popout' ||
+			urlHash.startsWith('#/popout?');
+		const trustedRoutePopout = namespacedPopout && isPopoutRoute && isTrustedOrigin(url);
 		const blankPopout = namespacedPopout && url === 'about:blank';
 
 		if (trustedRoutePopout || blankPopout) {

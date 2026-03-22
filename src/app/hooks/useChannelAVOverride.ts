@@ -4,7 +4,7 @@ import { useMatrixClient } from './useMatrixClient';
 import { channelAVOverrideAtom, ChannelAVOverride } from '../state/avQuality';
 import { useStateEventCallback } from './useStateEventCallback';
 
-const CHANNEL_AV_EVENT = 'io.bettercord.channel.av_override';
+const CHANNEL_AV_EVENT = 'io.mesh.channel.av_override';
 
 function parseChannelAVOverride(
   content: Record<string, unknown>
@@ -30,7 +30,7 @@ function parseChannelAVOverride(
 }
 
 /**
- * Reads `io.bettercord.channel.av_override` state from the given room and
+ * Reads `io.mesh.channel.av_override` state from the given room and
  * keeps `channelAVOverrideAtom` in sync reactively.
  * Call this once per active call room (e.g. inside CallProvider).
  */

@@ -1,51 +1,51 @@
-# Maintainer: Fluxer Contributors <developers@fluxer.app>
-pkgname=fluxer-bin
+# Maintainer: mesh Contributors <https://github.com/davifernan/mesh>
+pkgname=mesh-bin
 pkgver=PLACEHOLDER_VERSION
 pkgrel=1
 pkgdesc='Instant messaging and VoIP application'
 arch=('x86_64' 'aarch64')
-url='https://fluxer.app'
+url='https://github.com/davifernan/mesh'
 license=('AGPL-3.0-or-later')
 depends=('gtk3' 'libnotify' 'nss' 'libxss' 'libxtst' 'xdg-utils'
          'at-spi2-core' 'util-linux-libs' 'libsecret' 'libappindicator-gtk3')
 optdepends=('libpipewire: screen sharing via PipeWire')
-provides=('fluxer')
-conflicts=('fluxer')
+provides=('mesh')
+conflicts=('mesh')
 options=('!strip' '!debug')
 
-_filename_x86_64="fluxer-stable-${pkgver}-x86_64.tar.gz"
-_filename_aarch64="fluxer-stable-${pkgver}-aarch64.tar.gz"
+_filename_x86_64="mesh-stable-${pkgver}-x86_64.tar.gz"
+_filename_aarch64="mesh-stable-${pkgver}-aarch64.tar.gz"
 
-source_x86_64=("${_filename_x86_64}::https://api.fluxer.app/dl/desktop/stable/linux/x64/${pkgver}/tar_gz")
-source_aarch64=("${_filename_aarch64}::https://api.fluxer.app/dl/desktop/stable/linux/arm64/${pkgver}/tar_gz")
+source_x86_64=("${_filename_x86_64}::https://github.com/davifernan/mesh/releases/download/${pkgver}/mesh-stable-${pkgver}-x86_64.tar.gz")
+source_aarch64=("${_filename_aarch64}::https://github.com/davifernan/mesh/releases/download/${pkgver}/mesh-stable-${pkgver}-aarch64.tar.gz")
 sha256sums_x86_64=('PLACEHOLDER_SHA256_X64')
 sha256sums_aarch64=('PLACEHOLDER_SHA256_ARM64')
 
 package() {
-    install -d "${pkgdir}/opt/fluxer"
-    cp -r "${srcdir}/"* "${pkgdir}/opt/fluxer/"
-    chmod +x "${pkgdir}/opt/fluxer/fluxer"
+    install -d "${pkgdir}/opt/mesh"
+    cp -r "${srcdir}/"* "${pkgdir}/opt/mesh/"
+    chmod +x "${pkgdir}/opt/mesh/mesh"
 
     install -d "${pkgdir}/usr/bin"
-    ln -s /opt/fluxer/fluxer "${pkgdir}/usr/bin/fluxer"
+    ln -s /opt/mesh/mesh "${pkgdir}/usr/bin/mesh"
 
-    install -Dm644 /dev/stdin "${pkgdir}/usr/share/applications/fluxer.desktop" <<EOF
+    install -Dm644 /dev/stdin "${pkgdir}/usr/share/applications/mesh.desktop" <<EOF
 [Desktop Entry]
-Name=Fluxer
+Name=mesh
 Comment=Instant messaging and VoIP application
-Exec=/opt/fluxer/fluxer %U
-Icon=fluxer
+Exec=/opt/mesh/mesh %U
+Icon=mesh
 Type=Application
 Categories=Network;InstantMessaging;
-StartupWMClass=fluxer
-MimeType=x-scheme-handler/fluxer;
+StartupWMClass=mesh
+MimeType=x-scheme-handler/mesh;
 Terminal=false
 EOF
 
     for size in 16 32 48 64 128 256 512; do
         if [ -f "${srcdir}/resources/icons/${size}x${size}.png" ]; then
             install -Dm644 "${srcdir}/resources/icons/${size}x${size}.png" \
-                "${pkgdir}/usr/share/icons/hicolor/${size}x${size}/apps/fluxer.png"
+                "${pkgdir}/usr/share/icons/hicolor/${size}x${size}/apps/mesh.png"
         fi
     done
 }

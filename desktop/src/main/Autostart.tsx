@@ -16,6 +16,8 @@
  * You should have received a copy of the GNU Affero General Public License
  * along with Fluxer. If not, see <https://www.gnu.org/licenses/>.
  */
+// Copyright 2025-2026 mesh Contributors
+// SPDX-License-Identifier: AGPL-3.0-only
 
 import fs from 'node:fs';
 import path from 'node:path';
@@ -56,7 +58,7 @@ interface AutoLaunchConfig {
 
 function getAutoLaunchConfig(): AutoLaunchConfig {
 	const isCanary = BUILD_CHANNEL === 'canary';
-	const appName = isCanary ? 'BetterCord Canary' : 'BetterCord';
+	const appName = isCanary ? 'mesh Canary' : 'mesh';
 
 	return {
 		name: appName,

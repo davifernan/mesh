@@ -20,7 +20,7 @@ export function Create() {
             <PageContentCenter>
               <PageHeroSection>
                 <Box direction="Column" gap="700">
-                  {/* Fluxer-style header */}
+                  {/* Header */}
                   <Box direction="Column" gap="200" alignItems="Center" style={{ textAlign: 'center' }}>
                     <div
                       style={{

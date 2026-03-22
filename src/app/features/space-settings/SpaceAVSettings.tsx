@@ -6,7 +6,7 @@ import { useMatrixClient } from '../../hooks/useMatrixClient';
 import { usePowerLevels, readPowerLevel } from '../../hooks/usePowerLevels';
 import { SpaceAVSettings as SpaceAVSettingsContent } from '../../state/avQuality';
 
-const AV_SETTINGS_EVENT_TYPE = 'io.bettercord.space.av_settings';
+const AV_SETTINGS_EVENT_TYPE = 'io.mesh.space.av_settings';
 
 // Required power level to edit space A/V settings (admin = 100)
 const REQUIRED_POWER_LEVEL = 100;

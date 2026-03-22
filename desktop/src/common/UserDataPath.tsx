@@ -16,6 +16,8 @@
  * You should have received a copy of the GNU Affero General Public License
  * along with Fluxer. If not, see <https://www.gnu.org/licenses/>.
  */
+// Copyright 2025-2026 mesh Contributors
+// SPDX-License-Identifier: AGPL-3.0-only
 
 import path from 'node:path';
 import {BUILD_CHANNEL, type BuildChannel} from '@electron/common/BuildChannel';
@@ -33,8 +35,8 @@ interface ChannelStorageDirectoryMap {
 }
 
 const channelStorageDirectoryMap: ChannelStorageDirectoryMap = {
-	stable: 'bettercord',
-	canary: 'bettercordcanary',
+	stable: 'mesh',
+	canary: 'meshcanary',
 };
 
 function resolveUserDataPaths(channel: BuildChannel): {directoryName: string; base: string} {

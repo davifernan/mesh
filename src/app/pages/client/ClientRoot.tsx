@@ -130,13 +130,13 @@ function ClientRootOptions({ mx }: { mx?: MatrixClient }) {
                     }
                     // No client yet — check if this is a secondary account page so we
                     // don't accidentally wipe the main account's localStorage.
-                    const slotStr = sessionStorage.getItem('cinny-account-slot');
+                    const slotStr = sessionStorage.getItem('mesh-account-slot');
                     const slot = slotStr !== null ? parseInt(slotStr, 10) : null;
                     const pathSlotMatch = window.location.pathname.match(/^\/account\/(\d+)/);
                     if (slot !== null || pathSlotMatch) {
                       if (slot !== null) {
                         removeSecondarySession(slot);
-                        sessionStorage.removeItem('cinny-account-slot');
+                        sessionStorage.removeItem('mesh-account-slot');
                       } else if (pathSlotMatch) {
                         removeSecondarySession(parseInt(pathSlotMatch[1], 10));
                       }
@@ -168,11 +168,11 @@ const useLogoutListener = (mx?: MatrixClient) => {
     const handleLogout: HttpApiEventHandlerMap[HttpApiEvent.SessionLoggedOut] = async () => {
       mx?.stopClient();
       await mx?.clearStores();
-      const slot = sessionStorage.getItem('cinny-account-slot');
+      const slot = sessionStorage.getItem('mesh-account-slot');
       if (slot !== null) {
         // Secondary account session expired — remove it and return to main
         removeSecondarySession(parseInt(slot, 10));
-        sessionStorage.removeItem('cinny-account-slot');
+        sessionStorage.removeItem('mesh-account-slot');
         window.location.assign('/');
       } else {
         window.localStorage.clear();

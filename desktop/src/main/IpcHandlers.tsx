@@ -16,6 +16,8 @@
  * You should have received a copy of the GNU Affero General Public License
  * along with Fluxer. If not, see <https://www.gnu.org/licenses/>.
  */
+// Copyright 2025-2026 mesh Contributors
+// SPDX-License-Identifier: AGPL-3.0-only
 
 import child_process from 'node:child_process';
 import fs from 'node:fs';
@@ -106,8 +108,7 @@ function normalizeInstanceOrigin(rawUrl: string): string {
 	return url.origin;
 }
 
-// BetterCord: Fluxer-spezifische /.well-known/fluxer Validierung entfernt.
-// BetterCord läuft auf Matrix — keine Fluxer-Instance-Validierung nötig.
+// mesh läuft auf Matrix — keine proprietäre Instance-Validierung nötig.
 
 interface ActiveNotification {
 	notification: Notification;

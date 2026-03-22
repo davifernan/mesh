@@ -13,7 +13,7 @@ export type SoundItem = {
   tags?: string[];
 };
 
-// Content of a io.bettercord.space.soundboard state event
+// Content of a io.mesh.space.soundboard state event
 // state_key = boardId
 export type SoundboardContent = {
   name: string;
@@ -23,7 +23,7 @@ export type SoundboardContent = {
   createdAt: number;
 };
 
-// Shape stored in io.bettercord.favorite_sounds account data
+// Shape stored in io.mesh.favorite_sounds account data
 export type FavoriteSoundsContent = {
   savedSounds?: Array<{
     spaceId: string;

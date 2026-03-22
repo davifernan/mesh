@@ -19,10 +19,10 @@
 
 const isCanary = process.env.BUILD_CHANNEL === 'canary';
 
-const productName = isCanary ? 'BetterCord Canary' : 'BetterCord';
-const appId = isCanary ? 'com.bettercord.app.canary' : 'com.bettercord.app';
+const productName = isCanary ? 'mesh Canary' : 'mesh';
+const appId = isCanary ? 'diy.hostmesh.app.canary' : 'diy.hostmesh.app';
 const iconDir = isCanary ? 'icons-canary' : 'icons-stable';
-const packageName = isCanary ? 'bettercord_canary' : 'bettercord';
+const packageName = isCanary ? 'mesh_canary' : 'mesh';
 
 /** @type {import('electron-builder').Configuration} */
 module.exports = {
@@ -75,9 +75,9 @@ module.exports = {
 			},
 		],
 		extendInfo: {
-			NSMicrophoneUsageDescription: 'BetterCord needs microphone access for voice chat.',
-			NSCameraUsageDescription: 'BetterCord needs camera access for video calls.',
-			NSAppleEventsUsageDescription: 'BetterCord needs Apple Events for automation.',
+			NSMicrophoneUsageDescription: 'mesh needs microphone access for voice chat.',
+			NSCameraUsageDescription: 'mesh needs camera access for video calls.',
+			NSAppleEventsUsageDescription: 'mesh needs Apple Events for automation.',
 		},
 	},
 
@@ -120,8 +120,8 @@ module.exports = {
 	},
 
 	squirrelWindows: {
-		// Set BETTERCORD_APP_URL at build time so the icon URL points to your deployment.
-		iconUrl: `${process.env.BETTERCORD_APP_URL}/icons/icon.ico`,
+		// Set MESH_APP_URL at build time so the icon URL points to your deployment.
+		iconUrl: `${process.env.MESH_APP_URL}/icons/icon.ico`,
 		name: packageName,
 	},
 
@@ -151,7 +151,7 @@ module.exports = {
 				Name: productName,
 				Comment: 'Instant messaging and VoIP application',
 				Categories: 'Network;InstantMessaging;',
-				StartupWMClass: isCanary ? 'bettercord-canary' : 'bettercord',
+				StartupWMClass: isCanary ? 'mesh-canary' : 'mesh',
 			},
 		},
 	},

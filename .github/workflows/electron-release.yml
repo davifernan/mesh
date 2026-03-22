@@ -61,7 +61,7 @@ jobs:
       - name: Compile Electron main/preload
         working-directory: desktop
         env:
-          BETTERCORD_APP_URL: https://chat.nilo.live
+          MESH_APP_URL: https://hostmesh.diy
         run: node scripts/build.mjs
 
       - name: Build & publish Electron app
@@ -69,6 +69,6 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GITHUB_OWNER: davifernan
-          GITHUB_REPO: BetterCord
-          BETTERCORD_APP_URL: https://chat.nilo.live
+          GITHUB_REPO: mesh
+          MESH_APP_URL: https://hostmesh.diy
         run: npx electron-builder --${{ matrix.platform }} --config electron-builder.config.cjs --publish always

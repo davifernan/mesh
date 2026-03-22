@@ -15,11 +15,15 @@ import { ScreenSizeProvider, useScreenSize } from '../hooks/useScreenSize';
 import { useCompositionEndTracking } from '../hooks/useComposingCheck';
 import { setSessionOverride, getSessionForSlot } from '../state/sessions';
 import { ElectronTitlebar } from '../components/electron/ElectronTitlebar';
+import { migrateStorageKeys } from '../utils/storageMigration';
+
+// Migrate legacy Cinny storage keys to mesh keys on startup
+migrateStorageKeys();
 
 // Detect secondary account slot from URL (browser router) or sessionStorage (hash router)
 const _slotMatch = window.location.pathname.match(/^\/account\/(\d+)(\/|$)/);
 const _sessionSlot = (() => {
-  const s = sessionStorage.getItem('cinny-account-slot');
+  const s = sessionStorage.getItem('mesh-account-slot');
   return s !== null ? parseInt(s, 10) : null;
 })();
 const _accountSlot = _slotMatch ? parseInt(_slotMatch[1], 10) : _sessionSlot;
@@ -28,7 +32,7 @@ if (_accountSlot !== null) {
   if (_sess) {
     setSessionOverride(_sess);
   } else {
-    sessionStorage.removeItem('cinny-account-slot');
+    sessionStorage.removeItem('mesh-account-slot');
   }
 }
 const _basename = _slotMatch ? `/account/${_accountSlot}/` : undefined;

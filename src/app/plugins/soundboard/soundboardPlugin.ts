@@ -8,7 +8,7 @@ import { ResolvedSoundboard, SoundboardContent, SoundItem } from './types';
 
 // Custom event type string — cast to `any` to bypass SDK's closed StateEvents map
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-const SOUNDBOARD_EVENT = StateEvent.BetterCordSpaceSoundboard as any;
+const SOUNDBOARD_EVENT = StateEvent.meshSpaceSoundboard as any;
 
 // Read all soundboards from a space room
 export function getSpaceSoundboards(
@@ -18,7 +18,7 @@ export function getSpaceSoundboards(
   const room = mx.getRoom(spaceId);
   if (!room) return [];
 
-  return getStateEvents(room, StateEvent.BetterCordSpaceSoundboard).reduce<
+  return getStateEvents(room, StateEvent.meshSpaceSoundboard).reduce<
     ResolvedSoundboard[]
   >((acc, event) => {
     const boardId = event.getStateKey();
@@ -73,7 +73,7 @@ export async function addSoundToBoard(
   const room = mx.getRoom(spaceId);
   if (!room) throw new Error('Space not found');
 
-  const stateEvents = getStateEvents(room, StateEvent.BetterCordSpaceSoundboard);
+  const stateEvents = getStateEvents(room, StateEvent.meshSpaceSoundboard);
   const boardEvent = stateEvents.find((e) => e.getStateKey() === boardId);
   if (!boardEvent) throw new Error('Soundboard not found');
 
@@ -109,7 +109,7 @@ export async function removeSoundFromBoard(
   const room = mx.getRoom(spaceId);
   if (!room) throw new Error('Space not found');
 
-  const stateEvents = getStateEvents(room, StateEvent.BetterCordSpaceSoundboard);
+  const stateEvents = getStateEvents(room, StateEvent.meshSpaceSoundboard);
   const boardEvent = stateEvents.find((e) => e.getStateKey() === boardId);
   if (!boardEvent) throw new Error('Soundboard not found');
 
@@ -131,7 +131,7 @@ export function useSpaceSoundboards(spaceId: string): ResolvedSoundboard[] {
   const mx = useMatrixClient();
   const room = mx.getRoom(spaceId) ?? null;
 
-  const events = useStateEvents(room, StateEvent.BetterCordSpaceSoundboard);
+  const events = useStateEvents(room, StateEvent.meshSpaceSoundboard);
 
   return useMemo(
     () =>
@@ -158,7 +158,7 @@ export function useAllJoinedSpaceSoundboards(
       if (!room.isSpaceRoom()) continue;
       if (room.getMyMembership() !== 'join') continue;
 
-      const events = getStateEvents(room, StateEvent.BetterCordSpaceSoundboard);
+      const events = getStateEvents(room, StateEvent.meshSpaceSoundboard);
       for (const event of events) {
         const boardId = event.getStateKey();
         const content = event.getContent<SoundboardContent>();

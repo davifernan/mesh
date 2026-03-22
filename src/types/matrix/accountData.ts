@@ -7,8 +7,8 @@ export enum AccountDataEvent {
 
   ElementRecentEmoji = 'io.element.recent_emoji',
 
-  BetterCordFavoriteSounds = 'io.bettercord.favorite_sounds',
-  BetterCordFavoriteGifs = 'io.bettercord.favorite_gifs',
+  meshFavoriteSounds = 'io.mesh.favorite_sounds',
+  meshFavoriteGifs = 'io.mesh.favorite_gifs',
 
   PoniesUserEmotes = 'im.ponies.user_emotes',
   PoniesEmoteRooms = 'im.ponies.emote_rooms',

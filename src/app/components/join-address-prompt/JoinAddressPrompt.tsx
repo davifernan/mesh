@@ -19,19 +19,19 @@ import {
 import { stopPropagation } from '../../utils/keyboard';
 import { isRoomAlias, isRoomId } from '../../utils/matrix';
 import { parseMatrixToRoom, parseMatrixToRoomEvent, testMatrixTo } from '../../plugins/matrix-to';
-import { BetterCordPermalink, parseBetterCordPermalink } from '../../plugins/permalink';
+import { meshPermalink, parsemeshPermalink } from '../../plugins/permalink';
 import { tryDecodeURIComponent } from '../../utils/dom';
 import { useMatrixClient } from '../../hooks/useMatrixClient';
 
 type JoinAddressProps = {
-  onOpen: (target: BetterCordPermalink) => void;
+  onOpen: (target: meshPermalink) => void;
   onCancel: () => void;
 };
 export function JoinAddressPrompt({ onOpen, onCancel }: JoinAddressProps) {
   const mx = useMatrixClient();
   const [invalid, setInvalid] = useState(false);
 
-  const getJoinedSpaceTarget = (roomIdOrAlias: string, viaServers?: string[]): BetterCordPermalink | undefined => {
+  const getJoinedSpaceTarget = (roomIdOrAlias: string, viaServers?: string[]): meshPermalink | undefined => {
     const roomId = isRoomAlias(roomIdOrAlias)
       ? mx
           .getRooms()
@@ -89,7 +89,7 @@ export function JoinAddressPrompt({ onOpen, onCancel }: JoinAddressProps) {
       }
     }
 
-    const permalink = parseBetterCordPermalink(address);
+    const permalink = parsemeshPermalink(address);
     if (permalink) {
       onOpen(permalink);
       return;

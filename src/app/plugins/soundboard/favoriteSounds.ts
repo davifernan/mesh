@@ -8,7 +8,7 @@ import { FavoriteSoundsContent } from './types';
 export function getFavoriteSounds(
   mx: MatrixClient
 ): FavoriteSoundsContent['savedSounds'] {
-  const event = getAccountData(mx, AccountDataEvent.BetterCordFavoriteSounds);
+  const event = getAccountData(mx, AccountDataEvent.meshFavoriteSounds);
   return event?.getContent<FavoriteSoundsContent>().savedSounds ?? [];
 }
 
@@ -35,7 +35,7 @@ export async function addFavoriteSound(
   };
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  await mx.setAccountData(AccountDataEvent.BetterCordFavoriteSounds as any, updated as any);
+  await mx.setAccountData(AccountDataEvent.meshFavoriteSounds as any, updated as any);
 }
 
 // Remove a sound from the personal favorites list
@@ -55,7 +55,7 @@ export async function removeFavoriteSound(
   };
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  await mx.setAccountData(AccountDataEvent.BetterCordFavoriteSounds as any, updated as any);
+  await mx.setAccountData(AccountDataEvent.meshFavoriteSounds as any, updated as any);
 }
 
 // Check whether a specific sound is already favorited
@@ -73,6 +73,6 @@ export function isFavoriteSound(
 
 // React hook: reactive list of favorite sounds
 export function useFavoriteSounds(): FavoriteSoundsContent['savedSounds'] {
-  const event = useAccountData(AccountDataEvent.BetterCordFavoriteSounds);
+  const event = useAccountData(AccountDataEvent.meshFavoriteSounds);
   return event?.getContent<FavoriteSoundsContent>().savedSounds ?? [];
 }

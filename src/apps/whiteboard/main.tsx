@@ -17,7 +17,7 @@ root.render(
       </pre>
       <p style={{ marginTop: 8, color: '#777', fontSize: 12 }}>
         Note: Whiteboard requires a compatible Matrix homeserver and works best with
-        Element Web or BetterCord clients.
+        Element Web or mesh clients.
       </p>
     </div>
   </div>

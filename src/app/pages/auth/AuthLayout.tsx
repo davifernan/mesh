@@ -123,11 +123,11 @@ export function AuthLayout() {
     <Scroll variant="Background" visibility="Hover" size="300" hideTrack>
       <div className={css.AuthLayout}>
         <div className={css.AuthCard}>
-          {/* LEFT: BetterCord logo side (33%) */}
+          {/* LEFT: mesh logo side (33%) */}
           <div className={css.AuthLogoSide}>
             <div className={css.AuthLogoContent}>
               <div className={css.AuthLogoMark}>BC</div>
-              <h2 className={css.AuthBrandName}>BetterCord</h2>
+              <h2 className={css.AuthBrandName}>mesh</h2>
               <p className={css.AuthTagline}>Privacy-first communities on Matrix</p>
             </div>
           </div>

@@ -16,6 +16,8 @@
  * You should have received a copy of the GNU Affero General Public License
  * along with Fluxer. If not, see <https://www.gnu.org/licenses/>.
  */
+// Copyright 2025-2026 mesh Contributors
+// SPDX-License-Identifier: AGPL-3.0-only
 
 import fs from 'node:fs';
 import path from 'node:path';
@@ -60,10 +62,10 @@ export function loadDesktopConfig(userDataPath: string): void {
 }
 
 export function getAppUrl(): string {
-	// BetterCord: allow overriding URL via env variable for dev mode
-	// Usage: BETTERCORD_APP_URL=http://localhost:8080 electron .
-	if (process.env.BETTERCORD_APP_URL) {
-		return process.env.BETTERCORD_APP_URL;
+	// mesh: allow overriding URL via env variable for dev mode
+	// Usage: MESH_APP_URL=http://localhost:8080 electron .
+	if (process.env.MESH_APP_URL) {
+		return process.env.MESH_APP_URL;
 	}
 	if (config.app_url) {
 		return config.app_url;

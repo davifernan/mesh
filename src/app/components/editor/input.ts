@@ -25,7 +25,7 @@ import {
   parseMatrixToUser,
   testMatrixTo,
 } from '../../plugins/matrix-to';
-import { parseBetterCordPermalink } from '../../plugins/permalink';
+import { parsemeshPermalink } from '../../plugins/permalink';
 import { tryDecodeURIComponent } from '../../utils/dom';
 import {
   escapeMarkdownInlineSequences,
@@ -133,7 +133,7 @@ const getInlineNonMarkElement = (node: Element): MentionElement | EmoticonElemen
       }
     }
 
-    const permalink = parseBetterCordPermalink(href);
+    const permalink = parsemeshPermalink(href);
     if (permalink?.kind === 'space') {
       return createMentionElement(
         permalink.spaceIdOrAlias,

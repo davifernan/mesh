@@ -296,7 +296,7 @@ export function PiPOverlay() {
     : 'Voice Call';
 
   const handleReturnToCall = useCallback(() => {
-    // Navigate back — in BetterCord the router handles this via the active call room
+    // Navigate back — in mesh the router handles this via the active call room
     // The user can re-click the voice channel in the sidebar to return
     window.history.back();
   }, []);

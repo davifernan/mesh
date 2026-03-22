@@ -1,7 +1,7 @@
-# BetterCord Desktop
+# mesh Desktop
 
-Electron-Hülle für BetterCord. Basiert auf `fluxer_desktop` (AGPL-3.0), angepasst für BetterCord/Matrix.
-Lädt die BetterCord Web-App und ergänzt sie mit nativen OS-Features:
+Electron-Hülle für mesh. Basiert auf `fluxer_desktop` (AGPL-3.0), angepasst für mesh/Matrix.
+Lädt die mesh Web-App und ergänzt sie mit nativen OS-Features:
 Benachrichtigungen, globale Shortcuts, Screenshare-Picker, Auto-Update, Badges.
 
 ---
@@ -10,7 +10,7 @@ Benachrichtigungen, globale Shortcuts, Screenshare-Picker, Auto-Update, Badges.
 
 ### 1. Domain eintragen (KRITISCH)
 
-In **zwei Dateien** muss `DEINE-DOMAIN.com` durch die echte BetterCord-Domain ersetzt werden:
+In **zwei Dateien** muss `DEINE-DOMAIN.com` durch die echte mesh-Domain ersetzt werden:
 
 **`src/common/Constants.tsx`**
 ```typescript
@@ -32,14 +32,14 @@ baseUrl: `https://DEINE-DOMAIN.com/dl/desktop/${BUILD_CHANNEL}/...`
 baseUrl: `https://deine-echte-domain.com/dl/desktop/${BUILD_CHANNEL}/...`
 
 // ERSETZEN MIT (Option B — GitHub Releases nutzen, einfacher):
-// updateSource auf { type: UpdateSourceType.ElectronPublicUpdateService, repo: 'davifernan/BetterCord' }
+// updateSource auf { type: UpdateSourceType.ElectronPublicUpdateService, repo: 'davifernan/mesh' }
 ```
 
 ---
 
 ### 2. Icons erstellen (KRITISCH)
 
-Der Ordner `build_resources/icons/` muss mit BetterCord-Icons befüllt werden.
+Der Ordner `build_resources/icons/` muss mit mesh-Icons befüllt werden.
 Aktuell sind noch Fluxer-Icons drin — electron-builder bricht sonst beim Build.
 
 Benötigte Dateien:
@@ -55,10 +55,10 @@ Benötigte Dateien:
 
 ---
 
-### 3. window.electron API in BetterCord verdrahten (nach Phase 1–8)
+### 3. window.electron API in mesh verdrahten (nach Phase 1–8)
 
 Die Electron-Hülle stellt via `preload/index.tsx` eine `window.electron` API bereit.
-Die BetterCord Web-App (`src/`) muss diese API an den folgenden Stellen nutzen:
+Die mesh Web-App (`src/`) muss diese API an den folgenden Stellen nutzen:
 
 | Feature | Datei in `src/` | API-Methode | Priorität |
 |---------|----------------|-------------|-----------|
@@ -116,15 +116,15 @@ Die Desktop-App liest beim Start optional eine `settings.json` aus dem User-Date
 
 | Platform | Stable | Canary |
 |----------|--------|--------|
-| Windows | `%APPDATA%\bettercord\settings.json` | `%APPDATA%\bettercordcanary\settings.json` |
-| macOS | `~/Library/Application Support/bettercord/settings.json` | `~/Library/Application Support/bettercordcanary/settings.json` |
-| Linux | `~/.config/bettercord/settings.json` | `~/.config/bettercordcanary/settings.json` |
+| Windows | `%APPDATA%\mesh\settings.json` | `%APPDATA%\meshcanary\settings.json` |
+| macOS | `~/Library/Application Support/mesh/settings.json` | `~/Library/Application Support/meshcanary/settings.json` |
+| Linux | `~/.config/mesh/settings.json` | `~/.config/meshcanary/settings.json` |
 
 ### Optionen
 
 | Key | Type | Default | Beschreibung |
 |-----|------|---------|-------------|
-| `app_url` | string | `STABLE_APP_URL` | Eigene BetterCord-Instanz laden |
+| `app_url` | string | `STABLE_APP_URL` | Eigene mesh-Instanz laden |
 
 ### Beispiel
 ```json
@@ -139,7 +139,7 @@ Die Desktop-App liest beim Start optional eine `settings.json` aus dem User-Date
 
 ```bash
 # Terminal 1 — Web-App starten
-cd ..   # ins BetterCord/ Root
+cd ..   # ins mesh/ Root
 npm run dev
 # → http://localhost:8080
 

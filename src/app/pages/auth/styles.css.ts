@@ -1,10 +1,9 @@
 import { style } from '@vanilla-extract/css';
 
-/* === Fluxer-inspired Auth Layout ===
+/* === mesh Auth Layout ===
    - Full-screen brand-purple background
    - Split card: 33% logo side | 67% form side
    - border-radius: 1rem on card
-   - Matches Fluxer AuthLayout.module.css exactly
 */
 
 export const AuthLayout = style({
@@ -74,7 +73,7 @@ export const AuthLogoContent = style({
   textAlign: 'center',
 });
 
-/* The squircle BetterCord logo mark */
+/* The squircle mesh logo mark */
 export const AuthLogoMark = style({
   width: '7rem',
   height: '7rem',

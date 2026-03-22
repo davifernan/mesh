@@ -88,7 +88,7 @@ import { roomToUnreadAtom } from '../../../state/room/roomToUnread';
 import { markAsRead } from '../../../utils/notifications';
 import { copyToClipboard } from '../../../utils/dom';
 import { stopPropagation } from '../../../utils/keyboard';
-import { getBetterCordPermalink } from '../../../plugins/permalink';
+import { getmeshPermalink } from '../../../plugins/permalink';
 import { getViaServers } from '../../../plugins/via-servers';
 import { getRoomAvatarUrl } from '../../../utils/room';
 import { useMediaAuthentication } from '../../../hooks/useMediaAuthentication';
@@ -142,7 +142,7 @@ const SpaceMenu = forwardRef<HTMLDivElement, SpaceMenuProps>(
       const roomIdOrAlias = getCanonicalAliasOrRoomId(mx, room.roomId);
       const viaServers = isRoomAlias(roomIdOrAlias) ? undefined : getViaServers(room);
       copyToClipboard(
-        getBetterCordPermalink(
+        getmeshPermalink(
           {
             kind: 'space',
             spaceIdOrAlias: roomIdOrAlias,

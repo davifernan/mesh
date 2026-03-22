@@ -14,7 +14,7 @@ import {
 import { _RoomSearchParams, DIRECT_ROOM_PATH, HOME_ROOM_PATH, SPACE_PATH, SPACE_ROOM_PATH } from '../pages/paths';
 import { trimTrailingSlash } from '../utils/common';
 
-const PERMALINK_BASE = 'https://bettercord.local';
+const PERMALINK_BASE = 'https://mesh.local';
 
 const isMatrixEntityId = (value?: string): value is string =>
   typeof value === 'string' && (value.startsWith('!') || value.startsWith('#'));
@@ -81,7 +81,7 @@ const getAppPathCandidates = (href: string): string[] => {
   }
 };
 
-export type BetterCordPermalink =
+export type meshPermalink =
   | {
       kind: 'space';
       spaceIdOrAlias: string;
@@ -96,7 +96,7 @@ export type BetterCordPermalink =
       direct?: boolean;
     };
 
-export const getBetterCordPermalinkPath = (permalink: BetterCordPermalink): string => {
+export const getmeshPermalinkPath = (permalink: meshPermalink): string => {
   if (permalink.kind === 'space') {
     return withViaServers(getSpacePath(permalink.spaceIdOrAlias), permalink.viaServers);
   }
@@ -121,15 +121,15 @@ export const getBetterCordPermalinkPath = (permalink: BetterCordPermalink): stri
   );
 };
 
-export const getBetterCordPermalink = (
-  permalink: BetterCordPermalink,
+export const getmeshPermalink = (
+  permalink: meshPermalink,
   hashRouter?: HashRouterConfig
-): string => withOriginBaseUrl(getOriginBaseUrl(hashRouter), getBetterCordPermalinkPath(permalink));
+): string => withOriginBaseUrl(getOriginBaseUrl(hashRouter), getmeshPermalinkPath(permalink));
 
-export const parseBetterCordPermalink = (href: string): BetterCordPermalink | undefined => {
+export const parsemeshPermalink = (href: string): meshPermalink | undefined => {
   const candidates = getAppPathCandidates(href);
 
-  return candidates.reduce<BetterCordPermalink | undefined>((match, candidate) => {
+  return candidates.reduce<meshPermalink | undefined>((match, candidate) => {
     if (match) return match;
 
     const url = new URL(candidate, PERMALINK_BASE);
@@ -194,5 +194,5 @@ export const parseBetterCordPermalink = (href: string): BetterCordPermalink | un
   }, undefined);
 };
 
-export const testBetterCordPermalink = (href: string): boolean =>
-  parseBetterCordPermalink(href) !== undefined;
+export const testmeshPermalink = (href: string): boolean =>
+  parsemeshPermalink(href) !== undefined;

@@ -5,7 +5,7 @@ import { useRoom } from '../../hooks/useRoom';
 import { useMatrixClient } from '../../hooks/useMatrixClient';
 import { usePowerLevels, readPowerLevel } from '../../hooks/usePowerLevels';
 
-const UPLOAD_SETTINGS_EVENT_TYPE = 'io.bettercord.space.upload_settings';
+const UPLOAD_SETTINGS_EVENT_TYPE = 'io.mesh.space.upload_settings';
 const REQUIRED_POWER_LEVEL = 100;
 
 const MB = 1024 * 1024;

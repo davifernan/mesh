@@ -97,7 +97,7 @@ export function RoomView({ room, eventId }: { room: Room; eventId?: string }) {
     if (callMemberCount > 0)
       parts.push(`${callMemberCount} member${callMemberCount === 1 ? '' : 's'} in call`);
     announce(parts.join(', '));
-    setTimeout(() => document.getElementById('cinny-timeline')?.focus(), 100);
+    setTimeout(() => document.getElementById('mesh-timeline')?.focus(), 100);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [roomId]);
 
@@ -150,7 +150,7 @@ export function RoomView({ room, eventId }: { room: Room; eventId?: string }) {
         }
 
         if ((evt.key === 'ArrowDown' || evt.key === 'ArrowUp') && noMod) {
-          const scrollEl = document.getElementById('cinny-timeline');
+          const scrollEl = document.getElementById('mesh-timeline');
           if (!scrollEl) return;
           const messages = Array.from(
             scrollEl.querySelectorAll('[data-timeline-message]')
@@ -211,7 +211,7 @@ export function RoomView({ room, eventId }: { room: Room; eventId?: string }) {
         }
 
         if ((evt.key === 'PageDown' || evt.key === 'PageUp') && noMod) {
-          const scrollEl = document.getElementById('cinny-timeline');
+          const scrollEl = document.getElementById('mesh-timeline');
           if (!scrollEl) return;
           evt.preventDefault();
           scrollEl.scrollBy({

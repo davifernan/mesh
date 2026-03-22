@@ -19,7 +19,7 @@ import { usePowerLevels, readPowerLevel } from '../../hooks/usePowerLevels';
 import { useRoomCreators } from '../../hooks/useRoomCreators';
 import { AsyncStatus, useAsyncCallback } from '../../hooks/useAsyncCallback';
 
-const CHANNEL_AV_EVENT = 'io.bettercord.channel.av_override';
+const CHANNEL_AV_EVENT = 'io.mesh.channel.av_override';
 
 type MaxVideoRes = '360p' | '480p' | '720p' | '1080p' | 'none';
 type MaxSSRes = '720p' | '1080p' | '1440p' | '4k' | 'none';

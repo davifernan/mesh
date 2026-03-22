@@ -48,7 +48,7 @@ import { LeaveRoomPrompt } from '../../components/leave-room-prompt';
 import { useRoomTypingMember } from '../../hooks/useRoomTypingMembers';
 import { TypingIndicator } from '../../components/typing-indicator';
 import { stopPropagation } from '../../utils/keyboard';
-import { getBetterCordPermalink } from '../../plugins/permalink';
+import { getmeshPermalink } from '../../plugins/permalink';
 import { getCanonicalAliasOrRoomId, isRoomAlias } from '../../utils/matrix';
 import { getViaServers } from '../../plugins/via-servers';
 import { useMediaAuthentication } from '../../hooks/useMediaAuthentication';
@@ -123,7 +123,7 @@ const RoomNavItemMenu = forwardRef<HTMLDivElement, RoomNavItemMenuProps>(
         mDirects.has(room.roomId) ||
         (!!directEvent && getMDirects(directEvent).has(room.roomId));
       copyToClipboard(
-        getBetterCordPermalink(
+        getmeshPermalink(
           {
             kind: 'room',
             roomIdOrAlias,
@@ -323,7 +323,7 @@ export function RoomNavItem({
   // hasActiveCall: true whenever ANY member is in the call — drives timer visibility for everyone
   const hasActiveCall = room.isCallRoom() && callMemberships.length > 0;
 
-  // Server-tracked start timestamp written by the first joiner (org.bettercord.call.info).
+  // Server-tracked start timestamp written by the first joiner (org.mesh.call.info).
   // Same value for ALL clients, survives page reloads, resets when last member leaves.
   const callStartTime = useCallStartTime(mx, room.roomId);
 

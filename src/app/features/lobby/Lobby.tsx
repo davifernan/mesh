@@ -505,7 +505,7 @@ export function Lobby() {
             powerLevels={roomsPowerLevels.get(space.roomId) ?? {}}
           />
           <Box
-            id="cinny-lobby"
+            id="mesh-lobby"
             role="region"
             aria-label="Space lobby"
             tabIndex={-1}

@@ -76,7 +76,7 @@ import { MessageEditor } from './MessageEditor';
 import { UserAvatar } from '../../../components/user-avatar';
 import { copyToClipboard } from '../../../utils/dom';
 import { stopPropagation } from '../../../utils/keyboard';
-import { getBetterCordPermalink } from '../../../plugins/permalink';
+import { getmeshPermalink } from '../../../plugins/permalink';
 import { getViaServers } from '../../../plugins/via-servers';
 import { useMediaAuthentication } from '../../../hooks/useMediaAuthentication';
 import { useRoomPinnedEvents } from '../../../hooks/useRoomPinnedEvents';
@@ -357,7 +357,7 @@ export const MessageCopyLinkItem = as<
       mDirects.has(room.roomId) ||
       (!!directEvent && getMDirects(directEvent).has(room.roomId));
     copyToClipboard(
-      getBetterCordPermalink(
+      getmeshPermalink(
         {
           kind: 'room',
           roomIdOrAlias,

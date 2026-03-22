@@ -1,7 +1,7 @@
 {
   "defaultHomeserver": 0,
   "homeserverList": [
-    "matrix.nilo.live"
+    "matrix.org"
   ],
   "allowCustomHomeservers": true,
 
@@ -10,11 +10,14 @@
     "basename": "/"
   },
 
-  "livekitServiceUrl": "https://livekit-jwt.nilo.live",
-  "presenceUrl": "https://chat.nilo.live/api/presence",
+  "livekitServiceUrl": "",
+  "presenceUrl": "",
+
+  "defaultAudioBitrate": 128,
 
   "voiceStateMode": "livekit",
   "featureFlags": {
-    "authoritativeBridgeMode": false
+    "authoritativeBridgeMode": false,
+    "experimentalAV1": false
   }
 }

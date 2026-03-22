@@ -98,8 +98,7 @@ export const silverTheme = createTheme(color, {
   },
 });
 
-// BetterCord: Fluxer color palette for dark theme
-// From fluxer-ui.md: bg-secondary ~7.6%, bg-secondary-lighter ~8.4%
+// mesh color palette for dark theme
 const darkThemeData = {
   Background: {
     Container: '#121317',         // sidebar + modals (hsl(220,13%,8%))
@@ -126,7 +125,7 @@ const darkThemeData = {
   },
 
   Primary: {
-    Main: '#5865d5',              // Fluxer brand (hsl(242, 70%, 55%))
+    Main: '#5865d5',              // mesh brand (hsl(242, 70%, 55%))
     MainHover: '#4a56c2',
     MainActive: '#3c45a5',
     MainLine: '#3440a0',
@@ -152,7 +151,7 @@ const darkThemeData = {
   },
 
   Success: {
-    Main: '#2ea84d',              // Fluxer: primary button = GREEN (hsl(139, 55%, 44%))
+    Main: '#2ea84d',              // mesh: primary button = GREEN (hsl(139, 55%, 44%))
     MainHover: '#279443',
     MainActive: '#22863c',
     MainLine: '#1e7535',
@@ -178,7 +177,7 @@ const darkThemeData = {
   },
 
   Critical: {
-    Main: '#e03a3a',              // Fluxer status-danger (hsl(1, 77%, 55%))
+    Main: '#e03a3a',              // mesh status-danger (hsl(1, 77%, 55%))
     MainHover: '#cb3434',
     MainActive: '#c02e2e',
     MainLine: '#b42b2b',

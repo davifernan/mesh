@@ -1,0 +1,22 @@
+PackageIdentifier: mesh.mesh
+PackageVersion: PLACEHOLDER_VERSION
+PackageLocale: en-US
+Publisher: mesh Contributors
+PublisherUrl: https://github.com/davifernan/mesh
+PublisherSupportUrl: https://github.com/davifernan/mesh/issues
+PackageName: mesh
+PackageUrl: https://github.com/davifernan/mesh
+License: AGPL-3.0-or-later
+LicenseUrl: https://github.com/davifernan/mesh/blob/main/LICENCE
+ShortDescription: Instant messaging and VoIP application
+Description: mesh is a free and open-source instant messaging and voice-over-IP application. It provides text chat, voice calls, video calls, and screen sharing in a modern, privacy-respecting interface.
+Tags:
+  - chat
+  - messaging
+  - voip
+  - voice
+  - video
+  - communication
+  - open-source
+ManifestType: defaultLocale
+ManifestVersion: 1.6.0

@@ -1815,7 +1815,7 @@ export function RoomTimeline({ room, eventId, roomInputRef, editor, threadId, ed
       <Scroll
         ref={scrollRef}
         visibility="Hover"
-        id="cinny-timeline"
+        id="mesh-timeline"
         role="log"
         aria-label="Message timeline"
         aria-live="polite"

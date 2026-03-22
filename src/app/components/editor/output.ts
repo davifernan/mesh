@@ -13,7 +13,7 @@ import { findAndReplace } from '../../utils/findAndReplace';
 import { sanitizeForRegex } from '../../utils/regex';
 import { isUserId } from '../../utils/matrix';
 import { HashRouterConfig } from '../../hooks/useClientConfig';
-import { getBetterCordPermalink } from '../../plugins/permalink';
+import { getmeshPermalink } from '../../plugins/permalink';
 
 export type OutputOptions = {
   allowTextFormatting?: boolean;
@@ -68,7 +68,7 @@ const elementToCustomHtml = (node: CustomElement, children: string, opts: Output
 
       const permalink =
         node.linkKind === 'space'
-          ? getBetterCordPermalink(
+          ? getmeshPermalink(
               {
                 kind: 'space',
                 spaceIdOrAlias: node.id,
@@ -76,7 +76,7 @@ const elementToCustomHtml = (node: CustomElement, children: string, opts: Output
               },
               opts.hashRouter
             )
-          : getBetterCordPermalink(
+          : getmeshPermalink(
               {
                 kind: 'room',
                 roomIdOrAlias: node.id,

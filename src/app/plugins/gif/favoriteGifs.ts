@@ -12,7 +12,7 @@ type SavedGif = NonNullable<FavoriteGifsContent['savedGifs']>[number];
 export function getFavoriteGifs(
   mx: MatrixClient
 ): FavoriteGifsContent['savedGifs'] {
-  const event = getAccountData(mx, AccountDataEvent.BetterCordFavoriteGifs);
+  const event = getAccountData(mx, AccountDataEvent.meshFavoriteGifs);
   return event?.getContent<FavoriteGifsContent>().savedGifs ?? [];
 }
 
@@ -37,7 +37,7 @@ export async function addFavoriteGif(
 
   const updated: FavoriteGifsContent = { savedGifs: capped };
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  await mx.setAccountData(AccountDataEvent.BetterCordFavoriteGifs as any, updated as any);
+  await mx.setAccountData(AccountDataEvent.meshFavoriteGifs as any, updated as any);
 }
 
 // Remove a GIF from favorites by its id
@@ -52,7 +52,7 @@ export async function removeFavoriteGif(
   };
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  await mx.setAccountData(AccountDataEvent.BetterCordFavoriteGifs as any, updated as any);
+  await mx.setAccountData(AccountDataEvent.meshFavoriteGifs as any, updated as any);
 }
 
 // Check whether a specific GIF is already favorited
@@ -63,6 +63,6 @@ export function isFavoriteGif(mx: MatrixClient, gifId: string): boolean {
 
 // React hook: reactive list of favorite GIFs
 export function useFavoriteGifs(): FavoriteGifsContent['savedGifs'] {
-  const event = useAccountData(AccountDataEvent.BetterCordFavoriteGifs);
+  const event = useAccountData(AccountDataEvent.meshFavoriteGifs);
   return event?.getContent<FavoriteGifsContent>().savedGifs ?? [];
 }

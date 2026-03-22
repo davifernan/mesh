@@ -1,9 +1,9 @@
 [Desktop Entry]
-Name=Fluxer
+Name=mesh
 Comment=Instant messaging and VoIP application
-Exec=app.fluxer.Fluxer %U
+Exec=app.mesh.mesh %U
 Terminal=false
 Type=Application
-Icon=app.fluxer.Fluxer
+Icon=app.mesh.mesh
 Categories=Network;InstantMessaging;
-StartupWMClass=app.fluxer.Fluxer
+StartupWMClass=app.mesh.mesh

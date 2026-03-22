@@ -1,5 +1,5 @@
 /**
- * BetterCord — Audio-Wins-Over-Video Quality Fallback
+ * mesh — Audio-Wins-Over-Video Quality Fallback
  *
  * When LiveKit reports Poor/Lost connection quality for the local participant,
  * we automatically throttle screenshare and camera video bitrates to protect
@@ -16,7 +16,7 @@
  */
 
 import { useEffect, useRef, MutableRefObject } from 'react';
-import { Room, RoomEvent, Track, LocalVideoTrack, ConnectionQuality } from 'livekit-client';
+import { Room, RoomEvent, Track, LocalVideoTrack, ConnectionQuality, type LocalTrackPublication } from 'livekit-client';
 import type { CallStatus } from './nativeCallEngine';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -193,9 +193,26 @@ export function useAudioWinsOverVideo(
 
     room.on(RoomEvent.ConnectionQualityChanged, onQualityChanged);
 
+    // Issue #70: If a screenshare starts WHILE throttling is active, immediately
+    // apply the screenshare fallback to the newly published track so it respects
+    // the current quality window (instead of starting at full bitrate then going uncapped).
+    const onLocalTrackPublished = (pub: LocalTrackPublication) => {
+      if (pub.source !== Track.Source.ScreenShare) return;
+      if (!isThrottledRef.current) return;
+      const ssTrack = pub.track as LocalVideoTrack | undefined;
+      const ssSender = ssTrack?.sender;
+      if (ssSender) {
+        ssOriginalEncodingRef.current = snapshotEncoding(ssSender);
+        void throttleSender(ssSender, SS_FALLBACK_BITRATE, SS_FALLBACK_FPS).catch(() => {});
+        console.warn('[QualityFallback] Screenshare started during throttle — applying SS fallback immediately');
+      }
+    };
+    room.on(RoomEvent.LocalTrackPublished, onLocalTrackPublished);
+
     return () => {
       clearGraceTimer();
       room.off(RoomEvent.ConnectionQualityChanged, onQualityChanged);
+      room.off(RoomEvent.LocalTrackPublished, onLocalTrackPublished);
       // Reset state so the next room connection starts clean
       isThrottledRef.current = false;
       ssOriginalEncodingRef.current = undefined;

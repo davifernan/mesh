@@ -1,7 +1,7 @@
 {
-  "name": "bettercord-presence-bridge",
+  "name": "mesh-presence-bridge",
   "version": "1.0.0",
-  "description": "Server-side LiveKit → presence state bridge for BetterCord",
+  "description": "Server-side LiveKit → presence state bridge for mesh",
   "module": "src/index.ts",
   "type": "module",
   "scripts": {

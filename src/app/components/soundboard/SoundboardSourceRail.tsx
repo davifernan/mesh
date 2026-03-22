@@ -57,7 +57,7 @@ export function SoundboardSourceRail({
               ) : src.emoji ? (
                 <span className={styles.emojiAvatar}>{src.emoji}</span>
               ) : (
-                // Default BetterCord logo fallback — uses brand initial
+                // Default mesh logo fallback — uses brand initial
                 <span className={styles.defaultAvatar}>BC</span>
               )}
             </button>
