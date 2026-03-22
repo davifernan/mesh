@@ -17,6 +17,7 @@
 
   "voiceStateMode": "livekit",
   "featureFlags": {
-    "authoritativeBridgeMode": false
+    "authoritativeBridgeMode": false,
+    "experimentalAV1": false
   }
 }

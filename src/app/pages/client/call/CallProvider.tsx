@@ -32,9 +32,12 @@ interface CallContextState {
   flipCamera: () => Promise<void>;
   startScreenShare: (ssRes: string, ssFps: number, ssAudio: boolean) => Promise<void>;
   stopScreenShare: () => Promise<void>;
+  /** Issue #45: toggle system audio on a running screenshare (stop→restart flow) */
+  toggleScreenShareAudio: () => Promise<void>;
   isAudioEnabled: boolean;
   isVideoEnabled: boolean;
   isScreenShareEnabled: boolean;
+  isScreenShareAudioEnabled: boolean;
   isDeafened: boolean;
   isReconnecting: boolean;
   isFrontCamera: boolean;
@@ -282,9 +285,11 @@ export function CallProvider({ children }: CallProviderProps) {
     flipCamera: engine.flipCamera,
     startScreenShare: engine.startScreenShare,
     stopScreenShare: engine.stopScreenShare,
+    toggleScreenShareAudio: engine.toggleScreenShareAudio,
     isAudioEnabled: engine.isAudioEnabled,
     isVideoEnabled: engine.isVideoEnabled,
     isScreenShareEnabled: engine.isScreenShareEnabled,
+    isScreenShareAudioEnabled: engine.isScreenShareAudioEnabled,
     isDeafened: engine.isDeafened,
     isReconnecting: engine.isReconnecting,
     isFrontCamera: engine.isFrontCamera,

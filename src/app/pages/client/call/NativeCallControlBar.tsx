@@ -58,6 +58,8 @@ export function NativeCallControlBar() {
     isReconnecting,
     startScreenShare,
     stopScreenShare,
+    toggleScreenShareAudio,
+    isScreenShareAudioEnabled,
     livekitRoom,
     callJoinTime,
     isSoundboardOpen,
@@ -421,6 +423,19 @@ export function NativeCallControlBar() {
                 </button>
                 {showSSMenu && (
                   <div className={styles.ssMenu}>
+                    {/* Issue #45: toggle system audio mid-share via stop→restart */}
+                    <div
+                      className={styles.deviceItem}
+                      onClick={() => { void toggleScreenShareAudio(); setShowSSMenu(false); }}
+                      role="button"
+                      tabIndex={0}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') { void toggleScreenShareAudio(); setShowSSMenu(false); }
+                      }}
+                      title={isScreenShareAudioEnabled ? 'Disable system audio (brief restart)' : 'Enable system audio (brief restart)'}
+                    >
+                      {isScreenShareAudioEnabled ? 'Disable System Audio' : 'Enable System Audio'}
+                    </div>
                     <div
                       className={styles.deviceItem}
                       onClick={handleStopSharing}

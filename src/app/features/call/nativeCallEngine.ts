@@ -31,6 +31,7 @@ import {
   DisconnectReason,
   type E2EEManagerOptions,
 } from 'livekit-client';
+import { useScreenShareEngine } from './useScreenShareEngine';
 import {
   getSoundboardMixer,
   getSoundboardMixerIfActive,
@@ -49,14 +50,11 @@ import {
   bitrateToAudioPreset,
   buildAudioCaptureDefaults,
   buildLiveKitRoomOptions,
-  buildSSCaptureOptions,
-  buildSSPublishOptions,
-  resolutionToHeight,
-  resolutionToWidth,
   type AVSettings,
 } from './avPresets';
 import { MatrixKeyProvider } from './matrixKeyProvider';
 import { resolveParticipantUserId } from './participantIdentity';
+import { getFocusUrl, countActiveCallMembers } from './callRoomUtils';
 import { CALL_INFO_EVENT } from '../../hooks/useCallMemberships';
 import { getSFUConfigWithOpenID } from './sfuToken';
 import { formatCallError } from './callErrors';
@@ -89,6 +87,7 @@ export interface NativeCallEngine {
   isAudioEnabled: boolean;
   isVideoEnabled: boolean;
   isScreenShareEnabled: boolean;
+  isScreenShareAudioEnabled: boolean;
   isDeafened: boolean;
   isReconnecting: boolean;
   isFrontCamera: boolean;
@@ -104,6 +103,8 @@ export interface NativeCallEngine {
   flipCamera: () => Promise<void>;
   startScreenShare: (ssRes: string, ssFps: number, ssAudio: boolean) => Promise<void>;
   stopScreenShare: () => Promise<void>;
+  /** Issue #45: toggle system audio on a running screenshare via stop→restart flow */
+  toggleScreenShareAudio: () => Promise<void>;
   toggleDeafen: () => Promise<void>;
   /** Broadcast a soundboard clip event to other call participants via data channel. */
   broadcastSoundboardClip: (clipName: string, type: 'start' | 'stop') => void;
@@ -111,59 +112,6 @@ export interface NativeCallEngine {
   watchScreenShare: (identity: string) => Promise<void>;
   unwatchScreenShare: (identity: string) => Promise<void>;
   updateActiveScreenShareSettings: (ssRes: string, ssFps: number, ssAudio: boolean) => Promise<void>;
-}
-
-// ─── Internal Helpers ─────────────────────────────────────────────────────────
-
-/**
- * Resolves the LiveKit SFU URL from room state events.
- * Checks the call state event first, then scans member events as a fallback.
- */
-function getFocusUrl(mx: MatrixClient, roomId: string): string | null {
-  const room = mx.getRoom(roomId);
-  if (!room) return null;
-
-  // Primary: org.matrix.msc3401.call state event
-  const callEvent = room.currentState.getStateEvents('org.matrix.msc3401.call', '');
-  const fociPreferred = (callEvent as any)?.getContent()?.foci_preferred;
-  if (Array.isArray(fociPreferred) && fociPreferred.length > 0) {
-    return fociPreferred[0].livekit_service_url ?? null;
-  }
-
-  // Fallback: scan org.matrix.msc3401.call.member events
-  const memberEvents =
-    room.currentState.getStateEvents('org.matrix.msc3401.call.member') ?? [];
-  for (const ev of Array.isArray(memberEvents) ? memberEvents : [memberEvents]) {
-    const content = (ev as any).getContent?.() ?? {};
-    const foci = content.foci_preferred ?? content['m.foci']?.preferred;
-    if (Array.isArray(foci) && foci.length > 0) {
-      const url = foci[0].livekit_service_url;
-      if (url) return url as string;
-    }
-  }
-
-  return null;
-}
-
-/**
- * Count users with an active (non-empty) call.member state event in a room.
- * Used to decide whether we are the first joiner (write start time) or last
- * leaver (clear start time).
- */
-function countActiveCallMembers(mx: MatrixClient, roomId: string): number {
-  const room = mx.getRoom(roomId);
-  if (!room) return 0;
-  const types = ['org.matrix.msc3401.call.member', 'org.matrix.msc4143.call.member'];
-  const senders = new Set<string>();
-  for (const type of types) {
-    const events: any[] = (room.currentState.getStateEvents(type) ?? []) as any[];
-    for (const ev of Array.isArray(events) ? events : [events]) {
-      const sender = ev.getSender?.();
-      const content = ev.getContent?.() ?? {};
-      if (sender && Object.keys(content).length > 0) senders.add(sender as string);
-    }
-  }
-  return senders.size;
 }
 
 // ─── Hook ─────────────────────────────────────────────────────────────────────
@@ -205,7 +153,7 @@ export function useNativeCall(roomId: string | null): NativeCallEngine {
   const [livekitRoom, setLivekitRoom] = useState<Room | null>(null);
   const [isAudioEnabled, setIsAudioEnabled] = useState(true);
   const [isVideoEnabled, setIsVideoEnabled] = useState(false);
-  const [isScreenShareEnabled, setIsScreenShareEnabled] = useState(false);
+  // Screenshare state and controls live in useScreenShareEngine (see below)
   const [isDeafened, setIsDeafened] = useState(false);
   const [isReconnecting, setIsReconnecting] = useState(false);
   // Tracks current camera facing mode for mobile flip toggle ('user' | 'environment')
@@ -220,6 +168,20 @@ export function useNativeCall(roomId: string | null): NativeCallEngine {
 
   // ── Refs for imperative cleanup (survive re-renders) ──────────────────────
   const roomRef = useRef<Room | null>(null);
+
+  // ── Screenshare engine (extracted to stay under 650-line file limit) ────────
+  const {
+    isScreenShareEnabled,
+    isScreenShareAudioEnabled,
+    setIsScreenShareEnabled,
+    setIsScreenShareAudioEnabled,
+    startScreenShare,
+    stopScreenShare,
+    toggleScreenShareAudio,
+    watchScreenShare,
+    unwatchScreenShare,
+    updateActiveScreenShareSettings,
+  } = useScreenShareEngine({ roomRef, callSoundsEnabledRef, setWatchedScreenShares });
   const rtcSessionRef = useRef<any>(null);
   const e2eeWorkerRef = useRef<Worker | null>(null);
   const keyProviderRef = useRef<MatrixKeyProvider | null>(null);
@@ -391,7 +353,9 @@ export function useNativeCall(roomId: string | null): NativeCallEngine {
         }
 
         // 3. Build LiveKit Room with AV + optional E2EE options
-        const room = new Room(buildLiveKitRoomOptions(av, e2eeOptions));
+        // Issue #72: pass experimentalAV1 flag from config — avPresets checks browser support
+        const experimentalAV1 = clientConfig.featureFlags?.experimentalAV1 ?? false;
+        const room = new Room(buildLiveKitRoomOptions(av, e2eeOptions, experimentalAV1));
 
         // 4. Join Matrix RTC session (writes membership state event + delayed keepalive)
         const rtcSession = (mx as any).matrixRTC.getRoomSession(matrixRoom);
@@ -1143,70 +1107,6 @@ export function useNativeCall(roomId: string | null): NativeCallEngine {
     setIsFrontCamera(facingModeRef.current === 'user');
   }, []);
 
-  const enforceScreenShareConstraints = useCallback(async (ssRes: string, ssFps: number) => {
-    if (!roomRef.current) return;
-
-    let mediaTrack: MediaStreamTrack | undefined;
-    for (let attempt = 0; attempt < 10; attempt += 1) {
-      const ssPub = roomRef.current.localParticipant.getTrackPublication(Track.Source.ScreenShare);
-      const track = ssPub?.track as LocalVideoTrack | undefined;
-      mediaTrack = track?.mediaStreamTrack;
-      if (mediaTrack?.applyConstraints) {
-        break;
-      }
-      await new Promise((resolve) => {
-        window.setTimeout(resolve, 100);
-      });
-    }
-
-    if (!mediaTrack?.applyConstraints) return;
-
-    const targetWidth = ssRes === 'source' ? undefined : resolutionToWidth(ssRes);
-    const targetHeight = ssRes === 'source' ? undefined : resolutionToHeight(ssRes);
-
-    const exactConstraints: MediaTrackConstraints = {
-      ...(targetWidth && { width: { exact: targetWidth } }),
-      ...(targetHeight && { height: { exact: targetHeight } }),
-      ...(ssFps ? { frameRate: { exact: ssFps } } : {}),
-    };
-
-    const fallbackConstraints: MediaTrackConstraints = {
-      ...(targetWidth && { width: { ideal: targetWidth, max: targetWidth } }),
-      ...(targetHeight && { height: { ideal: targetHeight, max: targetHeight } }),
-      ...(ssFps ? { frameRate: { ideal: ssFps, max: ssFps } } : {}),
-    };
-
-    try {
-      if (Object.keys(exactConstraints).length > 0) {
-        await mediaTrack.applyConstraints(exactConstraints);
-      }
-    } catch {
-      if (Object.keys(fallbackConstraints).length > 0) {
-        await mediaTrack.applyConstraints(fallbackConstraints).catch(() => {});
-      }
-    }
-  }, []);
-
-  const startScreenShare = useCallback(
-    async (ssRes: string, ssFps: number, ssAudio: boolean) => {
-      if (!roomRef.current) return;
-      const captureOpts = buildSSCaptureOptions(ssRes, ssFps, ssAudio);
-      const publishOpts = buildSSPublishOptions(ssRes, ssFps);
-      await roomRef.current.localParticipant.setScreenShareEnabled(true, captureOpts, publishOpts);
-      await enforceScreenShareConstraints(ssRes, ssFps);
-      setIsScreenShareEnabled(true);
-      playCallSound(CallSoundType.ScreenShareStart, { enabled: callSoundsEnabledRef.current });
-    },
-    [enforceScreenShareConstraints],
-  );
-
-  const stopScreenShare = useCallback(async () => {
-    if (!roomRef.current) return;
-    await roomRef.current.localParticipant.setScreenShareEnabled(false);
-    setIsScreenShareEnabled(false);
-    playCallSound(CallSoundType.ScreenShareStop, { enabled: callSoundsEnabledRef.current });
-  }, []);
-
   const toggleDeafen = useCallback(async () => {
     if (!roomRef.current) return;
     const next = !isDeafenedRef.current;
@@ -1251,111 +1151,6 @@ export function useNativeCall(roomId: string | null): NativeCallEngine {
     void roomRef.current.localParticipant.setAttributes({ isDeafened: next ? '1' : '0' });
   }, []);
 
-  const watchScreenShare = useCallback(
-    async (identity: string) => {
-      const room = roomRef.current;
-      if (!room) return;
-      const participant = room.remoteParticipants.get(identity);
-      if (!participant) return;
-      for (const pub of participant.trackPublications.values()) {
-        if (
-          pub.source === Track.Source.ScreenShare ||
-          pub.source === Track.Source.ScreenShareAudio
-        ) {
-          pub.setSubscribed(true);
-          // Explicitly request highest quality — screenshare is single-layer
-          // (simulcast: false) so this is a hint to adaptiveStream to prioritise
-          // this track and not downgrade it when the tile is initially small.
-          if (pub.source === Track.Source.ScreenShare && 'setVideoQuality' in pub) {
-            try { (pub as any).setVideoQuality(VideoQuality.HIGH); } catch { /* best-effort */ }
-          }
-        }
-      }
-      setWatchedScreenShares((prev) => {
-        const next = new Set(prev);
-        next.add(identity);
-        return next as ReadonlySet<string>;
-      });
-    },
-    [setWatchedScreenShares],
-  );
-
-  const unwatchScreenShare = useCallback(
-    async (identity: string) => {
-      const room = roomRef.current;
-      if (room) {
-        const participant = room.remoteParticipants.get(identity);
-        if (participant) {
-          for (const pub of participant.trackPublications.values()) {
-            if (
-              pub.source === Track.Source.ScreenShare ||
-              pub.source === Track.Source.ScreenShareAudio
-            ) {
-              pub.setSubscribed(false);
-            }
-          }
-        }
-      }
-      setWatchedScreenShares((prev) => {
-        const next = new Set(prev);
-        next.delete(identity);
-        return next as ReadonlySet<string>;
-      });
-    },
-    [setWatchedScreenShares],
-  );
-
-  const updateActiveScreenShareSettings = useCallback(
-    async (ssRes: string, ssFps: number, ssAudio: boolean) => {
-      const room = roomRef.current;
-      if (!room) return;
-      const lp = room.localParticipant;
-      if (!lp.isScreenShareEnabled) return;
-
-      const ssPub = lp.getTrackPublication(Track.Source.ScreenShare);
-      const ssTrack = ssPub?.track as LocalVideoTrack | undefined;
-      if (!ssTrack) return;
-
-      // 1. Apply capture constraints on the MediaStreamTrack
-      const targetWidth = ssRes === 'source' ? undefined : resolutionToWidth(ssRes);
-      const targetHeight = ssRes === 'source' ? undefined : resolutionToHeight(ssRes);
-      const constraints: MediaTrackConstraints = {
-        ...(targetWidth  !== undefined && { width:     { ideal: targetWidth  } }),
-        ...(targetHeight !== undefined && { height:    { ideal: targetHeight } }),
-        ...(ssFps        > 0           && { frameRate: { ideal: ssFps, max: ssFps } }),
-      };
-      if (Object.keys(constraints).length > 0) {
-        await ssTrack.mediaStreamTrack.applyConstraints(constraints).catch(() => {});
-      }
-
-      // 2. Update RTCRtpSender encoding params (no track restart)
-      const publishOpts = buildSSPublishOptions(ssRes, ssFps);
-      const encoding = publishOpts.screenShareEncoding;
-      if (encoding) {
-        const sender = (ssTrack as any).sender as RTCRtpSender | undefined;
-        if (sender) {
-          const params = sender.getParameters();
-          if (params.encodings?.length) {
-            params.encodings = params.encodings.map((enc) => ({
-              ...enc,
-              maxBitrate:   encoding.maxBitrate,
-              maxFramerate: encoding.maxFramerate ?? enc.maxFramerate,
-            }));
-            await sender.setParameters(params).catch(() => {});
-          }
-        }
-      }
-
-      // 3. Toggle ScreenShareAudio mute/unmute
-      const audioPub = lp.getTrackPublication(Track.Source.ScreenShareAudio);
-      if (audioPub) {
-        if (ssAudio) await audioPub.unmute().catch(() => {});
-        else         await audioPub.mute().catch(() => {});
-      }
-    },
-    [],
-  );
-
   // Issue #80 — broadcast local soundboard events to other participants
   const broadcastSoundboardClip = useCallback(
     (clipName: string, type: 'start' | 'stop') => {
@@ -1368,6 +1163,7 @@ export function useNativeCall(roomId: string | null): NativeCallEngine {
     []
   );
 
+
   // ── Return ─────────────────────────────────────────────────────────────────
 
   return {
@@ -1376,6 +1172,7 @@ export function useNativeCall(roomId: string | null): NativeCallEngine {
     isAudioEnabled,
     isVideoEnabled,
     isScreenShareEnabled,
+    isScreenShareAudioEnabled,
     isDeafened,
     isReconnecting,
     isFrontCamera,
@@ -1390,6 +1187,7 @@ export function useNativeCall(roomId: string | null): NativeCallEngine {
     flipCamera,
     startScreenShare,
     stopScreenShare,
+    toggleScreenShareAudio,
     toggleDeafen,
     broadcastSoundboardClip,
     watchedScreenShares,
