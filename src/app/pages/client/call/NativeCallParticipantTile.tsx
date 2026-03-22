@@ -6,7 +6,6 @@ import {
   MonitorPlay,
   CornersOut,
   SpeakerSlash,
-  User,
   MusicNote,
 } from '@phosphor-icons/react';
 import { useMatrixClient } from '../../../hooks/useMatrixClient';
@@ -227,7 +226,15 @@ export function NativeCallParticipantTile({
             className={styles.initial}
             style={{ backgroundColor: tileAccentColor }}
           >
-            <User size={Math.round(avatarSize * 0.6)} weight="fill" />
+            <span style={{
+              fontSize: `${Math.round(avatarSize * 0.4)}px`,
+              fontWeight: 700,
+              color: '#fff',
+              lineHeight: 1,
+              userSelect: 'none',
+            }}>
+              {displayName.slice(0, 2).toUpperCase()}
+            </span>
           </div>
         )}
       </div>
