@@ -1,5 +1,5 @@
 /**
- * BetterCord — AV Quality Presets
+ * mesh — AV Quality Presets
  *
  * LiveKit preset mapping functions and Room option builder.
  * Ported and adapted from Element Call's options.ts.
@@ -68,7 +68,7 @@ export const ScreenSharePresets4K = {
 // ─── Mapping Functions ────────────────────────────────────────────────────────
 
 /**
- * Maps a BetterCord video resolution string to a LiveKit VideoPreset.
+ * Maps a mesh video resolution string to a LiveKit VideoPreset.
  * Falls back to 720p for unknown values.
  */
 export function resolutionToVideoPreset(res?: string): VideoPreset {
@@ -85,7 +85,7 @@ export function resolutionToVideoPreset(res?: string): VideoPreset {
 }
 
 /**
- * Maps BetterCord screenshare resolution + fps to a LiveKit VideoPreset.
+ * Maps mesh screenshare resolution + fps to a LiveKit VideoPreset.
  * fps is bucketed: ≤15→15, ≤30→30, ≤60→60, else→120.
  * 'source' resolution returns undefined (no constraint applied).
  */
@@ -229,7 +229,7 @@ export function buildAudioCaptureDefaults(av: AudioCaptureSettings): AudioCaptur
     noiseSuppression: av.noiseSuppression,
     autoGainControl: av.autoGainControl,
     // CRITICAL: Explicitly set voiceIsolation so it is never eliminated by object spread
-    // in the SDK. Without this, BetterCord's own AudioCaptureOptions replace the SDK
+    // in the SDK. Without this, mesh's own AudioCaptureOptions replace the SDK
     // defaults entirely, which drops voiceIsolation and enables Chrome's old WebRTC
     // noise suppressor (AEC3) — causing the metallic "Blechdosen" sound.
     voiceIsolation: true,
@@ -302,7 +302,7 @@ const defaultPublishOptions: TrackPublishDefaults = {
 };
 
 /**
- * Builds LiveKit RoomOptions from BetterCord AV settings.
+ * Builds LiveKit RoomOptions from mesh AV settings.
  *
  * CRITICAL: adaptiveStream and dynacast are kept at upstream defaults (true).
  * Only publishDefaults is customized with user quality preferences.

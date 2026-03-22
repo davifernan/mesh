@@ -1,43 +1,41 @@
 /**
- * Migrates legacy Cinny storage keys to BetterCord keys.
+ * Migrates legacy Cinny and BetterCord storage keys to mesh keys.
  * Called once at app startup to ensure backward compatibility.
  */
 export function migrateStorageKeys(): void {
-  // Migrate localStorage
-  const localKeysToMigrate: string[] = [];
-  for (let i = 0; i < localStorage.length; i++) {
-    const key = localStorage.key(i);
-    if (key && (key.startsWith('cinny_') || key.startsWith('cinny-'))) {
-      localKeysToMigrate.push(key);
-    }
-  }
-  for (const key of localKeysToMigrate) {
-    const newKey = key.startsWith('cinny_')
-      ? `bettercord_${key.slice('cinny_'.length)}`
-      : `bettercord-${key.slice('cinny-'.length)}`;
-    const value = localStorage.getItem(key);
-    if (value !== null) {
-      localStorage.setItem(newKey, value);
-      localStorage.removeItem(key);
-    }
-  }
+  migrateStorage(localStorage);
+  migrateStorage(sessionStorage);
+}
 
-  // Migrate sessionStorage
-  const sessionKeysToMigrate: string[] = [];
-  for (let i = 0; i < sessionStorage.length; i++) {
-    const key = sessionStorage.key(i);
-    if (key && (key.startsWith('cinny_') || key.startsWith('cinny-'))) {
-      sessionKeysToMigrate.push(key);
+function migrateStorage(storage: Storage): void {
+  const keysToMigrate: string[] = [];
+  for (let i = 0; i < storage.length; i++) {
+    const key = storage.key(i);
+    if (
+      key &&
+      (key.startsWith('cinny_') ||
+        key.startsWith('cinny-') ||
+        key.startsWith('bettercord_') ||
+        key.startsWith('bettercord-'))
+    ) {
+      keysToMigrate.push(key);
     }
   }
-  for (const key of sessionKeysToMigrate) {
-    const newKey = key.startsWith('cinny_')
-      ? `bettercord_${key.slice('cinny_'.length)}`
-      : `bettercord-${key.slice('cinny-'.length)}`;
-    const value = sessionStorage.getItem(key);
+  for (const key of keysToMigrate) {
+    let newKey: string;
+    if (key.startsWith('cinny_')) {
+      newKey = `mesh_${key.slice('cinny_'.length)}`;
+    } else if (key.startsWith('cinny-')) {
+      newKey = `mesh-${key.slice('cinny-'.length)}`;
+    } else if (key.startsWith('bettercord_')) {
+      newKey = `mesh_${key.slice('bettercord_'.length)}`;
+    } else {
+      newKey = `mesh-${key.slice('bettercord-'.length)}`;
+    }
+    const value = storage.getItem(key);
     if (value !== null) {
-      sessionStorage.setItem(newKey, value);
-      sessionStorage.removeItem(key);
+      storage.setItem(newKey, value);
+      storage.removeItem(key);
     }
   }
 }

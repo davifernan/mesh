@@ -37,7 +37,7 @@ export const Tab = style({
 });
 
 export const TabActive = style({
-  // BetterCord: active tab = --text-primary (near-white), NOT brand color
+  // mesh: active tab = --text-primary (near-white), NOT brand color
   color: 'var(--text-primary)',
 });
 

@@ -100,7 +100,7 @@ export function SoundboardPanel({ onClose }: SoundboardPanelProps) {
 
   const sources: SoundboardSource[] = useMemo(() => {
     const result: SoundboardSource[] = [
-      { id: BUILTIN_SOUNDBOARD_SPACE_ID, label: 'BetterCord', emoji: '🎛️' },
+      { id: BUILTIN_SOUNDBOARD_SPACE_ID, label: 'mesh', emoji: '🎛️' },
     ];
     for (const [spaceId] of spaceMap) {
       if (spaceId === BUILTIN_SOUNDBOARD_SPACE_ID) continue;

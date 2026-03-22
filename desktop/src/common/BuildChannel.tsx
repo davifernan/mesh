@@ -16,7 +16,7 @@
  * You should have received a copy of the GNU Affero General Public License
  * along with Fluxer. If not, see <https://www.gnu.org/licenses/>.
  */
-// Copyright 2025-2026 BetterCord Contributors
+// Copyright 2025-2026 mesh Contributors
 // SPDX-License-Identifier: AGPL-3.0-only
 
 export type BuildChannel = 'stable' | 'canary';

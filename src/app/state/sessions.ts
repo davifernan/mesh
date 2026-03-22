@@ -35,16 +35,16 @@ export function setFallbackSession(
   userId: string,
   baseUrl: string
 ) {
-  localStorage.setItem('bettercord_access_token', accessToken);
-  localStorage.setItem('bettercord_device_id', deviceId);
-  localStorage.setItem('bettercord_user_id', userId);
-  localStorage.setItem('bettercord_hs_base_url', baseUrl);
+  localStorage.setItem('mesh_access_token', accessToken);
+  localStorage.setItem('mesh_device_id', deviceId);
+  localStorage.setItem('mesh_user_id', userId);
+  localStorage.setItem('mesh_hs_base_url', baseUrl);
 }
 export const removeFallbackSession = () => {
-  localStorage.removeItem('bettercord_hs_base_url');
-  localStorage.removeItem('bettercord_user_id');
-  localStorage.removeItem('bettercord_device_id');
-  localStorage.removeItem('bettercord_access_token');
+  localStorage.removeItem('mesh_hs_base_url');
+  localStorage.removeItem('mesh_user_id');
+  localStorage.removeItem('mesh_device_id');
+  localStorage.removeItem('mesh_access_token');
 };
 let sessionOverride: Session | undefined;
 export const setSessionOverride = (session: Session) => {
@@ -54,10 +54,10 @@ export const setSessionOverride = (session: Session) => {
 export const getFallbackSession = (): Session | undefined => {
   if (sessionOverride) return sessionOverride;
 
-  const baseUrl = localStorage.getItem('bettercord_hs_base_url');
-  const userId = localStorage.getItem('bettercord_user_id');
-  const deviceId = localStorage.getItem('bettercord_device_id');
-  const accessToken = localStorage.getItem('bettercord_access_token');
+  const baseUrl = localStorage.getItem('mesh_hs_base_url');
+  const userId = localStorage.getItem('mesh_user_id');
+  const deviceId = localStorage.getItem('mesh_device_id');
+  const accessToken = localStorage.getItem('mesh_access_token');
 
   if (baseUrl && userId && deviceId && accessToken) {
     const session: Session = {
@@ -77,7 +77,7 @@ export const getFallbackSession = (): Session | undefined => {
  * End of migration code for old session
  */
 
-const SECONDARY_SESSIONS_KEY = 'bettercord_sessions';
+const SECONDARY_SESSIONS_KEY = 'mesh_sessions';
 
 export const getSecondarySessions = (): Array<{ slot: number; session: Session }> => {
   try {

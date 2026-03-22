@@ -120,7 +120,7 @@ export const clearCacheAndReload = async (mx: MatrixClient) => {
 };
 
 export const logoutClient = async (mx: MatrixClient) => {
-  const slotStr = sessionStorage.getItem('bettercord-account-slot');
+  const slotStr = sessionStorage.getItem('mesh-account-slot');
   const slot = slotStr !== null ? parseInt(slotStr, 10) : null;
   const isSecondary =
     window.location.pathname.startsWith('/account/') || slot !== null;
@@ -137,7 +137,7 @@ export const logoutClient = async (mx: MatrixClient) => {
   if (isSecondary) {
     if (slot !== null) {
       removeSecondarySession(slot);
-      sessionStorage.removeItem('bettercord-account-slot');
+      sessionStorage.removeItem('mesh-account-slot');
     } else {
       const pathSlotMatch = window.location.pathname.match(/^\/account\/(\d+)/);
       if (pathSlotMatch) removeSecondarySession(parseInt(pathSlotMatch[1], 10));

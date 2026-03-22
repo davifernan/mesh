@@ -1,12 +1,12 @@
-# BetterCord — Entwicklungsplan
+# mesh — Entwicklungsplan
 
-> **Basis:** Cinny-Fork — Matrix + E2EE vorhanden, Voice-Layer jetzt nativ via MatrixRTC + LiveKit in BetterCord
+> **Basis:** Cinny-Fork — Matrix + E2EE vorhanden, Voice-Layer jetzt nativ via MatrixRTC + LiveKit in mesh
 > **Ziel:** Fluxer/Discord UI 1:1, mit Admin-seitigen A/V-Quality-Controls + PWA
-> **Repo:** https://github.com/davifernan/BetterCord (privat)
+> **Repo:** https://github.com/davifernan/mesh (privat)
 
 ---
 
-## Was ist BetterCord?
+## Was ist mesh?
 
 Ein Matrix-Client der **aussieht wie Discord/Fluxer**, aber auf **Matrix** (E2EE, dezentral, self-hosted) basiert.
 
@@ -20,7 +20,7 @@ Ein Matrix-Client der **aussieht wie Discord/Fluxer**, aber auf **Matrix** (E2EE
 
 ## Kurzübersicht Tech-Stack
 
-| Was | Aktuell (Cinny) | Nach Umbau (BetterCord) |
+| Was | Aktuell (Cinny) | Nach Umbau (mesh) |
 |-----|----------------|------------------------|
 | Framework | React 18 | React 18 (bleibt) |
 | State | Jotai | Jotai + neue Atoms für A/V |
@@ -38,15 +38,15 @@ Ein Matrix-Client der **aussieht wie Discord/Fluxer**, aber auf **Matrix** (E2EE
 ```
 Entwicklung (lokal / GitHub Codespaces)
     ↓
-git push → GitHub (privates Repo: davifernan/BetterCord)
+git push → GitHub (privates Repo: davifernan/mesh)
     ↓
 Server: git pull && docker-compose up -d
 ```
 
 ### Schnellstart lokal
 ```bash
-git clone https://github.com/davifernan/BetterCord.git
-cd BetterCord
+git clone https://github.com/davifernan/mesh.git
+cd mesh
 npm install
 npm run dev
 # → http://localhost:8080
@@ -55,8 +55,8 @@ npm run dev
 ### Docker auf dem Server
 ```bash
 # Einmalig:
-git clone https://github.com/davifernan/BetterCord.git
-cd BetterCord
+git clone https://github.com/davifernan/mesh.git
+cd mesh
 
 # Danach bei jedem Update:
 git pull
@@ -87,26 +87,26 @@ Gesamt   →  ~43 Arbeitstage / ~9 Wochen
 ## Phase 1 — Projekt-Setup & Rename
 
 ### Ziel
-Cinny in BetterCord umbenennen, Dependencies für Fluxer-UI installieren.
+Cinny in mesh umbenennen, Dependencies für Fluxer-UI installieren.
 
 ### Aufgaben
-- [ ] `package.json`: `name` → `"bettercord"`
-- [ ] `public/manifest.json`: `name` → `"BetterCord"`, `short_name` → `"BetterCord"`, `theme_color` → `"#4641D9"`, `background_color` → `"#1E1F22"`
-- [ ] `index.html`: `<title>BetterCord</title>`
+- [ ] `package.json`: `name` → `"mesh"`
+- [ ] `public/manifest.json`: `name` → `"mesh"`, `short_name` → `"mesh"`, `theme_color` → `"#4641D9"`, `background_color` → `"#1E1F22"`
+- [ ] `index.html`: `<title>mesh</title>`
 - [ ] `config.json`: App-Name anpassen
 - [ ] Dependencies installieren:
   ```bash
   npm install @phosphor-icons/react
   npm install @fontsource/ibm-plex-sans @fontsource/ibm-plex-mono
   ```
-- [ ] Alte Cinny-Icons in `public/` durch BetterCord-Icons ersetzen (optional: Discord-ähnliches Icon)
+- [ ] Alte Cinny-Icons in `public/` durch mesh-Icons ersetzen (optional: Discord-ähnliches Icon)
 
 ---
 
 ## Phase 2 — Design System (CSS Custom Properties)
 
 ### Ziel
-Fluxer's komplettes CSS-Token-System in BetterCord einbauen. Das ist die Grundlage für ALLES andere.
+Fluxer's komplettes CSS-Token-System in mesh einbauen. Das ist die Grundlage für ALLES andere.
 
 ### Neue Datei: `src/app/styles/global.css`
 Übernehmen aus `fluxer/fluxer_app/src/global.css`:
@@ -251,7 +251,7 @@ import { IconContext } from '@phosphor-icons/react';
 Das äußere App-Gerüst 1:1 wie Fluxer/Discord aufbauen. Das ist die größte Umbauarbeit.
 
 ### Vorher (Cinny): 66px Sidebar + Rest
-### Nachher (BetterCord): Fluxer 3-Spalten-Layout
+### Nachher (mesh): Fluxer 3-Spalten-Layout
 
 ```
 [100svh Viewport]
@@ -530,7 +530,7 @@ receiveVideoQuality: 'auto' | 'high' | 'medium' | 'low'; // default: 'auto'
 
 **Space-Defaults** → als Matrix State Event gespeichert:
 ```typescript
-// Event Type: 'io.bettercord.space.av_settings'
+// Event Type: 'io.mesh.space.av_settings'
 // State Key: '' (leer)
 interface SpaceAVSettings {
   maxAudioBitrate: 64 | 128 | 256 | 510;        // default: 64
@@ -543,14 +543,14 @@ interface SpaceAVSettings {
 }
 
 // Speichern:
-mx.sendStateEvent(spaceRoomId, 'io.bettercord.space.av_settings', settings, '');
+mx.sendStateEvent(spaceRoomId, 'io.mesh.space.av_settings', settings, '');
 // Lesen:
-mx.getStateEvent(spaceRoomId, 'io.bettercord.space.av_settings', '');
+mx.getStateEvent(spaceRoomId, 'io.mesh.space.av_settings', '');
 ```
 
 **Channel-Override** → pro Voice-Channel:
 ```typescript
-// Event Type: 'io.bettercord.channel.av_override'
+// Event Type: 'io.mesh.channel.av_override'
 // State Key: '' (leer)
 interface ChannelAVOverride {
   maxSSResolution?: string;
@@ -623,7 +623,7 @@ Hinweis unter jedem Slider wenn Server ein Limit gesetzt hat:
 
 ### 6.5 Admin Settings UI
 
-Nur sichtbar wenn `mx.getRoom(spaceId).currentState.maySendStateEvent('io.bettercord.space.av_settings', mx.getUserId())`:
+Nur sichtbar wenn `mx.getRoom(spaceId).currentState.maySendStateEvent('io.mesh.space.av_settings', mx.getUserId())`:
 
 ```
 Space-Einstellungen → Stimme & Video (Admin)
@@ -688,8 +688,8 @@ Settings-Modal aussehen wie Discord/Fluxer: 2-Spalten (Nav links, Content rechts
 **`public/manifest.json` updaten:**
 ```json
 {
-  "name": "BetterCord",
-  "short_name": "BetterCord",
+  "name": "mesh",
+  "short_name": "mesh",
   "description": "Discord-Look. Matrix-Privatsphäre.",
   "display": "standalone",
   "orientation": "any",
@@ -744,7 +744,7 @@ navigator.setAppBadge?.(unreadCount);
 ```html
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="BetterCord">
+<meta name="apple-mobile-web-app-title" content="mesh">
 <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
 ```
 
@@ -767,7 +767,7 @@ navigator.setAppBadge?.(unreadCount);
 
 - [ ] **Matrix Homeserver**: Eigener Synapse/Dendrite oder matrix.org nutzen?
 - [ ] **Element Call URL**: Self-hosted (`call.element.io`) oder eigene Instanz?
-- [ ] **Domain**: Unter welcher Domain soll BetterCord laufen?
+- [ ] **Domain**: Unter welcher Domain soll mesh laufen?
 - [ ] **Docker Registry**: GitHub Container Registry (ghcr.io) nutzen?
 
 ---
@@ -794,16 +794,16 @@ navigator.setAppBadge?.(unreadCount);
 ## Phase 9 — Electron Desktop App
 
 ### Ziel
-BetterCord als native Desktop-App für Windows, macOS und Linux ausliefern.
-Basis: `fluxer/fluxer_desktop/` — fast 1:1 kopieren, nur umbenennen + BetterCord-spezifische
+mesh als native Desktop-App für Windows, macOS und Linux ausliefern.
+Basis: `fluxer/fluxer_desktop/` — fast 1:1 kopieren, nur umbenennen + mesh-spezifische
 Anpassungen vornehmen.
 
 ### Strategie
 PWA zuerst fertigstellen (Phase 1–8), dann Electron drüberziehen.
-Electron lädt einfach die fertige BetterCord Web-App als URL — kein Umbau der App nötig.
+Electron lädt einfach die fertige mesh Web-App als URL — kein Umbau der App nötig.
 
 ```
-BetterCord Web-App (dist/)
+mesh Web-App (dist/)
         ↓
 Electron lädt: https://deine-domain.com  (Prod)
                http://localhost:8080      (Dev)
@@ -824,7 +824,7 @@ Fertige Desktop-App für Windows / macOS / Linux
 ### 9.1 Ordnerstruktur
 
 ```
-BetterCord/
+mesh/
 ├── src/                    ← Web-App (Phasen 1–8, bleibt unverändert)
 ├── desktop/                ← NEU: Electron-Hülle (kopiert von fluxer_desktop)
 │   ├── src/
@@ -833,7 +833,7 @@ BetterCord/
 │   │   │   ├── Window.tsx          ← BrowserWindow + Screenshare Handler
 │   │   │   ├── IpcHandlers.tsx     ← IPC-Bridge (angepasst)
 │   │   │   ├── Autostart.tsx       ← Autostart beim OS-Login
-│   │   │   ├── DeepLinks.tsx       ← bettercord:// URL-Schema
+│   │   │   ├── DeepLinks.tsx       ← mesh:// URL-Schema
 │   │   │   ├── GlobalKeyHook.tsx   ← Push-to-Talk global (auch ohne Fokus)
 │   │   │   ├── Menu.tsx            ← macOS Menübar
 │   │   │   ├── Updater.tsx         ← Auto-Update
@@ -868,8 +868,8 @@ export const APP_PROTOCOL = 'fluxer';
 export const STABLE_APP_URL = 'https://web.fluxer.app';
 export const CANARY_APP_URL = 'https://web.canary.fluxer.app';
 
-// NACHHER (BetterCord):
-export const APP_PROTOCOL = 'bettercord';
+// NACHHER (mesh):
+export const APP_PROTOCOL = 'mesh';
 export const STABLE_APP_URL = 'https://DEINE-DOMAIN.com';   // ← deine URL eintragen
 export const CANARY_APP_URL = 'https://DEINE-DOMAIN.com';   // vorerst gleich wie stable
 ```
@@ -882,25 +882,25 @@ const appId = 'app.fluxer';
 const packageName = 'fluxer_desktop';
 
 // NACHHER:
-const productName = 'BetterCord';
-const appId = 'com.bettercord.app';
-const packageName = 'bettercord';
+const productName = 'mesh';
+const appId = 'com.mesh.app';
+const packageName = 'mesh';
 
 // squirrelWindows.iconUrl auf eigene Domain anpassen:
 iconUrl: 'https://DEINE-DOMAIN.com/icons/icon.ico',
 
 // macOS Info.plist Texte anpassen:
 extendInfo: {
-  NSMicrophoneUsageDescription: 'BetterCord needs microphone access for voice chat.',
-  NSCameraUsageDescription: 'BetterCord needs camera access for video calls.',
-  NSAppleEventsUsageDescription: 'BetterCord needs Apple Events for automation.',
+  NSMicrophoneUsageDescription: 'mesh needs microphone access for voice chat.',
+  NSCameraUsageDescription: 'mesh needs camera access for video calls.',
+  NSAppleEventsUsageDescription: 'mesh needs Apple Events for automation.',
 },
 ```
 
 #### `desktop/src/main/IpcHandlers.tsx` — 1 Funktion entfernen
 ```typescript
 // DIESE FUNKTION LÖSCHEN — prüft ob /.well-known/fluxer existiert,
-// das gibt's bei Matrix/BetterCord nicht:
+// das gibt's bei Matrix/mesh nicht:
 async function assertValidFluxerInstance(instanceOrigin: string) { ... }
 
 // Den Aufruf in 'switch-instance-url' Handler ebenfalls entfernen:
@@ -918,9 +918,9 @@ const trustedWebOrigins = new Set([STABLE_APP_URL, CANARY_APP_URL].map(...));
 
 ---
 
-### 9.3 BetterCord Web-App: Electron API verdrahten
+### 9.3 mesh Web-App: Electron API verdrahten
 
-Die `preload/index.tsx` exposed `window.electron` — BetterCord muss diese API
+Die `preload/index.tsx` exposed `window.electron` — mesh muss diese API
 an den richtigen Stellen nutzen. Das sind die Stellen die **nach Phase 9 implementiert
 werden müssen** damit die Desktop-Features funktionieren:
 
@@ -930,9 +930,9 @@ In Electron kann `getDisplayMedia()` nicht direkt aus dem Renderer aufgerufen we
 Fluxer löst das über IPC: Electron fragt welche Fenster/Screens verfügbar sind,
 zeigt einen nativen Picker, und gibt die Source zurück.
 
-**Was fehlt in BetterCord nach dem Kopieren:**
+**Was fehlt in mesh nach dem Kopieren:**
 - Die Web-App muss auf `window.electron.onDisplayMediaRequested()` hören
-- Wenn Electron den Screenshare-Request abfängt, muss BetterCord einen Picker zeigen
+- Wenn Electron den Screenshare-Request abfängt, muss mesh einen Picker zeigen
 - Nach Auswahl: `window.electron.selectDisplayMediaSource(requestId, sourceId, withAudio)`
 
 **Wo das implementiert werden muss:**
@@ -1037,7 +1037,7 @@ useEffect(() => {
 }, []);
 ```
 
-#### Deep Links (`bettercord://invite/xyz`)
+#### Deep Links (`mesh://invite/xyz`)
 ```
 src/app/pages/client/ClientRoot.tsx
 ```
@@ -1045,8 +1045,8 @@ src/app/pages/client/ClientRoot.tsx
 useEffect(() => {
   if (!window.electron) return;
   return window.electron.onDeepLink((url) => {
-    // bettercord://invite/ABC → /invite/ABC Route navigieren
-    const path = url.replace('bettercord://', '/');
+    // mesh://invite/ABC → /invite/ABC Route navigieren
+    const path = url.replace('mesh://', '/');
     navigate(path);
   });
 }, []);
@@ -1054,7 +1054,7 @@ useEffect(() => {
 
 ---
 
-### 9.4 TypeScript: `window.electron` Typen in BetterCord bekannt machen
+### 9.4 TypeScript: `window.electron` Typen in mesh bekannt machen
 
 ```typescript
 // src/types/electron.d.ts  ← neue Datei
@@ -1142,7 +1142,7 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - uses: actions/upload-artifact@v4
         with:
-          name: BetterCord-${{ matrix.os }}
+          name: mesh-${{ matrix.os }}
           path: desktop/dist-electron/
 ```
 
@@ -1154,7 +1154,7 @@ für alle 3 Plattformen und legt die Installer als GitHub Release Assets ab.
 ### 9.7 macOS Code-Signing (optional, für private Nutzung nicht nötig)
 
 Ohne Apple Developer Account ($99/Jahr) erscheint beim ersten Start:
-> "BetterCord kann nicht geöffnet werden, weil Apple es nicht auf Schadsoftware prüfen konnte."
+> "mesh kann nicht geöffnet werden, weil Apple es nicht auf Schadsoftware prüfen konnte."
 
 **Lösung für private Nutzung:** User muss einmalig in
 Systemeinstellungen → Datenschutz & Sicherheit → "Trotzdem öffnen" klicken.
@@ -1167,15 +1167,15 @@ electron-builder unterstützt das via `CSC_LINK` + `CSC_KEY_PASSWORD` Environmen
 ### 9.8 Checkliste Phase 9
 
 #### Setup (Basis — ~30 Minuten)
-- [ ] `fluxer/fluxer_desktop/` nach `BetterCord/desktop/` kopieren
+- [ ] `fluxer/fluxer_desktop/` nach `mesh/desktop/` kopieren
 - [ ] `Constants.tsx`: `APP_PROTOCOL`, `STABLE_APP_URL`, `CANARY_APP_URL` anpassen
 - [ ] `electron-builder.config.cjs`: `productName`, `appId`, `packageName` anpassen
 - [ ] `IpcHandlers.tsx`: `assertValidFluxerInstance()` entfernen
 - [ ] Icons erstellen: `AppIcon.icns`, `icon.ico`, `icon.png`
-- [ ] `desktop/package.json`: Name auf `bettercord` ändern
+- [ ] `desktop/package.json`: Name auf `mesh` ändern
 - [ ] Dev-Modus testen: `npm run dev` in beiden Terminals
 
-#### BetterCord Web-App verdrahten (~3–4 Tage)
+#### mesh Web-App verdrahten (~3–4 Tage)
 - [ ] `src/types/electron.d.ts` erstellen (`window.electron` Typ-Declaration)
 - [ ] **Screenshare-Picker** in `ScreenShareSettingsModal.tsx` implementieren
   - [ ] `window.electron.onDisplayMediaRequested()` listener
@@ -1192,8 +1192,8 @@ electron-builder unterstützt das via `CSC_LINK` + `CSC_KEY_PASSWORD` Environmen
   - [ ] `window.electron.registerGlobalShortcut()` aufrufen
   - [ ] `window.electron.onGlobalShortcut()` → Mikrofon aktivieren/deaktivieren
 - [ ] **Deep Links** in `ClientRoot.tsx` implementieren
-  - [ ] `bettercord://invite/CODE` → Invite-Flow
-  - [ ] `bettercord://room/ROOM_ID` → direkt in Room navigieren
+  - [ ] `mesh://invite/CODE` → Invite-Flow
+  - [ ] `mesh://room/ROOM_ID` → direkt in Room navigieren
 - [ ] **Auto-Update Banner** (`UpdateBanner.tsx`) erstellen
   - [ ] `window.electron.onUpdaterEvent()` hören
   - [ ] Toast/Banner bei verfügbarem Update zeigen
@@ -1630,5 +1630,5 @@ Details:
 
 ---
 
-*BetterCord — Matrix trifft Discord-UI*
-*Basis: Cinny-Fork | davifernan/BetterCord*
+*mesh — Matrix trifft Discord-UI*
+*Basis: Cinny-Fork | davifernan/mesh*

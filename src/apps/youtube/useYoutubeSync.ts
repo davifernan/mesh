@@ -89,7 +89,7 @@ export function useYoutubeSync(widgetApi: WidgetApi) {
 
   const persistStateBestEffort = useCallback(
     (nextState: YoutubeState) => {
-      void widgetApi.sendStateEvent('eu.bettercord.apps.youtube', '', nextState).catch(() => undefined);
+      void widgetApi.sendStateEvent('eu.mesh.apps.youtube', '', nextState).catch(() => undefined);
     },
     [widgetApi]
   );
@@ -99,7 +99,7 @@ export function useYoutubeSync(widgetApi: WidgetApi) {
 
     async function load() {
       try {
-        const events = await widgetApi.readStateEvents('eu.bettercord.apps.youtube', 1);
+        const events = await widgetApi.readStateEvents('eu.mesh.apps.youtube', 1);
         if (cancelled) return;
         const nextState = toYoutubeState(events[0]?.content as Partial<YoutubeState> | undefined);
         if (nextState) applyState(nextState);
@@ -121,7 +121,7 @@ export function useYoutubeSync(widgetApi: WidgetApi) {
       const event = actionEv?.detail?.data ?? actionEv;
       if (!event?.type) return;
 
-      if (event.type === 'eu.bettercord.apps.youtube.cmd') {
+      if (event.type === 'eu.mesh.apps.youtube.cmd') {
         const cmd = event.content as YoutubeCommand | undefined;
         if (!cmd?.action) return;
         const nextState = applyCommand(stateRef.current, cmd);
@@ -129,7 +129,7 @@ export function useYoutubeSync(widgetApi: WidgetApi) {
         return;
       }
 
-      if (event.type === 'eu.bettercord.apps.youtube' && event.state_key === '') {
+      if (event.type === 'eu.mesh.apps.youtube' && event.state_key === '') {
         const nextState = toYoutubeState(event.content as Partial<YoutubeState> | undefined);
         if (nextState) applyState(nextState);
       }
@@ -146,7 +146,7 @@ export function useYoutubeSync(widgetApi: WidgetApi) {
       const sanitizedCmd = sanitizeCommand(cmd);
       const nextState = applyCommand(stateRef.current, sanitizedCmd);
 
-      await widgetApi.sendRoomEvent('eu.bettercord.apps.youtube.cmd', sanitizedCmd);
+      await widgetApi.sendRoomEvent('eu.mesh.apps.youtube.cmd', sanitizedCmd);
 
       if (nextState) {
         applyState(nextState);

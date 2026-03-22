@@ -1,6 +1,6 @@
 /**
  * callSounds.ts
- * Audio engine for BetterCord voice call events.
+ * Audio engine for mesh voice call events.
  *
  * Plays MP3 files from /public/sound/ via plain HTMLAudioElement.
  * No Web Audio API — avoids AudioContext suspension issues on first load.

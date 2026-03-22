@@ -224,7 +224,7 @@ export function SpotifyApp({ widgetApi }: Props) {
 
   const persistStateBestEffort = useCallback(
     (nextState: SpotifyStateContent) => {
-      void widgetApi.sendStateEvent('eu.bettercord.apps.spotify', '', nextState).catch(() => undefined);
+      void widgetApi.sendStateEvent('eu.mesh.apps.spotify', '', nextState).catch(() => undefined);
     },
     [widgetApi]
   );
@@ -234,7 +234,7 @@ export function SpotifyApp({ widgetApi }: Props) {
 
     async function load() {
       try {
-        const events = await widgetApi.readStateEvents('eu.bettercord.apps.spotify', 1);
+        const events = await widgetApi.readStateEvents('eu.mesh.apps.spotify', 1);
         if (cancelled) return;
         const nextState = toSpotifyState(events[0]?.content as Partial<SpotifyStateContent> | undefined);
         if (nextState) applyState(nextState);
@@ -256,7 +256,7 @@ export function SpotifyApp({ widgetApi }: Props) {
       const event = actionEv?.detail?.data ?? actionEv;
       if (!event?.type) return;
 
-      if (event.type === 'eu.bettercord.apps.spotify.cmd') {
+      if (event.type === 'eu.mesh.apps.spotify.cmd') {
         const cmd = event.content as Partial<SpotifyCommandContent> | undefined;
         if (cmd?.action !== 'load') return;
         const nextState = toSpotifyState(cmd);
@@ -264,7 +264,7 @@ export function SpotifyApp({ widgetApi }: Props) {
         return;
       }
 
-      if (event.type === 'eu.bettercord.apps.spotify') {
+      if (event.type === 'eu.mesh.apps.spotify') {
         const nextState = toSpotifyState(event.content as Partial<SpotifyStateContent> | undefined);
         if (nextState) applyState(nextState);
       }
@@ -293,7 +293,7 @@ export function SpotifyApp({ widgetApi }: Props) {
     setSendError(null);
 
     try {
-      await widgetApi.sendRoomEvent('eu.bettercord.apps.spotify.cmd', {
+      await widgetApi.sendRoomEvent('eu.mesh.apps.spotify.cmd', {
         action: 'load',
         ...nextState,
       } satisfies SpotifyCommandContent);

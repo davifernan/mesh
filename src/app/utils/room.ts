@@ -19,7 +19,7 @@ import {
 } from 'matrix-js-sdk';
 import { CryptoBackend } from 'matrix-js-sdk/lib/common-crypto/CryptoBackend';
 import { AccountDataEvent } from '../../types/matrix/accountData';
-import { getBetterCordPermalink } from '../plugins/permalink';
+import { getmeshPermalink } from '../plugins/permalink';
 import {
   IRoomCreateContent,
   Membership,
@@ -367,7 +367,7 @@ export const parseReplyFormattedBody = (
   eventId: string,
   formattedBody: string
 ): string => {
-  const replyToLink = `<a href="${getBetterCordPermalink({
+  const replyToLink = `<a href="${getmeshPermalink({
     kind: 'room',
     roomIdOrAlias: roomId,
     eventId,

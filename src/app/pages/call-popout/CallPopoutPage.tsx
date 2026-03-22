@@ -9,7 +9,7 @@ import { NativeCallView } from '../client/call/NativeCallView';
  * Rendered at /popout?room=<roomId> (or /#/popout?room=... for hash router).
  * Opened via window.open() from NativeCallControlBar when running in Electron.
  * Electron's setWindowOpenHandler (desktop/src/main/Window.tsx) intercepts
- * bettercord_* frameName and creates a native BrowserWindow without chrome.
+ * mesh_* frameName and creates a native BrowserWindow without chrome.
  *
  * Provider requirements are satisfied by the existing auth-protected route
  * group in Router.tsx (ClientRoot → CallProvider wraps all auth routes).

@@ -1,79 +1,143 @@
-# BetterCord
+# mesh
 
-> Discord-Look. Matrix-Privatsphäre.
+> **Private. Decentral. Yours.**
 
-BetterCord ist ein selbst-hostbarer Matrix-Client mit Discord-ähnlicher UX, nativer LiveKit Voice/Video, E2EE und Screenshare.
+mesh is a self-hosted Matrix client with a Discord-style interface, native LiveKit voice/video, end-to-end encryption, and screenshare — built to be hosted by anyone, owned by everyone.
+
+**Host it. Own it.**
+
+---
 
 ## Features
 
-- **Matrix-Protokoll** — Vollständig dezentralisiert und föderiert
-- **Native LiveKit Voice & Video** — Kein Element Call, direkte Integration
-- **End-to-End Verschlüsselung** — Für Nachrichten und Calls
-- **Discord-ähnliches Layout** — 3-Spalten mit Spaces, Channels, Chat
-- **Screenshare** — Mit System-Audio, bis 4K
-- **Desktop App** — Electron mit nativen Features
-- **Mobile-optimiert** — Responsive Design
+- **Matrix protocol** — Fully decentralized and federated. No central server.
+- **Native LiveKit voice & video** — No iframe, no Element Call dependency. Direct WebRTC via LiveKit SFU.
+- **End-to-end encryption** — Messages and calls are E2EE by default.
+- **Discord-style layout** — Spaces, channels, threads, and a familiar 3-column UI.
+- **Screenshare** — With system audio, up to 4K resolution.
+- **Desktop app** — Electron wrapper for Mac, Windows, and Linux.
+- **PWA** — Installable as a Progressive Web App on any platform.
+- **Self-hosted** — Docker-first deployment. You run your own instance.
+
+---
 
 ## Self-Hosting
 
-### Docker (empfohlen)
+### Quick Start (Docker Compose)
 
 ```bash
-docker pull ghcr.io/davifernan/bettercord:latest
-docker run -p 8080:80 ghcr.io/davifernan/bettercord
+git clone https://github.com/davifernan/mesh.git
+cd mesh
+cp .env.example .env
+# Edit .env with your homeserver, LiveKit URL, etc.
+docker compose up -d
 ```
 
-### Docker Compose
+### Environment Variables
 
-```yaml
-services:
-  bettercord:
-    image: ghcr.io/davifernan/bettercord:latest
-    ports:
-      - "8080:80"
-    volumes:
-      - ./config.json:/app/config.json
-    restart: unless-stopped
+| Variable | Description | Default |
+|---|---|---|
+| `MESH_HOMESERVER` | Your Matrix homeserver URL | `matrix.org` |
+| `MESH_LIVEKIT_URL` | LiveKit JWT service URL | _(empty)_ |
+| `MESH_PRESENCE_URL` | Presence bridge URL | `/api/presence` |
+| `MESH_VOICE_STATE_MODE` | `livekit` or `bridge` | `livekit` |
+| `MESH_POLLS_URL` | Optional: polls widget URL | _(empty)_ |
+| `MESH_WHITEBOARD_URL` | Optional: whiteboard widget URL | _(empty)_ |
+
+### Docker Image
+
+```bash
+docker pull ghcr.io/davifernan/mesh:latest
+docker run -p 8080:80 ghcr.io/davifernan/mesh:latest
 ```
 
-### Konfiguration
+### Nginx / Reverse Proxy
 
-Kopiere `config.template.json` zu `config.json` und passe die Werte an:
+See [`contrib/nginx/mesh.example.conf`](contrib/nginx/mesh.example.conf) for a ready-to-use Nginx config.
+
+For Caddy, Netlify, and hash-router setups, see [`config.json`](config.json).
+
+---
+
+## Configuration
+
+Copy [`config.json`](config.json) and mount it into the container:
 
 ```json
 {
   "defaultHomeserver": 0,
-  "homeserverList": ["matrix.org"]
+  "homeserverList": ["your.homeserver.org"],
+  "allowCustomHomeservers": true,
+  "livekitServiceUrl": "https://lk-jwt.your-domain.com",
+  "presenceUrl": "https://your-domain.com/api/presence"
 }
 ```
+
+---
+
+## Desktop App
+
+Download the latest release from [GitHub Releases](https://github.com/davifernan/mesh/releases).
+
+Supported platforms:
+- macOS (Apple Silicon + Intel)
+- Windows (x64)
+- Linux (AppImage, deb, rpm)
+
+---
 
 ## Development
 
 ```bash
-# Dependencies installieren
 npm install
-
-# Dev-Server starten
-npm run dev
-
-# Production Build
-npm run build
+npm run dev      # Web app on http://localhost:8080
 ```
 
-## Desktop App
+For the Electron desktop app:
 
 ```bash
 cd desktop
 npm install
-npm run dev    # Development
-npm run build  # Production
+npm run dev
 ```
 
-## Lizenz
+For the presence bridge (Bun):
 
-AGPL-3.0 — Siehe [LICENSE](LICENSE)
+```bash
+cd bridge
+bun run dev
+```
 
-## Credits
+---
 
-BetterCord basiert auf [Cinny](https://cinny.in) und nutzt Teile von [Fluxer](https://github.com/nicecord/fluxer).
-Wir danken den Original-Autoren für ihre hervorragende Arbeit.
+## Architecture
+
+```
+mesh (one app, no iframe)
+│
+├── matrix-js-sdk     — Matrix protocol, E2EE, MatrixRTC memberships
+├── livekit-client    — WebRTC/SFU voice & video
+└── bridge/           — Server-side LiveKit → presence state (Bun + Hono)
+```
+
+See [`AGENTS.md`](AGENTS.md) for the full technical architecture and implementation rules.
+
+---
+
+## AGPL License & Credits
+
+mesh is free software licensed under [AGPL-3.0](LICENSE).
+
+It builds on the work of:
+- [Cinny](https://github.com/cinnyapp/cinny) — original Matrix client UI (AGPL-3.0)
+- [Fluxer](https://github.com/FluxerApp/Fluxer) — Discord-style UI patterns (AGPL-3.0)
+- [Element Call](https://github.com/element-hq/element-call) — MatrixRTC reference implementation (AGPL-3.0)
+- [LiveKit](https://livekit.io) — WebRTC SFU infrastructure (Apache-2.0)
+
+Original copyright headers from upstream projects are preserved in all source files.
+
+---
+
+## Project Website
+
+[hostmesh.diy](https://hostmesh.diy)

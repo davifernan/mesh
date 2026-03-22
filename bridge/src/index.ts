@@ -1,5 +1,5 @@
 /**
- * BetterCord Presence Bridge — entry point
+ * mesh Presence Bridge — entry point
  *
  * Wires together the modular components and starts the Hono/Bun HTTP server.
  *
@@ -106,7 +106,7 @@ registerHealthRoute(app, store, stats);
 // ── Startup banner ────────────────────────────────────────────────────────────
 
 console.log(`[bridge] ─────────────────────────────────────────────`);
-console.log(`[bridge] BetterCord Presence Bridge starting on port ${PORT}`);
+console.log(`[bridge] mesh Presence Bridge starting on port ${PORT}`);
 console.log(`[bridge] LiveKit API key:    ${LIVEKIT_API_KEY ? '✓ set' : '✗ MISSING — webhooks will be rejected!'}`);
 console.log(`[bridge] LiveKit API secret: ${LIVEKIT_API_SECRET ? '✓ set' : '✗ MISSING — webhooks will be rejected!'}`);
 console.log(`[bridge] LiveKit URL:        ${LIVEKIT_URL || '(not set — reconcile disabled)'}`);

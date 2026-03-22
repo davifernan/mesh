@@ -1,5 +1,5 @@
 /**
- * BetterCord — Call Room Utilities
+ * mesh — Call Room Utilities
  *
  * Pure helper functions extracted from nativeCallEngine.ts to stay under the 650-line limit.
  */

@@ -12,7 +12,7 @@ export function WelcomePage() {
         direction="Column"
         style={{ gap: '1.5rem', padding: '2rem', textAlign: 'center' }}
       >
-        {/* BetterCord logo mark — squircle, same design as auth page */}
+        {/* mesh logo mark — squircle, same design as auth page */}
         <div
           style={{
             width: '5rem',
@@ -43,7 +43,7 @@ export function WelcomePage() {
               margin: 0,
             }}
           >
-            Welcome to BetterCord
+            Welcome to mesh
           </Text>
           <Text
             size="T300"

@@ -59,7 +59,7 @@ export const useGlobalKeyboardShortcuts = () => {
           description: 'Focus room list',
           category: 'Navigation',
           allowInEditable: true,
-          action: () => focusSection('#bettercord-room-listbox'),
+          action: () => focusSection('#mesh-room-listbox'),
         },
         {
           key: c('Focus message timeline', 'alt+t'),
@@ -67,7 +67,7 @@ export const useGlobalKeyboardShortcuts = () => {
           description: 'Focus message timeline',
           category: 'Navigation',
           allowInEditable: true,
-          action: () => focusSection('#bettercord-timeline'),
+          action: () => focusSection('#mesh-timeline'),
         },
         {
           key: c('Focus message composer', 'alt+c'),

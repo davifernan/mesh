@@ -59,11 +59,11 @@ export function Room() {
 
   // Resizable panels
   const { width: threadPanelWidth, onDividerPointerDown: handleThreadDividerPointerDown } =
-    useResizablePanel(320, 200, 600, 'bettercord_thread_panel_width');
+    useResizablePanel(320, 200, 600, 'mesh_thread_panel_width');
   const { width: widgetPanelWidth, onDividerPointerDown: handleWidgetDividerPointerDown } =
-    useResizablePanel(420, 280, 700, 'bettercord_widget_panel_width');
+    useResizablePanel(420, 280, 700, 'mesh_widget_panel_width');
   const { width: memberPanelWidth, onDividerPointerDown: handleMemberDividerPointerDown } =
-    useResizablePanel(266, 180, 500, 'bettercord_member_panel_width');
+    useResizablePanel(266, 180, 500, 'mesh_member_panel_width');
 
   // Reset all panel views when navigating to a different room.
   useEffect(() => {
@@ -130,9 +130,9 @@ export function Room() {
 
   useEffect(() => {
     const name = room.name || room.roomId;
-    document.title = `${name} – BetterCord`;
+    document.title = `${name} – mesh`;
     return () => {
-      document.title = 'BetterCord';
+      document.title = 'mesh';
     };
   }, [room.name, room.roomId]);
 

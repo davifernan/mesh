@@ -22,7 +22,7 @@ export const RoomName = style({
   minWidth: 0,
 });
 
-/* --- BetterCord-style active call voice panel --- */
+/* --- mesh-style active call voice panel --- */
 
 export const VoiceContainer = style({
   position: 'relative',

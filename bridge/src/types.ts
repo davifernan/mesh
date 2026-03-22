@@ -1,5 +1,5 @@
 /**
- * Shared types for the BetterCord Presence Bridge.
+ * Shared types for the mesh Presence Bridge.
  *
  * These types are the contract between all bridge modules and are also
  * the wire format consumed by BridgePresenceProvider on the frontend.

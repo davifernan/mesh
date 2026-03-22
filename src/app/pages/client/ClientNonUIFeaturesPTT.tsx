@@ -4,7 +4,7 @@
  * Split from ClientNonUIFeatures.tsx to stay under the 650-line limit.
  * Contains:
  *  - PWABadge          — navigator.setAppBadge() for PWA/browser badge count
- *  - ElectronDeepLink  — bettercord:// URL handler (Electron + web fallback)
+ *  - ElectronDeepLink  — mesh:// URL handler (Electron + web fallback)
  *                        Extended to handle invite/CODE and room/ROOM_ID patterns
  *  - PTTElectronShortcut — Push-to-Talk via Electron globalShortcut or web keydown/keyup
  */
@@ -47,12 +47,12 @@ export function PWABadge() {
 
 // ---------------------------------------------------------------------------
 // ElectronDeepLink (extended)
-// Handles bettercord:// URLs from both Electron and (on web) window.location.
+// Handles mesh:// URLs from both Electron and (on web) window.location.
 //
 // Supported patterns:
-//   bettercord://app/<path>         → /<path>  (existing behaviour)
-//   bettercord://invite/<CODE>      → /home/join/ (with invite code in hash/search)
-//   bettercord://room/<ROOM_ID>     → /home/<roomIdOrAlias>/
+//   mesh://app/<path>         → /<path>  (existing behaviour)
+//   mesh://invite/<CODE>      → /home/join/ (with invite code in hash/search)
+//   mesh://room/<ROOM_ID>     → /home/<roomIdOrAlias>/
 // ---------------------------------------------------------------------------
 
 export function ElectronDeepLink() {
@@ -62,11 +62,11 @@ export function ElectronDeepLink() {
     (url: string) => {
       try {
         const parsed = new URL(url);
-        const scheme = parsed.protocol; // e.g. "bettercord:"
+        const scheme = parsed.protocol; // e.g. "mesh:"
         const host = parsed.host;       // e.g. "invite", "room", "app"
         const pathParts = parsed.pathname.replace(/^\//, '').split('/').filter(Boolean);
 
-        if (scheme !== 'bettercord:') {
+        if (scheme !== 'mesh:') {
           // Not our scheme — try treating as normal URL
           const appPath = getAppPathFromHref(getOriginBaseUrl(), url);
           if (appPath && appPath !== '/') navigate(appPath);
@@ -74,7 +74,7 @@ export function ElectronDeepLink() {
         }
 
         if (host === 'invite') {
-          // bettercord://invite/CODE → navigate to join flow with the code pre-filled
+          // mesh://invite/CODE → navigate to join flow with the code pre-filled
           const code = pathParts[0] ?? parsed.pathname.replace(/^\//, '');
           if (code) {
             // HOME_JOIN_PATH = /home/join/
@@ -82,13 +82,13 @@ export function ElectronDeepLink() {
             navigate(`${getHomeJoinPath()}?alias=${encodeURIComponent(code)}`);
           }
         } else if (host === 'room') {
-          // bettercord://room/ROOM_ID_OR_ALIAS → navigate directly to that room
+          // mesh://room/ROOM_ID_OR_ALIAS → navigate directly to that room
           const roomId = pathParts[0] ?? parsed.pathname.replace(/^\//, '');
           if (roomId) {
             navigate(getHomeRoomPath(roomId));
           }
         } else {
-          // bettercord://app/some/path → /some/path  (legacy / default)
+          // mesh://app/some/path → /some/path  (legacy / default)
           const path = `/${host}${parsed.pathname}${parsed.search}${parsed.hash}`.replace(
             /^\/app/,
             ''
@@ -121,7 +121,7 @@ export function ElectronDeepLink() {
   }, [handleDeepLinkUrl]);
 
   // -------------------------------------------------------------------------
-  // Web fallback: handle bettercord:// URLs arriving via window.location
+  // Web fallback: handle mesh:// URLs arriving via window.location
   // (some OS / browser setups redirect custom protocol URLs to the PWA).
   // Check on mount and on popstate/hashchange.
   // -------------------------------------------------------------------------
@@ -130,7 +130,7 @@ export function ElectronDeepLink() {
 
     const checkLocation = () => {
       const href = window.location.href;
-      if (href.startsWith('bettercord://')) {
+      if (href.startsWith('mesh://')) {
         handleDeepLinkUrl(href);
       }
     };

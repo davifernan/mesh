@@ -5,7 +5,7 @@ import { useMatrixClient } from './useMatrixClient';
 import { spaceAVSettingsAtom, SpaceAVSettings } from '../state/avQuality';
 import { useStateEventCallback } from './useStateEventCallback';
 
-const AV_SETTINGS_EVENT_TYPE = 'io.bettercord.space.av_settings';
+const AV_SETTINGS_EVENT_TYPE = 'io.mesh.space.av_settings';
 
 function parseAVSettings(content: Record<string, unknown>): SpaceAVSettings {
   return {
@@ -20,7 +20,7 @@ function parseAVSettings(content: Record<string, unknown>): SpaceAVSettings {
 }
 
 /**
- * Loads `io.bettercord.space.av_settings` state from the given space room
+ * Loads `io.mesh.space.av_settings` state from the given space room
  * and keeps `spaceAVSettingsAtom` in sync. Call this once per space view.
  */
 export function useSpaceAVSettings(spaceId: string | undefined) {

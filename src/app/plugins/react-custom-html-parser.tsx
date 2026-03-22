@@ -38,7 +38,7 @@ import {
   parseMatrixToUser,
   testMatrixTo,
 } from './matrix-to';
-import { parseBetterCordPermalink, testBetterCordPermalink } from './permalink';
+import { parsemeshPermalink, testmeshPermalink } from './permalink';
 import { onEnterOrSpace } from '../utils/keyboard';
 import { copyToClipboard, tryDecodeURIComponent } from '../utils/dom';
 import { useTimeoutToggle } from '../hooks/useTimeoutToggle';
@@ -159,7 +159,7 @@ export const renderMatrixMention = (
     });
   }
 
-  const permalink = parseBetterCordPermalink(href);
+  const permalink = parsemeshPermalink(href);
   if (permalink?.kind === 'space') {
     const mentionRoom = mx.getRoom(
       isRoomAlias(permalink.spaceIdOrAlias)
@@ -208,7 +208,7 @@ export const factoryRenderLinkifyWithMention = (
     if (
       tagName === 'a' &&
       (testMatrixTo(tryDecodeURIComponent(attributes.href)) ||
-        testBetterCordPermalink(tryDecodeURIComponent(attributes.href)))
+        testmeshPermalink(tryDecodeURIComponent(attributes.href)))
     ) {
       const mention = mentionRender(tryDecodeURIComponent(attributes.href));
       if (mention) return mention;
@@ -497,7 +497,7 @@ export const getReactCustomHtmlParser = (
         if (
           name === 'a' &&
           (testMatrixTo(tryDecodeURIComponent(props.href)) ||
-            testBetterCordPermalink(tryDecodeURIComponent(props.href)))
+            testmeshPermalink(tryDecodeURIComponent(props.href)))
         ) {
           const content = children.find((child) => !(child instanceof DOMText))
             ? undefined

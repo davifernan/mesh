@@ -1,6 +1,6 @@
-# BetterCord — UX Backlog
+# mesh — UX Backlog
 
-Analysiert aus dem BetterCord-Frontend-Quellcode.
+Analysiert aus dem mesh-Frontend-Quellcode.
 Nur Features die **im Frontend umsetzbar** sind — entweder rein clientseitig oder mit nativer Matrix-API-Unterstützung.
 
 ---
@@ -36,7 +36,7 @@ Nur Features die **im Frontend umsetzbar** sind — entweder rein clientseitig o
 2. Reply aktiv → Reply abbrechen
 3. Sonst → Channel als gelesen markieren + zur neuesten Nachricht scrollen
 
-**Wie:** Im globalen Keydown-Handler (oder Textarea-Handler) die Reihenfolge prüfen. BetterCord hat bereits `stopReply()` und edit-cancel-Logik — nur zusammenführen.
+**Wie:** Im globalen Keydown-Handler (oder Textarea-Handler) die Reihenfolge prüfen. mesh hat bereits `stopReply()` und edit-cancel-Logik — nur zusammenführen.
 
 **Referenz:** `src/hooks/useTextareaKeyboard.tsx` Zeile 130–160
 
@@ -93,7 +93,7 @@ Nur Features die **im Frontend umsetzbar** sind — entweder rein clientseitig o
 **Ein/Ausblend-Animation:** Der Pill fährt von `translateY(8px), opacity: 0` auf `translateY(0), opacity: 1` wenn jemand anfängt zu tippen. Verschwindet sanft wenn alle aufgehört haben.
 
 **Wie:**
-- Typing-State aus dem Matrix-Client lesen: `mx.getRoom(roomId)?.currentState` oder der bereits vorhandene Typing-Hook in BetterCord
+- Typing-State aus dem Matrix-Client lesen: `mx.getRoom(roomId)?.currentState` oder der bereits vorhandene Typing-Hook in mesh
 - Neue Komponente `TypingIndicatorPill.tsx` direkt im `RoomInputArea`-Container platzieren
 - Container der Textarea braucht `position: relative`, der Pill bekommt `position: absolute; bottom: calc(100% + 4px); left: 0`
 - Display-Namen der tippenden User via `room.getMember(userId)?.name` auflösen
@@ -133,7 +133,7 @@ Die Sektion-Überschriften `ONLINE — 12` / `OFFLINE — 34` bekommen ihre Zahl
 .memberName { transition: color 200ms ease; }
 ```
 
-**Aufwand:** ~1–2h (Member-Sidebar existiert bereits in BetterCord — direkt umsetzbar)
+**Aufwand:** ~1–2h (Member-Sidebar existiert bereits in mesh — direkt umsetzbar)
 
 ---
 
@@ -181,7 +181,7 @@ Die Sektion-Überschriften `ONLINE — 12` / `OFFLINE — 34` bekommen ihre Zahl
 
 **Was:** Wenn der User in der History nach oben gescrollt hat (ältere Nachrichten), erscheint am unteren Rand ein Banner: `"Du siehst ältere Nachrichten · Zu aktuellen Nachrichten springen"`.
 
-**Wie:** `hasMoreAfter`-State aus der Timeline tracken (BetterCord hat bereits "load more"-Logik). Wenn `!isAtBottom && hasMoreAfter` → Bar anzeigen. Klick → ans Ende springen.
+**Wie:** `hasMoreAfter`-State aus der Timeline tracken (mesh hat bereits "load more"-Logik). Wenn `!isAtBottom && hasMoreAfter` → Bar anzeigen. Klick → ans Ende springen.
 
 **Referenz:** `src/components/channel/Messages.tsx` Zeile 662–690
 
@@ -277,7 +277,7 @@ Nach der Erstellung wird automatisch zum neuen Channel navigiert.
 
 **Was:** Nachrichten können über die Action-Bar mit einem Lesezeichen versehen werden. Gespeicherte Nachrichten sind in einem eigenen Panel zugänglich.
 
-**Wie:** Bookmarks in Matrix `account_data` unter `app.bettercord.bookmarks` (Array von `{eventId, roomId, timestamp}`) speichern. Max ~200 Einträge. UI: ein Icon in der Action-Bar (gefüllt wenn bereits gemerkt), ein Panel/Tab in der Sidebar.
+**Wie:** Bookmarks in Matrix `account_data` unter `app.mesh.bookmarks` (Array von `{eventId, roomId, timestamp}`) speichern. Max ~200 Einträge. UI: ein Icon in der Action-Bar (gefüllt wenn bereits gemerkt), ein Panel/Tab in der Sidebar.
 
 **Referenz:** `src/components/channel/MessageActionUtils.tsx` Zeile 272–288
 
@@ -437,7 +437,7 @@ Klick auf ein Member → öffnet User Profile Popup.
 
 **Wie:**
 - Matrix hat native Einlade-Links via `mx.makeRoomAliasOrId()` — aber keine Ablaufzeit auf Protokoll-Ebene
-- Ablaufzeit + Max-Uses als custom state event (`app.bettercord.invite_settings`) speichern, server-seitig optional validieren
+- Ablaufzeit + Max-Uses als custom state event (`app.mesh.invite_settings`) speichern, server-seitig optional validieren
 - Minimal: nur Copy-Link + Einfache Optionen ohne server-seitiges Enforcement
 
 **Referenz:** `src/components/modals/InviteModal.tsx`
@@ -455,7 +455,7 @@ Klick auf ein Member → öffnet User Profile Popup.
 Der Status ist für andere sichtbar (in Profile Cards, Member List).
 
 **Wie:**
-- Speichern in Matrix `mx.setAccountData('app.bettercord.status', {emoji, text, expiresAt})`
+- Speichern in Matrix `mx.setAccountData('app.mesh.status', {emoji, text, expiresAt})`
 - Client-seitiger Expiry-Timer (setTimeout) der den Status nach Ablauf nullt
 - Anzeigen: `mx.getUser(userId).accountData` lesen (oder via Presence-Event broadcasten)
 - `CustomStatusModal.tsx` für das Eingabe-UI + Emoji-Picker
@@ -492,11 +492,11 @@ Der Status ist für andere sichtbar (in Profile Cards, Member List).
 
 **Was:** Dünne Bannerleisten ganz oben in der App für wichtige System-Hinweise:
 
-Sinnvolle Nagbars für BetterCord:
+Sinnvolle Nagbars für mesh:
 - **E-Mail nicht verifiziert** (falls Homeserver das meldet)
 - **Desktop-Benachrichtigungen erlauben** (wenn `Notification.permission === 'default'`)
 - **Verbindungsproblem** (wenn Matrix-Client disconnected)
-- **Neue BetterCord-Version verfügbar** (wenn Service Worker Update detected)
+- **Neue mesh-Version verfügbar** (wenn Service Worker Update detected)
 
 Mehrere Nagbars stacken vertikal. Jede hat ein ✕ zum Dismissen (persistent in localStorage).
 
@@ -542,4 +542,4 @@ Woche 5+ — Social Features:
 
 ---
 
-*Erstellt nach BetterCord-Frontend-Analyse — Stand: März 2026*
+*Erstellt nach mesh-Frontend-Analyse — Stand: März 2026*

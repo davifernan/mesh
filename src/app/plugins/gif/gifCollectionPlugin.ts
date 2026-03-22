@@ -8,7 +8,7 @@ import { GifCollectionContent, GifItem, ResolvedGifCollection } from './types';
 
 // Custom event type string — cast to `any` to bypass SDK's closed StateEvents map
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-const GIF_COLLECTION_EVENT = StateEvent.BetterCordSpaceGifCollection as any;
+const GIF_COLLECTION_EVENT = StateEvent.meshSpaceGifCollection as any;
 
 // Read all GIF collections from a space room
 export function getSpaceGifCollections(
@@ -18,7 +18,7 @@ export function getSpaceGifCollections(
   const room = mx.getRoom(spaceId);
   if (!room) return [];
 
-  return getStateEvents(room, StateEvent.BetterCordSpaceGifCollection).reduce<
+  return getStateEvents(room, StateEvent.meshSpaceGifCollection).reduce<
     ResolvedGifCollection[]
   >((acc, event) => {
     const collectionId = event.getStateKey();
@@ -73,7 +73,7 @@ export async function addGifToCollection(
   const room = mx.getRoom(spaceId);
   if (!room) throw new Error('Space not found');
 
-  const stateEvents = getStateEvents(room, StateEvent.BetterCordSpaceGifCollection);
+  const stateEvents = getStateEvents(room, StateEvent.meshSpaceGifCollection);
   const collectionEvent = stateEvents.find((e) => e.getStateKey() === collectionId);
   if (!collectionEvent) throw new Error('GIF collection not found');
 
@@ -109,7 +109,7 @@ export async function removeGifFromCollection(
   const room = mx.getRoom(spaceId);
   if (!room) throw new Error('Space not found');
 
-  const stateEvents = getStateEvents(room, StateEvent.BetterCordSpaceGifCollection);
+  const stateEvents = getStateEvents(room, StateEvent.meshSpaceGifCollection);
   const collectionEvent = stateEvents.find((e) => e.getStateKey() === collectionId);
   if (!collectionEvent) throw new Error('GIF collection not found');
 
@@ -131,7 +131,7 @@ export function useSpaceGifCollections(spaceId: string): ResolvedGifCollection[]
   const mx = useMatrixClient();
   const room = mx.getRoom(spaceId) ?? null;
 
-  const events = useStateEvents(room, StateEvent.BetterCordSpaceGifCollection);
+  const events = useStateEvents(room, StateEvent.meshSpaceGifCollection);
 
   return useMemo(
     () =>

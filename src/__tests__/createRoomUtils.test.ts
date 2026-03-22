@@ -134,7 +134,7 @@ describe('createPowerLevelContentOverrides — call-room shape (as used in creat
   //     events: {
   //       'org.matrix.msc3401.call': 100,
   //       'org.matrix.msc3401.call.member': 0,
-  //       'org.bettercord.call.info': 0,
+  //       'org.mesh.call.info': 0,
   //     },
   //   })
 
@@ -142,7 +142,7 @@ describe('createPowerLevelContentOverrides — call-room shape (as used in creat
     events: {
       'org.matrix.msc3401.call': 100,
       'org.matrix.msc3401.call.member': 0,
-      'org.bettercord.call.info': 0,
+      'org.mesh.call.info': 0,
     },
   };
 
@@ -156,14 +156,14 @@ describe('createPowerLevelContentOverrides — call-room shape (as used in creat
     expect(result.events?.['org.matrix.msc3401.call.member']).toBe(0);
   });
 
-  it('io.bettercord.call.presence is NOT in the call-room PL', () => {
+  it('io.mesh.call.presence is NOT in the call-room PL', () => {
     const result = createPowerLevelContentOverrides({}, CALL_ROOM_EVENTS_OVERRIDE);
-    expect(result.events?.['io.bettercord.call.presence']).toBeUndefined();
+    expect(result.events?.['io.mesh.call.presence']).toBeUndefined();
   });
 
-  it('org.bettercord.call.info is 0 in the call-room PL', () => {
+  it('org.mesh.call.info is 0 in the call-room PL', () => {
     const result = createPowerLevelContentOverrides({}, CALL_ROOM_EVENTS_OVERRIDE);
-    expect(result.events?.['org.bettercord.call.info']).toBe(0);
+    expect(result.events?.['org.mesh.call.info']).toBe(0);
   });
 
   it('call-room PL preserves any base powerLevelContentOverrides passed in', () => {
@@ -181,7 +181,7 @@ describe('createPowerLevelContentOverrides — call-room shape (as used in creat
     expect(result.events?.['some.custom.event']).toBe(50);
     // Call-specific overrides still applied
     expect(result.events?.['org.matrix.msc3401.call']).toBe(100);
-    expect(result.events?.['io.bettercord.call.presence']).toBeUndefined();
+    expect(result.events?.['io.mesh.call.presence']).toBeUndefined();
   });
 
   it('non-call rooms (no override applied) do NOT get the call-specific event entries', () => {
@@ -196,8 +196,8 @@ describe('createPowerLevelContentOverrides — call-room shape (as used in creat
     // So we just check that the base has no call entries:
     expect(nonCallBase.events?.['org.matrix.msc3401.call']).toBeUndefined();
     expect(nonCallBase.events?.['org.matrix.msc3401.call.member']).toBeUndefined();
-    expect(nonCallBase.events?.['io.bettercord.call.presence']).toBeUndefined();
-    expect(nonCallBase.events?.['org.bettercord.call.info']).toBeUndefined();
+    expect(nonCallBase.events?.['io.mesh.call.presence']).toBeUndefined();
+    expect(nonCallBase.events?.['org.mesh.call.info']).toBeUndefined();
   });
 
   it('RoomType.Call value is org.matrix.msc3417.call (verify enum)', () => {

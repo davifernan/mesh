@@ -8,8 +8,8 @@ registerApp({
   category: 'media',
   widgetUrl: '/youtube.html?widgetId=$matrix_widget_id&parentUrl=$matrix_client_origin',
   capabilities: [
-    'eu.bettercord.apps.youtube',
-    'eu.bettercord.apps.youtube.cmd',
+    'eu.mesh.apps.youtube',
+    'eu.mesh.apps.youtube.cmd',
     'm.room.power_levels',
   ],
 });

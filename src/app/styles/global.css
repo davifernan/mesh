@@ -1,4 +1,4 @@
-/* BetterCord Design System — Dark Theme */
+/* mesh Design System — Dark Theme */
 
 @import '@fontsource/ibm-plex-sans/400.css';
 @import '@fontsource/ibm-plex-sans/500.css';
@@ -6,7 +6,7 @@
 @import '@fontsource/ibm-plex-mono/400.css';
 
 :root {
-  /* === LAYOUT (BetterCord Design System) === */
+  /* === LAYOUT (mesh Design System) === */
   --layout-guild-list-width: 4.5rem;
   --layout-sidebar-width: 16.875rem;
   --layout-header-height: 3.5rem;
@@ -267,7 +267,7 @@ body {
 ::-webkit-scrollbar-thumb:hover { background: var(--scrollbar-thumb-bg-hover); }
 
 /* ================================================================
-   BetterCord: App shell with rounded top-left corner
+   mesh: App shell with rounded top-left corner
    Outer shell shows --background-secondary (sidebar bg)
    Content area "floats" on it with border-top-left-radius
    ================================================================ */

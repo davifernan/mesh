@@ -1,5 +1,5 @@
 /**
- * BetterCord — Native Call Engine
+ * mesh — Native Call Engine
  *
  * useNativeCall(roomId) manages the full Matrix RTC + LiveKit + E2EE lifecycle
  * for a single voice/video call room.
@@ -14,7 +14,7 @@
  *
  * Presence model:
  *   The bridge SSE stream (BridgePresenceProvider) is the sole source of truth
- *   for non-participant observers. Matrix io.bettercord.call.presence state events
+ *   for non-participant observers. Matrix io.mesh.call.presence state events
  *   are NOT written by this engine. Deafen state is propagated via the LiveKit
  *   participant attribute `isDeafened` so the bridge webhook can pick it up.
  */
@@ -311,7 +311,7 @@ export function useNativeCall(roomId: string | null): NativeCallEngine {
 
         if (!serviceUrl) {
           throw new Error(
-            'No LiveKit focus URL found. Set BETTERCORD_LIVEKIT_URL (Docker) or livekitServiceUrl in config.json.',
+            'No LiveKit focus URL found. Set MESH_LIVEKIT_URL (Docker) or livekitServiceUrl in config.json.',
           );
         }
 
@@ -589,7 +589,7 @@ export function useNativeCall(roomId: string | null): NativeCallEngine {
               // ScreenShare: not subscribed — user must click Watch
             }
           } catch (err) {
-            console.error('[BetterCord] ParticipantConnected subscription error:', err);
+            console.error('[mesh] ParticipantConnected subscription error:', err);
           }
         });
         room.on(RoomEvent.ParticipantDisconnected, (participant) => {
@@ -1007,7 +1007,7 @@ export function useNativeCall(roomId: string | null): NativeCallEngine {
     if (!livekitRoom || !userSettings.speakerDeviceId || status !== 'connected') return;
     livekitRoom
       .switchActiveDevice('audiooutput', userSettings.speakerDeviceId)
-      .catch((err) => console.warn('[BetterCord] Speaker switch failed:', err));
+      .catch((err) => console.warn('[mesh] Speaker switch failed:', err));
   }, [livekitRoom, userSettings.speakerDeviceId, status]);
 
   // ── Receive video quality (#31) ───────────────────────────────────────────

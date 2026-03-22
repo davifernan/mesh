@@ -1,5 +1,5 @@
 /**
- * BetterCord — Audio-Wins-Over-Video Quality Fallback
+ * mesh — Audio-Wins-Over-Video Quality Fallback
  *
  * When LiveKit reports Poor/Lost connection quality for the local participant,
  * we automatically throttle screenshare and camera video bitrates to protect

@@ -21,7 +21,7 @@ import { useRoomNavigate } from '../../hooks/useRoomNavigate';
 import { stopPropagation } from '../../utils/keyboard';
 import { isRoomAlias, isRoomId } from '../../utils/matrix';
 import { parseMatrixToRoom, parseMatrixToRoomEvent, testMatrixTo } from '../../plugins/matrix-to';
-import { getBetterCordPermalinkPath, parseBetterCordPermalink } from '../../plugins/permalink';
+import { getmeshPermalinkPath, parsemeshPermalink } from '../../plugins/permalink';
 import { tryDecodeURIComponent } from '../../utils/dom';
 import { getSpacePath } from '../../pages/pathUtils';
 
@@ -91,7 +91,7 @@ export function CreateCommunityModal({ onClose }: CreateCommunityModalProps) {
       const toEvent = parseMatrixToRoomEvent(decoded);
       if (toEvent) {
         navigate(
-          getBetterCordPermalinkPath({
+          getmeshPermalinkPath({
             kind: 'room',
             roomIdOrAlias: toEvent.roomIdOrAlias,
             eventId: toEvent.eventId,
@@ -103,9 +103,9 @@ export function CreateCommunityModal({ onClose }: CreateCommunityModalProps) {
       }
     }
 
-    const permalink = parseBetterCordPermalink(address);
+    const permalink = parsemeshPermalink(address);
     if (permalink) {
-      navigate(getBetterCordPermalinkPath(permalink));
+      navigate(getmeshPermalinkPath(permalink));
       onClose();
       return;
     }

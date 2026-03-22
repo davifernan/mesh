@@ -1,15 +1,15 @@
 import type { ResolvedSoundboard } from './types';
 
-export const BUILTIN_SOUNDBOARD_SPACE_ID = '__bettercord_builtin__';
-export const BUILTIN_SOUNDBOARD_BOARD_ID = '__bettercord_reactions__';
+export const BUILTIN_SOUNDBOARD_SPACE_ID = '__mesh_builtin__';
+export const BUILTIN_SOUNDBOARD_BOARD_ID = '__mesh_reactions__';
 
 export const BUILTIN_SOUNDBOARD: ResolvedSoundboard = {
   spaceId: BUILTIN_SOUNDBOARD_SPACE_ID,
   boardId: BUILTIN_SOUNDBOARD_BOARD_ID,
   content: {
-    name: 'BetterCord Reactions',
+    name: 'mesh Reactions',
     emoji: '🎛️',
-    createdBy: 'bettercord',
+    createdBy: 'mesh',
     createdAt: 1741700000000,
     sounds: {
       'horn-stab': {
@@ -20,7 +20,7 @@ export const BUILTIN_SOUNDBOARD: ResolvedSoundboard = {
         url: 'https://upload.wikimedia.org/wikipedia/commons/7/7b/Horn_stab.mp3',
         durationMs: 1400,
         volume: 0.95,
-        addedBy: 'bettercord',
+        addedBy: 'mesh',
         addedAt: 1741700000000,
         tags: ['horn', 'airhorn', 'reaction', 'loud'],
       },
@@ -32,7 +32,7 @@ export const BUILTIN_SOUNDBOARD: ResolvedSoundboard = {
         url: 'https://upload.wikimedia.org/wikipedia/commons/5/5b/Applause-2.ogg',
         durationMs: 3200,
         volume: 0.9,
-        addedBy: 'bettercord',
+        addedBy: 'mesh',
         addedAt: 1741700000001,
         tags: ['clap', 'cheer', 'crowd', 'win'],
       },
@@ -44,7 +44,7 @@ export const BUILTIN_SOUNDBOARD: ResolvedSoundboard = {
         url: 'https://upload.wikimedia.org/wikipedia/commons/4/4c/Crickets_choir.ogg',
         durationMs: 5000,
         volume: 0.82,
-        addedBy: 'bettercord',
+        addedBy: 'mesh',
         addedAt: 1741700000002,
         tags: ['awkward', 'silence', 'fail', 'empty'],
       },
@@ -56,7 +56,7 @@ export const BUILTIN_SOUNDBOARD: ResolvedSoundboard = {
         url: 'https://upload.wikimedia.org/wikipedia/commons/0/0f/Kevin_MacLeod_assorted_rimshots_-_Bah-dum.wav',
         durationMs: 1800,
         volume: 0.88,
-        addedBy: 'bettercord',
+        addedBy: 'mesh',
         addedAt: 1741700000003,
         tags: ['joke', 'ba dum tss', 'drum', 'punchline'],
       },
@@ -68,7 +68,7 @@ export const BUILTIN_SOUNDBOARD: ResolvedSoundboard = {
         url: 'https://upload.wikimedia.org/wikipedia/commons/e/e5/Soundgoats_-_Audience_Booing.wav',
         durationMs: 2600,
         volume: 0.88,
-        addedBy: 'bettercord',
+        addedBy: 'mesh',
         addedAt: 1741700000004,
         tags: ['boo', 'crowd', 'fail', 'negative'],
       },
@@ -80,7 +80,7 @@ export const BUILTIN_SOUNDBOARD: ResolvedSoundboard = {
         url: 'https://upload.wikimedia.org/wikipedia/commons/9/93/LL-Q1860_%28eng%29-Wodencafe-wow.wav',
         durationMs: 1200,
         volume: 0.8,
-        addedBy: 'bettercord',
+        addedBy: 'mesh',
         addedAt: 1741700000005,
         tags: ['wow', 'surprise', 'reaction'],
       },
@@ -92,7 +92,7 @@ export const BUILTIN_SOUNDBOARD: ResolvedSoundboard = {
         url: 'https://upload.wikimedia.org/wikipedia/commons/8/83/Completion_%28Gravity_Sound%29.mp3',
         durationMs: 1900,
         volume: 0.82,
-        addedBy: 'bettercord',
+        addedBy: 'mesh',
         addedAt: 1741700000006,
         tags: ['success', 'complete', 'achievement'],
       },
@@ -104,7 +104,7 @@ export const BUILTIN_SOUNDBOARD: ResolvedSoundboard = {
         url: 'https://upload.wikimedia.org/wikipedia/commons/c/ca/Win_%28avk%29.wav',
         durationMs: 1800,
         volume: 0.85,
-        addedBy: 'bettercord',
+        addedBy: 'mesh',
         addedAt: 1741700000007,
         tags: ['victory', 'win', 'success'],
       },

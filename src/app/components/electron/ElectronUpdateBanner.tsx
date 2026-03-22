@@ -68,7 +68,7 @@ export function ElectronUpdateBanner() {
       {state.phase === 'ready' && (
         <>
           <span>
-            {state.version ? `BetterCord ${state.version} is ready.` : 'An update is ready.'}{' '}
+            {state.version ? `mesh ${state.version} is ready.` : 'An update is ready.'}{' '}
             Restart to apply.
           </span>
           <button

@@ -35,7 +35,7 @@ const REMOVAL_GRACE_MS = 200;
 // ── Call Info Event ──────────────────────────────────────────────────────────
 // State event written by the first joiner to record when the call started.
 // Empty content = cleared (call ended).  All clients read this for the timer.
-export const CALL_INFO_EVENT = 'org.bettercord.call.info';
+export const CALL_INFO_EVENT = 'org.mesh.call.info';
 
 function getCallStartedAt(room: Room): number | null {
   const ev = room.currentState.getStateEvents(CALL_INFO_EVENT, '');

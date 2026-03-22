@@ -1,4 +1,4 @@
-# BetterCord Microapps (Activities)
+# mesh Microapps (Activities)
 
 Discord-style in-call activities — widget apps that appear as extra participant tiles inside the voice call view, alongside real users.
 
@@ -15,13 +15,13 @@ User clicks 🚀 → picks YouTube → state event written to room
 
 ## Apps
 
-### YouTube Together (`eu.bettercord.apps.youtube`)
+### YouTube Together (`eu.mesh.apps.youtube`)
 
 Watch YouTube videos in sync. One person controls playback; everyone follows.
 
 | Feature | Detail |
 |---|---|
-| Sync mechanism | Matrix room state (`eu.bettercord.apps.youtube`) + command events (`eu.bettercord.apps.youtube.cmd`) |
+| Sync mechanism | Matrix room state (`eu.mesh.apps.youtube`) + command events (`eu.mesh.apps.youtube.cmd`) |
 | Drift compensation | `timestamp + (Date.now() − issuedAt) / 1000` — accounts for event propagation delay |
 | Late-joiners | Current position is stored in room state; new clients seek on load |
 | Permissions | Any room member can control playback |
@@ -32,7 +32,7 @@ Watch YouTube videos in sync. One person controls playback; everyone follows.
 - `https://youtube.com/shorts/VIDEO_ID`
 - `https://youtube.com/embed/VIDEO_ID`
 
-### Spotify Together (`eu.bettercord.apps.spotify`)
+### Spotify Together (`eu.mesh.apps.spotify`)
 
 Share a Spotify track, album, or playlist in the room. Everyone sees the same embed.
 
@@ -61,7 +61,7 @@ Requires a self-hosted Docker container. See [Server Admin Setup](#server-admin-
 
 ## Server Admin Setup
 
-YouTube and Spotify are bundled with BetterCord and need no extra infrastructure.
+YouTube and Spotify are bundled with mesh and need no extra infrastructure.
 
 Polls and Whiteboard run as optional Docker containers. They are **off by default** — they appear in the Activities catalog only when their URLs are configured.
 
@@ -72,14 +72,14 @@ Copy `.env.example` to `.env` and fill in:
 ```env
 # Public URL where users' browsers can reach the polls container.
 # Leave empty to hide Polls from the Activities catalog.
-BETTERCORD_POLLS_URL=https://polls.your-domain.com
+MESH_POLLS_URL=https://polls.your-domain.com
 
 # Public URL where users' browsers can reach the whiteboard container.
 # Leave empty to hide Whiteboard from the Activities catalog.
-BETTERCORD_WHITEBOARD_URL=https://whiteboard.your-domain.com
+MESH_WHITEBOARD_URL=https://whiteboard.your-domain.com
 ```
 
-The URLs must be publicly reachable — they are loaded directly by users' browsers, not by the BetterCord server.
+The URLs must be publicly reachable — they are loaded directly by users' browsers, not by the mesh server.
 
 ### 2. Start the services
 
@@ -93,8 +93,8 @@ docker compose --profile microapps up -d neoboard-widget
 # Start both:
 docker compose --profile microapps up -d
 
-# Then restart BetterCord so config-microapps.js is regenerated with the new URLs:
-docker compose restart bettercord
+# Then restart mesh so config-microapps.js is regenerated with the new URLs:
+docker compose restart mesh
 ```
 
 ### 3. Reverse proxy (nginx example)
@@ -187,7 +187,7 @@ export default {
 ## Architecture
 
 ```
-BetterCord/
+mesh/
 ├── src/apps/
 │   ├── index.ts                    # barrel: imports all catalog.ts files (side-effects)
 │   ├── youtube/
@@ -226,6 +226,6 @@ BetterCord/
 | Event type | State key | Content |
 |---|---|---|
 | `im.vector.modular.widgets` | app ID (e.g. `youtube`) | `{ type, url, name, id }` — standard widget format |
-| `eu.bettercord.apps.youtube` | `""` | `{ videoId, playing, timestamp, issuedAt }` |
-| `eu.bettercord.apps.youtube.cmd` | — (timeline) | `{ action: "load"|"play"|"pause"|"seek", videoId?, timestamp? }` |
-| `eu.bettercord.apps.spotify` | `""` | `{ url, contentType }` |
+| `eu.mesh.apps.youtube` | `""` | `{ videoId, playing, timestamp, issuedAt }` |
+| `eu.mesh.apps.youtube.cmd` | — (timeline) | `{ action: "load"|"play"|"pause"|"seek", videoId?, timestamp? }` |
+| `eu.mesh.apps.spotify` | `""` | `{ url, contentType }` |

@@ -1,11 +1,11 @@
-# BetterCord — Vision & Kontext für Nilo
+# mesh — Vision & Kontext für Nilo
 
-> Diese Datei hilft Nilo und seinen Agents zu verstehen was BetterCord ist,
+> Diese Datei hilft Nilo und seinen Agents zu verstehen was mesh ist,
 > wohin es geht, und was sinnvoll zu arbeiten ist.
 
-## Was ist BetterCord?
+## Was ist mesh?
 
-BetterCord ist ein Matrix-Client (Fork von Cinny) mit integriertem Voice/Video via LiveKit.
+mesh ist ein Matrix-Client (Fork von Cinny) mit integriertem Voice/Video via LiveKit.
 Ziel: Eine moderne, sichere Messaging-App mit Discord-ähnlichem UX auf Matrix-Basis.
 
 ## Vision

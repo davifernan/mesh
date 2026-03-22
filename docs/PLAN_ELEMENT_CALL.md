@@ -1,8 +1,8 @@
-# BetterCord — Element Call Fork Plan
+# mesh — Element Call Fork Plan
 
-> **Ziel:** Element Call forken, UI vollständig an BetterCord anpassen,
-> selbst hosten und in BetterCord einbinden.
-> **Repo:** https://github.com/davifernan/BetterCord-Call (privat, später open source)
+> **Ziel:** Element Call forken, UI vollständig an mesh anpassen,
+> selbst hosten und in mesh einbinden.
+> **Repo:** https://github.com/davifernan/mesh-Call (privat, später open source)
 > **Basis:** https://github.com/element-hq/element-call
 
 ---
@@ -17,7 +17,7 @@ Mit einem eigenen Fork haben wir:
 | Speaking Indicator | Komplex, via postMessage | Direkt in EC einbauen |
 | Verbindungsstatistiken | Via postMessage rausholen | Direkt in EC UI |
 | Eigene Farben/Icons | Nicht möglich | Vollständige Kontrolle |
-| BetterCord Design-System | Nicht möglich | CSS Variables aus BetterCord übernehmen |
+| mesh Design-System | Nicht möglich | CSS Variables aus mesh übernehmen |
 | Eigene Controls (Mute etc.) | Teilweise via Widget API | Direkt ersetzen |
 | Rauschunterdrückung Toggle | Via URL-Param | Direkt als Button |
 | Qualitäts-Settings | Via URL-Param | Direkt in UI |
@@ -27,9 +27,9 @@ Mit einem eigenen Fork haben wir:
 ## Architektur
 
 ```
-BetterCord Web-App
+mesh Web-App
     ↓ iframe lädt
-BetterCord-Call (eigener EC-Fork)
+mesh-Call (eigener EC-Fork)
     hosted auf: call.deine-domain.com
     oder: lokal gebundled in public/element-call/
 
@@ -48,26 +48,26 @@ WebRTC/E2EE: LiveKit + Matrix RTC (bleibt unverändert — nicht anfassen!)
 |-----|-------------|
 | Framework | React 18 |
 | Build | Vite |
-| State | Jotai (gleich wie BetterCord!) |
+| State | Jotai (gleich wie mesh!) |
 | Styling | CSS Modules + CSS Custom Properties |
 | Icons | Compound Icons (Element Design System) |
 | Voice/Video | LiveKit Client SDK |
 | Matrix | matrix-js-sdk + Matrix RTC |
 | E2EE | Per-Participant E2EE via Matrix |
 
-Gute Nachricht: Jotai kennen wir bereits aus BetterCord.
+Gute Nachricht: Jotai kennen wir bereits aus mesh.
 
 ---
 
 ## Was wir am EC-UI ändern wollen
 
 ### Visuell (höchste Priorität)
-- [ ] BetterCord CSS Custom Properties einbauen (gleiche Farben, Fonts, Spacing)
+- [ ] mesh CSS Custom Properties einbauen (gleiche Farben, Fonts, Spacing)
 - [ ] IBM Plex Sans + IBM Plex Mono statt Element-Fonts
 - [ ] Phosphor Icons statt Compound Icons
-- [ ] Dark Theme als Standard (passend zu BetterCord `#313338`)
-- [ ] Participant-Tiles: BetterCord-Style (abgerundete Kacheln, Name unten links)
-- [ ] Control-Bar unten: BetterCord-Style (Mute, Cam, Screen, Disconnect)
+- [ ] Dark Theme als Standard (passend zu mesh `#313338`)
+- [ ] Participant-Tiles: mesh-Style (abgerundete Kacheln, Name unten links)
+- [ ] Control-Bar unten: mesh-Style (Mute, Cam, Screen, Disconnect)
 - [ ] Speaking Indicator: grüner Glow-Ring direkt auf Kachel + Avatar
 
 ### Funktional
@@ -75,13 +75,13 @@ Gute Nachricht: Jotai kennen wir bereits aus BetterCord.
 - [ ] Verbindungsstatistiken Panel direkt in EC (RTCPeerConnection.getStats())
 - [ ] Rauschunterdrückung Toggle direkt als Button in der Control-Bar
 - [ ] Qualitäts-Settings direkt in EC UI (Resolution, FPS, Bitrate)
-- [ ] Screenshare Settings Modal (BetterCord-Style, wie in PLAN.md Phase 10 beschrieben)
+- [ ] Screenshare Settings Modal (mesh-Style, wie in PLAN.md Phase 10 beschrieben)
 - [ ] "Watching" Mode UI wenn man einem Stream zuschaut
 
 ### Entfernen
 - [ ] Element-eigenes Branding (Logo, "Powered by Element" etc.)
 - [ ] EC's eigener Header (bereits via `header=none` URL-Param versteckt)
-- [ ] EC's eigene Settings-Seite (wir haben unsere eigene in BetterCord)
+- [ ] EC's eigene Settings-Seite (wir haben unsere eigene in mesh)
 - [ ] EC's Lobby-Screen (bereits via `skipLobby=true` übersprungen)
 
 ---
@@ -90,7 +90,7 @@ Gute Nachricht: Jotai kennen wir bereits aus BetterCord.
 
 Ohne Fork müssen wir:
 ```
-LiveKit (in EC) → postMessage → BetterCord → State-Atom → RoomNavUser
+LiveKit (in EC) → postMessage → mesh → State-Atom → RoomNavUser
 ```
 Kompliziert, verzögert, fragil.
 
@@ -120,8 +120,8 @@ const { isSpeaking } = useParticipantInfo({ participant });
 
 ### Option A — Selbst gehostet (empfohlen)
 ```
-BetterCord-Call Fork → bauen → deployen auf call.deine-domain.com
-BetterCord config.json: { "elementCallUrl": "https://call.deine-domain.com" }
+mesh-Call Fork → bauen → deployen auf call.deine-domain.com
+mesh config.json: { "elementCallUrl": "https://call.deine-domain.com" }
 ```
 
 Vorteile:
@@ -131,7 +131,7 @@ Vorteile:
 
 ### Option B — Lokal gebundled (einfacher)
 ```
-BetterCord-Call Fork bauen → dist/ nach BetterCord/public/element-call/ kopieren
+mesh-Call Fork bauen → dist/ nach mesh/public/element-call/ kopieren
 ```
 
 Vorteile:
@@ -139,7 +139,7 @@ Vorteile:
 - Alles in einem Repo
 
 Nachteil:
-- BetterCord-Repo wird größer
+- mesh-Repo wird größer
 - Updates müssen manuell rüberkopiert werden
 
 ### Empfehlung: Option A für Production, Option B für Development
@@ -150,14 +150,14 @@ Nachteil:
 
 ```
 Schritt 1  →  Fork + Setup + lokaler Build             ~1 Tag
-Schritt 2  →  BetterCord Design-System einbauen        ~2 Tage
+Schritt 2  →  mesh Design-System einbauen        ~2 Tage
 Schritt 3  →  Speaking Indicator                       ~1 Tag
-Schritt 4  →  Control-Bar Redesign (BetterCord-Style)  ~2 Tage
+Schritt 4  →  Control-Bar Redesign (mesh-Style)  ~2 Tage
 Schritt 5  →  Participant-Tiles Redesign               ~2 Tage
 Schritt 6  →  Verbindungsstatistiken Panel             ~1 Tag
 Schritt 7  →  Rauschunterdrückung + Qualitäts-Toggle   ~1 Tag
 Schritt 8  →  Screenshare Settings Modal               ~2 Tage
-Schritt 9  →  Deployment + BetterCord einbinden        ~1 Tag
+Schritt 9  →  Deployment + mesh einbinden        ~1 Tag
 ────────────────────────────────────────────────────────────
 Gesamt     →  ~13 Arbeitstage / ~2.5 Wochen
 ```
@@ -167,15 +167,15 @@ Gesamt     →  ~13 Arbeitstage / ~2.5 Wochen
 ## Schritt 1 — Fork + Setup
 
 ```bash
-# Element Call forken auf GitHub: davifernan/BetterCord-Call
-git clone https://github.com/davifernan/BetterCord-Call.git
-cd BetterCord-Call
+# Element Call forken auf GitHub: davifernan/mesh-Call
+git clone https://github.com/davifernan/mesh-Call.git
+cd mesh-Call
 npm install
 npm run dev
 # → http://localhost:8081
 ```
 
-In BetterCord `config.json` für Development:
+In mesh `config.json` für Development:
 ```json
 {
   "elementCallUrl": "http://localhost:8081"
@@ -184,15 +184,15 @@ In BetterCord `config.json` für Development:
 
 ---
 
-## Schritt 2 — BetterCord Design-System einbauen
+## Schritt 2 — mesh Design-System einbauen
 
 Element Call nutzt CSS Custom Properties — genau wie wir.
-Unsere `global.css` Tokens aus BetterCord in EC's CSS einbauen:
+Unsere `global.css` Tokens aus mesh in EC's CSS einbauen:
 
 ```css
 /* src/styles/global.css in EC-Fork */
 :root {
-  /* Von BetterCord übernehmen: */
+  /* Von mesh übernehmen: */
   --background-primary: #313338;
   --background-secondary: #2B2D31;
   --background-tertiary: #1E1F22;
@@ -236,12 +236,12 @@ return (
 }
 ```
 
-Auch in der Sidebar von BetterCord (`RoomNavUser.tsx`) — aber dort via
-postMessage da EC und BetterCord getrennte Kontexte sind:
+Auch in der Sidebar von mesh (`RoomNavUser.tsx`) — aber dort via
+postMessage da EC und mesh getrennte Kontexte sind:
 ```typescript
-// EC sendet isSpeaking Events an BetterCord:
+// EC sendet isSpeaking Events an mesh:
 window.parent.postMessage({
-  type: 'io.bettercord.speaking',
+  type: 'io.mesh.speaking',
   userId: localParticipant.identity,
   speaking: isSpeaking
 }, parentOrigin);
@@ -251,13 +251,13 @@ window.parent.postMessage({
 
 ## Schritt 4 — Control-Bar Redesign
 
-Aktuell hat EC eine eigene Control-Bar. Wir ersetzen sie durch BetterCord-Style:
+Aktuell hat EC eine eigene Control-Bar. Wir ersetzen sie durch mesh-Style:
 
 ```
 Vorher (EC default):
 [🎙] [📹] [🖥] [⚙] [📞✕]
 
-Nachher (BetterCord-Style):
+Nachher (mesh-Style):
 [🎙 Mute] [🔇 Deaf] [📹 Cam] [🖥 Screen] [⚙ Settings] [📞✕ Disconnect]
 ```
 
@@ -273,7 +273,7 @@ Nachher (BetterCord-Style):
 ```
 Vorher (EC default): rechteckige Kacheln, Name mittig
 
-Nachher (BetterCord-Style):
+Nachher (mesh-Style):
 ┌─────────────────────┐
 │                     │
 │   [Avatar / Video]  │
@@ -297,11 +297,11 @@ const packetLoss = findStat(stats, 'remote-inbound-rtp')?.fractionLost;
 const rtt = findStat(stats, 'remote-inbound-rtp')?.roundTripTime * 1000; // ms
 ```
 
-Panel öffnet sich via postMessage-Command von BetterCord:
+Panel öffnet sich via postMessage-Command von mesh:
 ```typescript
-// BetterCord → EC:
+// mesh → EC:
 iframe.contentWindow.postMessage({
-  type: 'io.bettercord.toggle_stats'
+  type: 'io.mesh.toggle_stats'
 }, ecOrigin);
 ```
 
@@ -330,7 +330,7 @@ Button direkt in der Control-Bar — kein Umweg über Settings nötig.
 
 ## Schritt 8 — Screenshare Settings Modal
 
-Vor dem Screenshare-Start öffnet sich das Modal (BetterCord-Style):
+Vor dem Screenshare-Start öffnet sich das Modal (mesh-Style):
 ```
 [480p] [720p ✓] [1080p] [Quelle]
 [5fps] [15fps] [30fps ✓] [60fps]
@@ -349,15 +349,15 @@ await localParticipant.setScreenShareEnabled(true, {
 
 ---
 
-## Schritt 9 — Deployment + BetterCord einbinden
+## Schritt 9 — Deployment + mesh einbinden
 
 ### Self-hosted
 ```bash
-# In BetterCord-Call:
+# In mesh-Call:
 npm run build
 # → dist/ deployen auf call.deine-domain.com
 
-# In BetterCord config.json:
+# In mesh config.json:
 { "elementCallUrl": "https://call.deine-domain.com" }
 ```
 
@@ -376,12 +376,12 @@ EXPOSE 80
 ```yaml
 # docker-compose.yml auf dem Server:
 services:
-  bettercord:
-    image: ghcr.io/davifernan/bettercord:latest
+  mesh:
+    image: ghcr.io/davifernan/mesh:latest
     ports: ["3000:80"]
 
-  bettercord-call:
-    image: ghcr.io/davifernan/bettercord-call:latest
+  mesh-call:
+    image: ghcr.io/davifernan/mesh-call:latest
     ports: ["3001:80"]
 ```
 
@@ -394,14 +394,14 @@ services:
 | LiveKit Server-Logik | WebRTC Infrastruktur — zu komplex, nicht nötig |
 | Matrix RTC (`m.call.member` Events) | Protokoll-Standard — funktioniert |
 | E2EE Implementierung | Sicherheitskritisch — nicht anfassen |
-| Widget API Handshake | Kommunikation mit BetterCord — funktioniert |
+| Widget API Handshake | Kommunikation mit mesh — funktioniert |
 | `matrix-js-sdk` calls in EC | Matrix-Standard — nicht ändern |
 
 ---
 
 ## Offene Fragen
 
-- [ ] Eigenes GitHub Repo: `davifernan/BetterCord-Call`?
+- [ ] Eigenes GitHub Repo: `davifernan/mesh-Call`?
 - [ ] Self-hosted oder lokal gebundled?
 - [ ] LiveKit Server: eigener oder Element's `livekit.element.io`?
   - Eigener LiveKit: volle Kontrolle, aber extra Server
@@ -409,5 +409,5 @@ services:
 
 ---
 
-*BetterCord-Call — Element Call Fork für BetterCord*
-*Basis: element-hq/element-call | davifernan/BetterCord-Call*
+*mesh-Call — Element Call Fork für mesh*
+*Basis: element-hq/element-call | davifernan/mesh-Call*

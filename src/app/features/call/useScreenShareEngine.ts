@@ -1,5 +1,5 @@
 /**
- * BetterCord — Screen Share Engine
+ * mesh — Screen Share Engine
  *
  * Extracted from nativeCallEngine.ts to stay under the 650-line file limit.
  * Manages all screenshare-specific state and controls:

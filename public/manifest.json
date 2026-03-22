@@ -1,45 +1,33 @@
 {
-  "name": "BetterCord",
-  "short_name": "BetterCord",
-  "description": "Discord-Look. Matrix-Privatsphäre.",
+  "name": "mesh",
+  "short_name": "mesh",
+  "description": "Private. Decentral. Yours. — A self-hosted Matrix client with Discord-style UI, native LiveKit voice/video, E2EE and screenshare.",
   "dir": "auto",
-  "lang": "de-DE",
+  "lang": "en",
   "display": "standalone",
   "orientation": "any",
   "start_url": "./",
   "background_color": "#121317",
-  "theme_color": "#413CDD",
+  "theme_color": "#4a5ef8",
   "categories": ["social", "communication"],
   "icons": [
     {
-      "src": "./public/res/svg/bettercord-icon.svg",
+      "src": "./public/res/svg/mesh-icon.svg",
       "sizes": "any",
       "type": "image/svg+xml",
       "purpose": "any maskable"
     },
     {
-      "src": "./public/android/android-chrome-192x192.png",
+      "src": "./public/res/android/android-chrome-192x192.png",
       "sizes": "192x192",
       "type": "image/png",
-      "purpose": "any"
+      "purpose": "any maskable"
     },
     {
-      "src": "./public/android/android-chrome-512x512.png",
+      "src": "./public/res/android/android-chrome-512x512.png",
       "sizes": "512x512",
       "type": "image/png",
-      "purpose": "any"
-    },
-    {
-      "src": "./public/android/android-chrome-192x192-maskable.png",
-      "sizes": "192x192",
-      "type": "image/png",
-      "purpose": "maskable"
-    },
-    {
-      "src": "./public/android/android-chrome-512x512-maskable.png",
-      "sizes": "512x512",
-      "type": "image/png",
-      "purpose": "maskable"
+      "purpose": "any maskable"
     }
   ]
 }

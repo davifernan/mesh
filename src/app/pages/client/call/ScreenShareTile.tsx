@@ -235,7 +235,7 @@ export function ScreenShareTile({
     }
     const popoutWindow = window.open(
       '',
-      `bettercord_stream_popout_${trackRef.participant?.identity ?? 'stream'}`,
+      `mesh_stream_popout_${trackRef.participant?.identity ?? 'stream'}`,
       'popup=yes,width=1000,height=620,resizable=yes,scrollbars=no'
     );
     if (!popoutWindow) return;

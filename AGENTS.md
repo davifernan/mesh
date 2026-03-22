@@ -1,14 +1,14 @@
-# BetterCord — Agent Rules & Learnings
+# mesh — Agent Rules & Learnings
 
 > This file documents hard-won knowledge from implementing Matrix RTC + LiveKit voice
-> in BetterCord. Read it before touching ANYTHING call/voice related.
+> in mesh. Read it before touching ANYTHING call/voice related.
 
 ---
 
 ## Architecture Overview
 
 ```
-BetterCord (one app, no iframe)
+mesh (one app, no iframe)
 │
 ├── matrix-js-sdk v38+
 │   ├── MatrixRTCSession        — memberships, delayed-events keepalive, E2EE key exchange
@@ -356,7 +356,7 @@ await (pub.track as LocalAudioTrack).restartTrack({
 
 ## CSS / Styling System
 
-BetterCord uses **two** styling patterns — never mix them within a single file:
+mesh uses **two** styling patterns — never mix them within a single file:
 
 | Pattern | When | Files |
 |---------|------|-------|
@@ -390,7 +390,7 @@ export type SidebarItemVariants = RecipeVariants<typeof SidebarItem>;
 --status-online            /* #3ba55d */
 --status-idle              /* #faa61a */
 --status-offline           /* #747f8d */
---brand-primary            /* BetterCord accent color */
+--brand-primary            /* mesh accent color */
 ```
 
 ### Brand colors (hard-coded where tokens aren't available)

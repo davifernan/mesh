@@ -67,7 +67,7 @@ export function AddAccountDialog({ onClose }: AddAccountDialogProps) {
         accessToken: response.access_token,
       };
       const slot = addSecondarySession(session);
-      sessionStorage.setItem('bettercord-account-slot', String(slot));
+      sessionStorage.setItem('mesh-account-slot', String(slot));
       if (hashRouter?.enabled) {
         window.location.reload();
       } else {

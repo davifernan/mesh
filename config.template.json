@@ -1,7 +1,7 @@
 {
   "defaultHomeserver": 0,
   "homeserverList": [
-    "${BETTERCORD_HOMESERVER}"
+    "${MESH_HOMESERVER}"
   ],
   "allowCustomHomeservers": false,
 
@@ -10,14 +10,14 @@
     "basename": "/"
   },
 
-  "livekitServiceUrl": "${BETTERCORD_LIVEKIT_URL}",
-  "presenceUrl": "${BETTERCORD_PRESENCE_URL}",
+  "livekitServiceUrl": "${MESH_LIVEKIT_URL}",
+  "presenceUrl": "${MESH_PRESENCE_URL}",
 
   "defaultAudioBitrate": 128,
 
-  "voiceStateMode": "${BETTERCORD_VOICE_STATE_MODE}",
+  "voiceStateMode": "${MESH_VOICE_STATE_MODE}",
   "featureFlags": {
-    "authoritativeBridgeMode": ${BETTERCORD_AUTHORITATIVE_BRIDGE_MODE},
+    "authoritativeBridgeMode": ${MESH_AUTHORITATIVE_BRIDGE_MODE},
     "experimentalAV1": false
   }
 }

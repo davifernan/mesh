@@ -111,9 +111,9 @@ export default defineConfig({
       // Forward /api/presence/* to the local presence bridge (bun run bridge/src/index.ts)
       // so SSE and REST presence calls work in dev without Docker.
       '/api/presence': {
-        target: 'https://chat.nilo.live',
+        target: process.env.MESH_PRESENCE_TARGET ?? 'http://localhost:3000',
         changeOrigin: true,
-        secure: true,
+        secure: false,
       },
     },
   },

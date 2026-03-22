@@ -4,7 +4,7 @@ import { Page, PageContent, PageHeader } from '../../../components/page';
 import { SequenceCard } from '../../../components/sequence-card';
 import { SequenceCardStyle } from '../styles.css';
 import { SettingTile } from '../../../components/setting-tile';
-import BetterCordSVG from '../../../../../public/res/svg/bettercord.svg';
+import meshSVG from '../../../../../public/res/svg/mesh-icon.svg';
 import { clearCacheAndReload } from '../../../../client/initMatrix';
 import { useMatrixClient } from '../../../hooks/useMatrixClient';
 
@@ -38,23 +38,37 @@ export function About({ requestClose }: AboutProps) {
                 <Box shrink="No">
                   <img
                     style={{ width: toRem(60), height: toRem(60) }}
-                    src={BetterCordSVG}
-                    alt="BetterCord logo"
+                    src={meshSVG}
+                    alt="mesh logo"
                   />
                 </Box>
                 <Box direction="Column" gap="300">
                   <Box direction="Column" gap="100">
                     <Box gap="100" alignItems="End">
-                      <Text size="H3" as="h2">BetterCord</Text>
+                      <Text size="H3" as="h2">mesh</Text>
                       <Text size="T200">v4.10.5</Text>
                     </Box>
-                    <Text>A modern Matrix client.</Text>
+                    <Text>Private. Decentral. Yours.</Text>
+                    <Text size="T300">Host it. Own it.</Text>
                   </Box>
 
                   <Box gap="200" wrap="Wrap">
                     <Button
                       as="a"
-                      href="https://github.com/davifernan/BetterCord"
+                      href="https://hostmesh.diy"
+                      rel="noreferrer noopener"
+                      target="_blank"
+                      variant="Secondary"
+                      fill="Soft"
+                      size="300"
+                      radii="300"
+                      before={<Icon src={Icons.Globe} size="100" filled />}
+                    >
+                      <Text size="B300">hostmesh.diy</Text>
+                    </Button>
+                    <Button
+                      as="a"
+                      href="https://github.com/davifernan/mesh"
                       rel="noreferrer noopener"
                       target="_blank"
                       variant="Secondary"

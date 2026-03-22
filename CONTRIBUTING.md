@@ -1,4 +1,4 @@
-# Contributing to BetterCord
+# Contributing to mesh
 
 First off, thanks for taking the time to contribute! ❤️
 
@@ -12,7 +12,7 @@ All types of contributions are encouraged and valued. Please make sure to read t
 
 ## Bug reports
 
-Bug reports and feature suggestions must use descriptive and concise titles and be submitted to [GitHub Issues](https://github.com/davifernan/BetterCord/issues). Please use the search function to make sure that you are not submitting duplicates, and that a similar report or request has not already been resolved or rejected.
+Bug reports and feature suggestions must use descriptive and concise titles and be submitted to [GitHub Issues](https://github.com/davifernan/mesh/issues). Please use the search function to make sure that you are not submitting duplicates, and that a similar report or request has not already been resolved or rejected.
 
 ## Pull requests
 
@@ -35,7 +35,7 @@ It is not always possible to phrase every change in such a manner, but it is des
 
 Also, we use [ESLint](https://eslint.org/) for clean and stylistically consistent code syntax, so make sure your pull request follow it.
 
-**For any query or design discussion, join our [Matrix room](https://matrix.to/#/#bettercord:matrix.org).**
+**For any query or design discussion, join our [Matrix room](https://matrix.to/#/#mesh:matrix.org).**
 
 ## Helpful links
 - [BEM methodology](http://getbem.com/introduction/)

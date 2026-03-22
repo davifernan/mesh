@@ -67,7 +67,7 @@ import { searchModalAtom, searchModalInitialCharAtom } from '../../../state/sear
 import { RoomListbox } from '../../../components/room-listbox/RoomListbox';
 import { UseStateProvider } from '../../../components/UseStateProvider';
 import { JoinAddressPrompt } from '../../../components/join-address-prompt';
-import { getBetterCordPermalinkPath } from '../../../plugins/permalink';
+import { getmeshPermalinkPath } from '../../../plugins/permalink';
 import { useOrphanSpaces } from '../../../state/hooks/roomList';
 import { allRoomsAtom } from '../../../state/room-list/roomList';
 import { roomToParentsAtom } from '../../../state/room/roomToParents';
@@ -389,7 +389,7 @@ export function Home() {
                         onCancel={() => setOpen(false)}
                         onOpen={(target) => {
                           setOpen(false);
-                          navigate(getBetterCordPermalinkPath(target));
+                          navigate(getmeshPermalinkPath(target));
                         }}
                       />
                     )}
@@ -424,7 +424,7 @@ export function Home() {
                 </RoomNavCategoryButton>
               </NavCategoryHeader>
               <RoomListbox
-                id="bettercord-room-listbox"
+                id="mesh-room-listbox"
                 aria-label="Room list"
                 items={sortedRooms}
                 focusedIndex={keyboardNav.focusedIndex}

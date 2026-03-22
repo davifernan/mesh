@@ -9,10 +9,10 @@ const parentUrl = params.get('parentUrl') ?? undefined;
 
 const widgetApi = new WidgetApi(widgetId, parentUrl);
 
-widgetApi.requestCapabilityToReceiveState('eu.bettercord.apps.youtube');
-widgetApi.requestCapabilityToSendState('eu.bettercord.apps.youtube');
-widgetApi.requestCapabilityToReceiveEvent('eu.bettercord.apps.youtube.cmd');
-widgetApi.requestCapabilityToSendEvent('eu.bettercord.apps.youtube.cmd');
+widgetApi.requestCapabilityToReceiveState('eu.mesh.apps.youtube');
+widgetApi.requestCapabilityToSendState('eu.mesh.apps.youtube');
+widgetApi.requestCapabilityToReceiveEvent('eu.mesh.apps.youtube.cmd');
+widgetApi.requestCapabilityToSendEvent('eu.mesh.apps.youtube.cmd');
 widgetApi.requestCapabilityToReceiveState('m.room.power_levels');
 
 widgetApi.start();
@@ -59,13 +59,13 @@ setTimeout(() => {
           fontSize: 12, overflowX: 'auto', margin: 0, color: '#e0e0e0', border: '1px solid #333',
         }}>{
 `Event type:  im.vector.modular.widgets
-State key:   eu.bettercord.apps.youtube
+State key:   eu.mesh.apps.youtube
 Content:
 {
   "type": "m.custom",
   "url": "${window.location.origin + window.location.pathname}?widgetId=$matrix_widget_id&parentUrl=$matrix_client_origin",
   "name": "YouTube Together",
-  "id": "eu.bettercord.apps.youtube"
+  "id": "eu.mesh.apps.youtube"
 }`
         }</pre>
         <p style={{ marginTop: 10, color: '#888' }}>
@@ -73,7 +73,7 @@ Content:
           go to "Send custom event", set type to{' '}
           <code style={{ background: '#1a1a1a', padding: '1px 4px', borderRadius: 2 }}>im.vector.modular.widgets</code>,
           state key to{' '}
-          <code style={{ background: '#1a1a1a', padding: '1px 4px', borderRadius: 2 }}>eu.bettercord.apps.youtube</code>,
+          <code style={{ background: '#1a1a1a', padding: '1px 4px', borderRadius: 2 }}>eu.mesh.apps.youtube</code>,
           paste the content above.
         </p>
         <p style={{ marginTop: 6, color: '#888' }}>
@@ -88,7 +88,7 @@ Content:
           `/addwidget ${window.location.origin + window.location.pathname}?widgetId=$matrix_widget_id&parentUrl=$matrix_client_origin`
         }</pre>
         <p style={{ marginTop: 4, color: '#666', fontSize: 12 }}>
-          Or use BetterCord's built-in "Add App" button in the room toolbar to add YouTube Together
+          Or use mesh's built-in "Add App" button in the room toolbar to add YouTube Together
           to any room directly.
         </p>
       </div>

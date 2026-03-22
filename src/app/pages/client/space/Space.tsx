@@ -70,7 +70,7 @@ import { useClosedNavCategoriesAtom } from '../../../state/hooks/closedNavCatego
 import { useStateEvent } from '../../../hooks/useStateEvent';
 import { Membership, StateEvent } from '../../../../types/matrix/room';
 import { stopPropagation } from '../../../utils/keyboard';
-import { getBetterCordPermalink } from '../../../plugins/permalink';
+import { getmeshPermalink } from '../../../plugins/permalink';
 import { getViaServers } from '../../../plugins/via-servers';
 import { useSetting } from '../../../state/hooks/settings';
 import { settingsAtom } from '../../../state/settings';
@@ -130,7 +130,7 @@ const SpaceMenu = forwardRef<HTMLDivElement, SpaceMenuProps>(({ room, requestClo
     const roomIdOrAlias = getCanonicalAliasOrRoomId(mx, room.roomId);
     const viaServers = isRoomAlias(roomIdOrAlias) ? undefined : getViaServers(room);
     copyToClipboard(
-      getBetterCordPermalink(
+      getmeshPermalink(
         {
           kind: 'space',
           spaceIdOrAlias: roomIdOrAlias,
@@ -714,7 +714,7 @@ export function Space() {
             }}
           >
             <RoomListbox
-              id="bettercord-room-listbox"
+              id="mesh-room-listbox"
               aria-label="Space room list"
               items={roomsOnly}
               focusedIndex={keyboardNav.focusedIndex}

@@ -9,10 +9,10 @@ const parentUrl = params.get('parentUrl') ?? undefined;
 
 const widgetApi = new WidgetApi(widgetId, parentUrl);
 
-widgetApi.requestCapabilityToReceiveState('eu.bettercord.apps.spotify');
-widgetApi.requestCapabilityToSendState('eu.bettercord.apps.spotify');
-widgetApi.requestCapabilityToReceiveEvent('eu.bettercord.apps.spotify.cmd');
-widgetApi.requestCapabilityToSendEvent('eu.bettercord.apps.spotify.cmd');
+widgetApi.requestCapabilityToReceiveState('eu.mesh.apps.spotify');
+widgetApi.requestCapabilityToSendState('eu.mesh.apps.spotify');
+widgetApi.requestCapabilityToReceiveEvent('eu.mesh.apps.spotify.cmd');
+widgetApi.requestCapabilityToSendEvent('eu.mesh.apps.spotify.cmd');
 widgetApi.requestCapabilityToReceiveState('m.room.power_levels');
 
 widgetApi.start();
@@ -67,13 +67,13 @@ setTimeout(() => {
           color: '#e0e0e0',
         }}>{
 `Event type:  im.vector.modular.widgets
-State key:   eu.bettercord.apps.spotify
+State key:   eu.mesh.apps.spotify
 Content:
 {
   "type": "m.custom",
   "url": "${window.location.origin + window.location.pathname}?widgetId=$matrix_widget_id&parentUrl=$matrix_client_origin",
   "name": "Spotify Together",
-  "id": "eu.bettercord.apps.spotify"
+  "id": "eu.mesh.apps.spotify"
 }`
         }</pre>
         <p style={{ marginTop: 10, color: '#777' }}>
@@ -81,7 +81,7 @@ Content:
           go to "Send custom event", set type to{' '}
           <code style={{ background: '#1a1a1a', padding: '1px 4px', borderRadius: 3 }}>im.vector.modular.widgets</code>,
           state key to{' '}
-          <code style={{ background: '#1a1a1a', padding: '1px 4px', borderRadius: 3 }}>eu.bettercord.apps.spotify</code>,
+          <code style={{ background: '#1a1a1a', padding: '1px 4px', borderRadius: 3 }}>eu.mesh.apps.spotify</code>,
           paste the content above.
         </p>
         <p style={{ marginTop: 6, color: '#777' }}>

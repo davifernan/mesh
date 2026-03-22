@@ -1,7 +1,7 @@
 import { Room, RoomEvent } from 'livekit-client';
 import type { RemoteParticipant } from 'livekit-client';
 
-export const SOUNDBOARD_TOPIC = 'bettercord.soundboard';
+export const SOUNDBOARD_TOPIC = 'mesh.soundboard';
 
 export interface SoundboardClipEvent {
   type: 'start' | 'stop';
@@ -24,7 +24,7 @@ export interface SoundboardClipEvent {
 // A follow-up (see issue #88) should feed the LiveKit per-participant key
 // material here for genuine end-to-end protection.
 
-const E2EE_SALT = new TextEncoder().encode('bettercord.soundboard.v1');
+const E2EE_SALT = new TextEncoder().encode('mesh.soundboard.v1');
 
 /**
  * Derives a stable AES-GCM 256-bit key from a shared secret via PBKDF2.

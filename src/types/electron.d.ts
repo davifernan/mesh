@@ -1,5 +1,5 @@
 /*
- * BetterCord — Electron API type declarations for the Web-App renderer.
+ * mesh — Electron API type declarations for the Web-App renderer.
  *
  * These types mirror desktop/src/common/Types.tsx so that the Web-App can
  * safely call window.electron?.* without TypeScript errors.

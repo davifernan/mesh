@@ -163,7 +163,7 @@ export const createRoom = async (mx: MatrixClient, data: CreateRoomData): Promis
           events: {
             'org.matrix.msc3401.call': 100,
             'org.matrix.msc3401.call.member': 0,
-            'org.bettercord.call.info': 0,
+            'org.mesh.call.info': 0,
           },
         })
       : data.powerLevelContentOverrides;

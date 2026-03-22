@@ -16,7 +16,7 @@
  * You should have received a copy of the GNU Affero General Public License
  * along with Fluxer. If not, see <https://www.gnu.org/licenses/>.
  */
-// Copyright 2025-2026 BetterCord Contributors
+// Copyright 2025-2026 mesh Contributors
 // SPDX-License-Identifier: AGPL-3.0-only
 
 import fs from 'node:fs';
@@ -58,7 +58,7 @@ const trustedWebOrigins = new Set(
 
 const webAuthnDeviceTypes = new Set(['hid', 'usb', 'serial', 'bluetooth']);
 const webAuthnPermissionTypes = new Set(['hid', 'usb', 'serial', 'bluetooth']);
-const POPOUT_NAMESPACE = 'bettercord_';
+const POPOUT_NAMESPACE = 'mesh_';
 
 function getOrigin(url?: string): string | null {
 	if (!url) return null;

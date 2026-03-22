@@ -4,7 +4,7 @@ import { useMatrixClient } from './useMatrixClient';
 import { spaceUploadSettingsAtom, SpaceUploadSettings } from '../state/uploadSettings';
 import { useStateEventCallback } from './useStateEventCallback';
 
-const UPLOAD_SETTINGS_EVENT_TYPE = 'io.bettercord.space.upload_settings';
+const UPLOAD_SETTINGS_EVENT_TYPE = 'io.mesh.space.upload_settings';
 
 function parseUploadSettings(content: Record<string, unknown>): SpaceUploadSettings {
   return {
@@ -13,7 +13,7 @@ function parseUploadSettings(content: Record<string, unknown>): SpaceUploadSetti
 }
 
 /**
- * Loads `io.bettercord.space.upload_settings` state from the given space room
+ * Loads `io.mesh.space.upload_settings` state from the given space room
  * and keeps `spaceUploadSettingsAtom` in sync. Call this once per space view.
  */
 export function useSpaceUploadSettings(spaceId: string | undefined) {

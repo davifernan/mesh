@@ -252,7 +252,7 @@ export function NativeCallControlBar() {
     const popoutUrl = isHashRoute
       ? `${window.location.origin}${window.location.pathname}#/popout?room=${encoded}`
       : `${window.location.origin}/popout?room=${encoded}`;
-    window.open(popoutUrl, `bettercord_${activeCallRoomId}`, 'width=960,height=640');
+    window.open(popoutUrl, `mesh_${activeCallRoomId}`, 'width=960,height=640');
     toggleCallView();
   }, [activeCallRoomId, toggleCallView]);
 

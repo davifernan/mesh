@@ -16,13 +16,13 @@
  * You should have received a copy of the GNU Affero General Public License
  * along with Fluxer. If not, see <https://www.gnu.org/licenses/>.
  */
-// Copyright 2025-2026 BetterCord Contributors
+// Copyright 2025-2026 mesh Contributors
 // SPDX-License-Identifier: AGPL-3.0-only
 
-export const APP_PROTOCOL = 'bettercord';
+export const APP_PROTOCOL = 'mesh';
 
-export const STABLE_APP_URL = process.env.BETTERCORD_APP_URL ?? 'https://chat.nilo.live';
-export const CANARY_APP_URL = process.env.BETTERCORD_CANARY_URL ?? STABLE_APP_URL;
+export const STABLE_APP_URL = process.env.MESH_APP_URL ?? 'https://hostmesh.diy';
+export const CANARY_APP_URL = process.env.MESH_CANARY_URL ?? STABLE_APP_URL;
 export const DEFAULT_WINDOW_WIDTH = 1280;
 export const DEFAULT_WINDOW_HEIGHT = 800;
 export const MIN_WINDOW_WIDTH = 800;

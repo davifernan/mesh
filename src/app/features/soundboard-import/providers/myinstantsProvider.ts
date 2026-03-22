@@ -5,7 +5,7 @@
 // Sites like myinstants.com and instantbuttons.com allow users to upload sounds
 // that may be copyrighted (movie clips, music, TV clips, etc.).  Their TOS does
 // not grant third-party applications a re-distribution license, and scraping /
-// embedding their audio directly inside a Matrix client could expose BetterCord
+// embedding their audio directly inside a Matrix client could expose mesh
 // to DMCA takedown requests.
 //
 // Before implementing:

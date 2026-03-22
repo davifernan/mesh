@@ -153,7 +153,7 @@ export const createRouter = (clientConfig: ClientConfig, screenSize: ScreenSize,
                         <IncomingCallNotification />
                         <GlobalKeyboardShortcuts />
                         <div
-                          id="bettercord-announcements"
+                          id="mesh-announcements"
                           role="status"
                           aria-live="polite"
                           aria-atomic="true"

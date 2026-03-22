@@ -51,7 +51,7 @@ import { LeaveRoomPrompt } from '../../components/leave-room-prompt';
 import { useRoomAvatar, useRoomName, useRoomTopic } from '../../hooks/useRoomMeta';
 import { ScreenSize, useScreenSizeContext } from '../../hooks/useScreenSize';
 import { stopPropagation } from '../../utils/keyboard';
-import { getBetterCordPermalink } from '../../plugins/permalink';
+import { getmeshPermalink } from '../../plugins/permalink';
 import { getViaServers } from '../../plugins/via-servers';
 import { BackRouteHandler } from '../../components/BackRouteHandler';
 import { useMediaAuthentication } from '../../hooks/useMediaAuthentication';
@@ -150,7 +150,7 @@ const RoomMenu = forwardRef<HTMLDivElement, RoomMenuProps>(({ room, requestClose
         ? guessPerfectParent(mx, room.roomId, orphanParents) ?? orphanParents[0]
         : undefined);
     copyToClipboard(
-      getBetterCordPermalink(
+      getmeshPermalink(
         {
           kind: 'room',
           roomIdOrAlias,
@@ -654,7 +654,7 @@ export function RoomViewHeader({ isIssueBoard, onToggleIssueBoard, isThreadsDraw
           </Box>
         </Box>
 
-        <Box id="bettercord-room-header-toolbar" data-section-label="Room actions" role="toolbar" aria-label="Room actions" aria-orientation="horizontal" shrink="No" onKeyDown={handleToolbarKeyDown}>
+        <Box id="mesh-room-header-toolbar" data-section-label="Room actions" role="toolbar" aria-label="Room actions" aria-orientation="horizontal" shrink="No" onKeyDown={handleToolbarKeyDown}>
           {/* FRONT: feature buttons — hidden when the feature is impossible for this room.
               Wobble here (left side of group) is less noticeable than at the right. */}
 
