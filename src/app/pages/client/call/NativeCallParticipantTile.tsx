@@ -217,9 +217,24 @@ export function NativeCallParticipantTile({
         ) : (
           <div
             className={styles.initial}
-            style={{ backgroundColor: tileAccentColor }}
+            style={{
+              backgroundColor: tileAccentColor,
+              // #77 — show initials, not a generic icon
+              fontSize: Math.round(avatarSize * 0.36),
+              fontWeight: 600,
+              color: '#fff',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              letterSpacing: '0.02em',
+            }}
           >
-            <User size={Math.round(avatarSize * 0.6)} weight="fill" />
+            {displayName
+              .split(' ')
+              .map((p) => p[0]?.toUpperCase() ?? '')
+              .filter(Boolean)
+              .slice(0, 2)
+              .join('') || '?'}
           </div>
         )}
       </div>

@@ -14,6 +14,7 @@ import {
   AudioPresets,
   type AudioCaptureOptions,
   type AudioPreset,
+  BackupCodecPolicy,
   DefaultReconnectPolicy,
   type E2EEManagerOptions,
   type RoomOptions,
@@ -23,6 +24,7 @@ import {
   type TrackPublishDefaults,
   VideoPreset,
   VideoPresets,
+  supportsAV1,
 } from 'livekit-client';
 
 // ─── Screen Share Presets (extends LiveKit built-ins beyond 1080p30) ──────────
@@ -218,6 +220,18 @@ export function buildAudioCaptureDefaults(av: AudioCaptureSettings): AudioCaptur
 // ─── Screenshare Capture Options ──────────────────────────────────────────────
 
 /**
+ * Returns true when running in a Chromium-based browser.
+ * Chrome-specific getDisplayMedia constraints (preferCurrentTab,
+ * selfBrowserSurface, surfaceSwitching) throw in Firefox/Safari.
+ * #48 — guard Chrome-only constraints behind browser detection.
+ */
+function isChromiumBrowser(): boolean {
+  if (typeof navigator === 'undefined') return false;
+  return /Chrome|Chromium|Edg/.test(navigator.userAgent) &&
+    !/Firefox/.test(navigator.userAgent);
+}
+
+/**
  * Builds LiveKit ScreenShareCaptureOptions for setScreenShareEnabled().
  */
 export function buildSSCaptureOptions(
@@ -232,15 +246,23 @@ export function buildSSCaptureOptions(
       ? { frameRate: { ideal: ssFps, max: ssFps } }
       : true;
 
+  // Chrome-only getDisplayMedia constraints — excluded on Firefox/Safari
+  // to prevent TypeError on browsers that reject unknown constraint keys.
+  const chromiumExtras = isChromiumBrowser()
+    ? {
+        preferCurrentTab: false,
+        selfBrowserSurface: 'include' as const,
+        surfaceSwitching: 'include' as const,
+      }
+    : {};
+
   return {
     audio: ssAudio,
     video: videoConstraint,
     resolution: preset?.resolution,
     contentHint: getScreenShareContentHint(ssResolution, ssFps),
-    preferCurrentTab: false,
-    selfBrowserSurface: 'include',
-    surfaceSwitching: 'include',
     systemAudio: ssAudio ? 'include' : 'exclude',
+    ...chromiumExtras,
   };
 }
 
@@ -265,10 +287,13 @@ const defaultPublishOptions: TrackPublishDefaults = {
  *
  * CRITICAL: adaptiveStream and dynacast are kept at upstream defaults (true).
  * Only publishDefaults is customized with user quality preferences.
+ *
+ * @param featureFlags - Optional config.json feature flags (e.g. av1Video).
  */
 export function buildLiveKitRoomOptions(
   av: AVSettings,
   e2eeOptions?: E2EEManagerOptions,
+  featureFlags?: { av1Video?: boolean },
 ): RoomOptions {
   const videoPreset = resolutionToVideoPreset(av.videoResolution);
   const baseVideoFps = videoPreset.encoding.maxFramerate ?? 30;
@@ -312,6 +337,12 @@ export function buildLiveKitRoomOptions(
       // backupCodec uses the same base encoding as the primary preset so the SFU
       // falls back to VP8 at comparable quality, not always h720.
       backupCodec: { codec: 'vp8', encoding: videoPreset.encoding },
+      // #72 — AV1 feature flag: use AV1 as primary codec when enabled in config.json
+      // and the browser supports it. VP8 is always the backupCodec for compat.
+      ...(featureFlags?.av1Video && supportsAV1() && {
+        videoCodec: 'av1' as const,
+        backupCodecPolicy: BackupCodecPolicy.PREFER_REGRESSION,
+      }),
     },
 
     // E2EE — only set if key provider is supplied

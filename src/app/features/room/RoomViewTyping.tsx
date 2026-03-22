@@ -1,5 +1,5 @@
-import React from 'react';
-import { Box, Icon, IconButton, Icons, Text, as } from 'folds';
+import React, { useEffect } from 'react';
+import { Box, Text, as } from 'folds';
 import { Room } from 'matrix-js-sdk';
 import classNames from 'classnames';
 import { useSetAtom } from 'jotai';
@@ -10,6 +10,12 @@ import { getMxIdLocalPart } from '../../utils/matrix';
 import * as css from './RoomViewTyping.css';
 import { useMatrixClient } from '../../hooks/useMatrixClient';
 import { useRoomTypingMember } from '../../hooks/useRoomTypingMembers';
+
+// #35 — Auto-expire stale typing indicators after 30s.
+// Some homeservers never send a typing-stop event, leaving indicators forever.
+// The old workaround was a manual "Tipp-Status verwerfen" button — no other
+// client has this button, so we replaced it with a silent client-side timeout.
+const TYPING_AUTO_EXPIRE_MS = 30_000;
 
 export type RoomViewTypingProps = {
   room: Room;
@@ -27,21 +33,23 @@ export const RoomViewTyping = as<'div', RoomViewTypingProps>(
       )
       .reverse();
 
+    // Auto-expire: when new typing members appear, schedule removal after 30s.
+    // This handles homeservers that never send a typing-stop event.
+    useEffect(() => {
+      if (typingMembers.length === 0) return;
+      const timer = setTimeout(() => {
+        typingMembers.forEach((receipt) =>
+          setTypingMembers({ type: 'DELETE', roomId: room.roomId, userId: receipt.userId })
+        );
+      }, TYPING_AUTO_EXPIRE_MS);
+      return () => clearTimeout(timer);
+    // Re-schedule whenever the member list changes (new typist resets the clock)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [typingMembers.map((r) => r.userId).join(','), room.roomId]);
+
     if (typingNames.length === 0) {
       return <div className={css.RoomViewTypingPlaceholder} aria-hidden="true" />;
     }
-
-    const handleDropAll = () => {
-      // some homeserver does not timeout typing status
-      // we have given option so user can drop their typing status
-      typingMembers.forEach((receipt) =>
-        setTypingMembers({
-          type: 'DELETE',
-          roomId: room.roomId,
-          userId: receipt.userId,
-        })
-      );
-    };
 
     const n = typingNames.length;
 
@@ -132,9 +140,6 @@ export const RoomViewTyping = as<'div', RoomViewTypingProps>(
         <Text className={css.TypingText} size="T300" truncate>
           {typingContent}
         </Text>
-        <IconButton title="Tipp-Status verwerfen" aria-label="Tipp-Status verwerfen" size="300" radii="Pill" onClick={handleDropAll}>
-          <Icon size="50" src={Icons.Cross} />
-        </IconButton>
       </Box>
     );
   }

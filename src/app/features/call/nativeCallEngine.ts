@@ -45,6 +45,7 @@ import {
   type AVSettings,
 } from './avPresets';
 import { MatrixKeyProvider } from './matrixKeyProvider';
+import { parseSoundboardMessage, type SoundboardActivity } from './soundboardDataChannel';
 import { resolveParticipantUserId } from './participantIdentity';
 import { CALL_INFO_EVENT } from '../../hooks/useCallMemberships';
 import { getSFUConfigWithOpenID } from './sfuToken';
@@ -72,6 +73,7 @@ export interface NativeCallEngine {
   remoteParticipantStates: Map<string, { audioEnabled: boolean; videoEnabled: boolean; isScreenSharing: boolean }>;
   error: Error | null;
   callJoinTime: Date | null;
+  soundboardActivity: SoundboardActivity | null;
   hangUp: () => void;
   toggleAudio: () => Promise<void>;
   toggleVideo: () => Promise<void>;
@@ -188,6 +190,8 @@ export function useNativeCall(roomId: string | null): NativeCallEngine {
   const [remoteParticipantStates, setRemoteParticipantStates] = useState<Map<string, { audioEnabled: boolean; videoEnabled: boolean; isScreenSharing: boolean }>>(new Map());
   const [error, setError] = useState<Error | null>(null);
   const [callJoinTime, setCallJoinTime] = useState<Date | null>(null);
+  // #80 — soundboard data channel: last clip played by any participant
+  const [soundboardActivity, setSoundboardActivity] = useState<SoundboardActivity | null>(null);
 
   // ── Refs for imperative cleanup (survive re-renders) ──────────────────────
   // #58 — guard all setState calls inside async timers against post-unmount updates
@@ -338,8 +342,8 @@ export function useNativeCall(roomId: string | null): NativeCallEngine {
           return;
         }
 
-        // 3. Build LiveKit Room with AV + optional E2EE options
-        const room = new Room(buildLiveKitRoomOptions(av, e2eeOptions));
+        // 3. Build LiveKit Room with AV + optional E2EE + feature flags
+        const room = new Room(buildLiveKitRoomOptions(av, e2eeOptions, clientConfig.featureFlags));
 
         // 4. Join Matrix RTC session (writes membership state event + delayed keepalive)
         const rtcSession = (mx as any).matrixRTC.getRoomSession(matrixRoom);
@@ -593,6 +597,29 @@ export function useNativeCall(roomId: string | null): NativeCallEngine {
 
         room.on(RoomEvent.LocalTrackPublished, (pub) => {
           if (pub.source === Track.Source.ScreenShare) setIsScreenShareEnabled(true);
+        });
+
+        // #80 — soundboard data channel: receive clip metadata from other participants
+        room.on(RoomEvent.DataReceived, (payload, participant, _kind, topic) => {
+          const msg = parseSoundboardMessage(payload, topic);
+          if (!msg || !participant) return;
+          if (msg.type === 'clip_start') {
+            setSoundboardActivity({
+              participantIdentity: participant.identity,
+              clipName: msg.clipName,
+              clipId: msg.clipId,
+            });
+            // Auto-clear after 5s so the indicator doesn't linger
+            setTimeout(() => {
+              setSoundboardActivity((prev) =>
+                prev?.clipId === msg.clipId ? null : prev
+              );
+            }, 5_000);
+          } else if (msg.type === 'clip_stop') {
+            setSoundboardActivity((prev) =>
+              prev?.clipId === msg.clipId ? null : prev
+            );
+          }
         });
 
         room.on(RoomEvent.LocalTrackUnpublished, (pub) => {
@@ -928,48 +955,59 @@ export function useNativeCall(roomId: string | null): NativeCallEngine {
     setIsFrontCamera(facingModeRef.current === 'user');
   }, []);
 
-  const enforceScreenShareConstraints = useCallback(async (ssRes: string, ssFps: number) => {
-    if (!roomRef.current) return;
-
-    let mediaTrack: MediaStreamTrack | undefined;
-    for (let attempt = 0; attempt < 10; attempt += 1) {
-      const ssPub = roomRef.current.localParticipant.getTrackPublication(Track.Source.ScreenShare);
-      const track = ssPub?.track as LocalVideoTrack | undefined;
-      mediaTrack = track?.mediaStreamTrack;
-      if (mediaTrack?.applyConstraints) {
-        break;
-      }
-      await new Promise((resolve) => {
-        window.setTimeout(resolve, 100);
-      });
-    }
-
-    if (!mediaTrack?.applyConstraints) return;
+  /**
+   * #47 — Apply screenshare capture constraints via RoomEvent.LocalTrackPublished
+   * instead of a polling loop. The event fires exactly once when the local track
+   * is ready; no CPU-wasting busy-wait, no silent drop if track takes > 1 second.
+   */
+  const enforceScreenShareConstraints = useCallback((ssRes: string, ssFps: number) => {
+    const room = roomRef.current;
+    if (!room) return;
 
     const targetWidth = ssRes === 'source' ? undefined : resolutionToWidth(ssRes);
     const targetHeight = ssRes === 'source' ? undefined : resolutionToHeight(ssRes);
+    if (!targetWidth && !targetHeight && !ssFps) return;
 
     const exactConstraints: MediaTrackConstraints = {
-      ...(targetWidth && { width: { exact: targetWidth } }),
-      ...(targetHeight && { height: { exact: targetHeight } }),
-      ...(ssFps ? { frameRate: { exact: ssFps } } : {}),
+      ...(targetWidth  && { width:     { exact: targetWidth } }),
+      ...(targetHeight && { height:    { exact: targetHeight } }),
+      ...(ssFps        && { frameRate: { exact: ssFps } }),
     };
-
     const fallbackConstraints: MediaTrackConstraints = {
-      ...(targetWidth && { width: { ideal: targetWidth, max: targetWidth } }),
-      ...(targetHeight && { height: { ideal: targetHeight, max: targetHeight } }),
-      ...(ssFps ? { frameRate: { ideal: ssFps, max: ssFps } } : {}),
+      ...(targetWidth  && { width:     { ideal: targetWidth,  max: targetWidth } }),
+      ...(targetHeight && { height:    { ideal: targetHeight, max: targetHeight } }),
+      ...(ssFps        && { frameRate: { ideal: ssFps, max: ssFps } }),
     };
 
-    try {
-      if (Object.keys(exactConstraints).length > 0) {
+    async function applyToTrack(mediaTrack: MediaStreamTrack) {
+      try {
         await mediaTrack.applyConstraints(exactConstraints);
-      }
-    } catch {
-      if (Object.keys(fallbackConstraints).length > 0) {
+      } catch {
         await mediaTrack.applyConstraints(fallbackConstraints).catch(() => {});
       }
     }
+
+    // Fast path: track is already published (e.g. called from updateActiveScreenShareSettings)
+    const existing = room.localParticipant.getTrackPublication(Track.Source.ScreenShare);
+    if (existing?.track?.mediaStreamTrack) {
+      void applyToTrack(existing.track.mediaStreamTrack);
+      return;
+    }
+
+    // Slow path: wait for LocalTrackPublished, then self-remove
+    const onPublished = (pub: { source: Track.Source; track?: { mediaStreamTrack?: MediaStreamTrack } }) => {
+      if (pub.source !== Track.Source.ScreenShare) return;
+      room.off(RoomEvent.LocalTrackPublished, onPublished as any);
+      clearTimeout(safetyTimer);
+      if (pub.track?.mediaStreamTrack) void applyToTrack(pub.track.mediaStreamTrack);
+    };
+
+    room.on(RoomEvent.LocalTrackPublished, onPublished as any);
+
+    // Safety: remove listener after 10s if share was cancelled or never published
+    const safetyTimer = setTimeout(() => {
+      room.off(RoomEvent.LocalTrackPublished, onPublished as any);
+    }, 10_000);
   }, []);
 
   const startScreenShare = useCallback(
@@ -977,8 +1015,10 @@ export function useNativeCall(roomId: string | null): NativeCallEngine {
       if (!roomRef.current) return;
       const captureOpts = buildSSCaptureOptions(ssRes, ssFps, ssAudio);
       const publishOpts = buildSSPublishOptions(ssRes, ssFps);
+      // Register the constraint enforcer BEFORE enabling screenshare so the
+      // LocalTrackPublished event is never missed (no race condition).
+      enforceScreenShareConstraints(ssRes, ssFps);
       await roomRef.current.localParticipant.setScreenShareEnabled(true, captureOpts, publishOpts);
-      await enforceScreenShareConstraints(ssRes, ssFps);
       setIsScreenShareEnabled(true);
       playCallSound(CallSoundType.ScreenShareStart, { enabled: callSoundsEnabledRef.current });
     },
@@ -1156,6 +1196,7 @@ export function useNativeCall(roomId: string | null): NativeCallEngine {
     remoteParticipantStates,
     error,
     callJoinTime,
+    soundboardActivity,
     hangUp,
     toggleAudio,
     toggleVideo,
