@@ -11,7 +11,7 @@ import React, {
 import { ClientEvent, MatrixEvent } from 'matrix-js-sdk';
 import { MatrixRTCSession } from 'matrix-js-sdk/lib/matrixrtc/MatrixRTCSession';
 import type { Room } from 'livekit-client';
-import { useNativeCall, type CallStatus } from '../../../features/call/nativeCallEngine';
+import { useNativeCall, type CallStatus, type RemoteParticipantState } from '../../../features/call/nativeCallEngine';
 import { getSoundboardMixerFromEngine } from '../../../features/call/nativeCallEngine';
 import { playCallSound, CallSoundType } from '../../../utils/callSounds';
 import { useMatrixClient } from '../../../hooks/useMatrixClient';
@@ -39,14 +39,16 @@ interface CallContextState {
   isFrontCamera: boolean;
   toggleDeafen: () => Promise<void>;
   speakingUsers: Set<string>;
-  remoteParticipantStates: Map<string, { audioEnabled: boolean; videoEnabled: boolean; isScreenSharing: boolean }>;
+  remoteParticipantStates: Map<string, RemoteParticipantState>;
+  /** participantUserId → clip name for participants playing a soundboard clip. */
+  remoteSoundboardClips: Map<string, string>;
   livekitRoom: Room | null;
   callStatus: CallStatus;
   callError: Error | null;
   callJoinTime: Date | null;
   // Soundboard
-  playSoundboardClip: (url: string, volume?: number) => string | null;
-  stopSoundboardClip: (clipId: string) => void;
+  playSoundboardClip: (url: string, volume?: number, clipName?: string) => string | null;
+  stopSoundboardClip: (clipId: string, clipName?: string) => void;
   stopAllSoundboardClips: () => void;
   activeSoundboardClips: Set<string>;
   isSoundboardOpen: boolean;
@@ -86,15 +88,17 @@ export function CallProvider({ children }: CallProviderProps) {
     setIsSoundboardOpenState(open);
   }, []);
 
-  const playSoundboardClip = useCallback((url: string, volume?: number): string | null => {
+  const playSoundboardClip = useCallback((url: string, volume?: number, clipName?: string): string | null => {
     const mixer = getSoundboardMixerFromEngine();
     if (!mixer) return null;
     const clipId = mixer.playSoundboardClip(url, volume);
     setActiveSoundboardClips((prev) => new Set([...prev, clipId]));
+    // Broadcast to other participants via LiveKit data channel
+    if (clipName) engine.broadcastSoundboardClip(clipName, 'start');
     return clipId;
-  }, []);
+  }, [engine]);
 
-  const stopSoundboardClip = useCallback((clipId: string) => {
+  const stopSoundboardClip = useCallback((clipId: string, clipName?: string) => {
     const mixer = getSoundboardMixerFromEngine();
     mixer?.stopSoundboardClip(clipId);
     setActiveSoundboardClips((prev) => {
@@ -102,7 +106,9 @@ export function CallProvider({ children }: CallProviderProps) {
       next.delete(clipId);
       return next;
     });
-  }, []);
+    // Broadcast stop event to other participants
+    if (clipName) engine.broadcastSoundboardClip(clipName, 'stop');
+  }, [engine]);
 
   const stopAllSoundboardClips = useCallback(() => {
     const mixer = getSoundboardMixerFromEngine();
@@ -283,6 +289,7 @@ export function CallProvider({ children }: CallProviderProps) {
     toggleDeafen: engine.toggleDeafen,
     speakingUsers: engine.speakingUsers,
     remoteParticipantStates: engine.remoteParticipantStates,
+    remoteSoundboardClips: engine.remoteSoundboardClips,
     livekitRoom: engine.livekitRoom,
     callStatus: engine.status,
     callError: engine.error,
