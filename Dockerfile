@@ -25,26 +25,14 @@ RUN chmod +x /docker-entrypoint.sh \
   && rm -rf /usr/share/nginx/html \
   && ln -s /app /usr/share/nginx/html
 
-# Environment variables — override these at runtime via docker-compose.yml or -e flags:
-#   BETTERCORD_HOMESERVER        Matrix homeserver hostname, e.g. matrix.example.com
-#   BETTERCORD_LIVEKIT_URL       LiveKit JWT service URL, e.g. https://livekit-jwt.example.com
-#   BETTERCORD_PRESENCE_URL      Presence bridge URL (defaults to nginx proxy /api/presence)
-#   BETTERCORD_VOICE_STATE_MODE  Presence resolution mode: "livekit" (default) or "bridge"
-#                                Set to "bridge" in production when the bridge is authoritative.
-#   BETTERCORD_AUTHORITATIVE_BRIDGE_MODE
-#                                Explicit feature flag mirror for authoritative bridge mode.
-#   BETTERCORD_POLLS_URL         Public URL of nordeck/matrix-poll-widget (optional)
-#                                e.g. https://polls.your-domain.com
-#                                Leave empty to hide Polls from the Activities catalog.
-#   BETTERCORD_WHITEBOARD_URL    Public URL of nordeck/matrix-neoboard-widget (optional)
-#                                e.g. https://whiteboard.your-domain.com
-#                                Leave empty to hide Whiteboard from the Activities catalog.
-ENV BETTERCORD_HOMESERVER="" \
-    BETTERCORD_LIVEKIT_URL="" \
-    BETTERCORD_PRESENCE_URL="" \
-    BETTERCORD_VOICE_STATE_MODE="livekit" \
-    BETTERCORD_AUTHORITATIVE_BRIDGE_MODE="false" \
-    BETTERCORD_POLLS_URL="" \
-    BETTERCORD_WHITEBOARD_URL=""
+# Environment variables — override these at runtime via docker-compose.yml or -e flags.
+# See .env.example for full documentation.
+ENV MESH_HOMESERVER="" \
+    MESH_LIVEKIT_URL="" \
+    MESH_PRESENCE_URL="" \
+    MESH_VOICE_STATE_MODE="livekit" \
+    MESH_AUTHORITATIVE_BRIDGE_MODE="false" \
+    MESH_POLLS_URL="" \
+    MESH_WHITEBOARD_URL=""
 
 ENTRYPOINT ["/docker-entrypoint.sh"]

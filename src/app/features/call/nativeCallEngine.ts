@@ -318,7 +318,7 @@ export function useNativeCall(roomId: string | null): NativeCallEngine {
 
         if (!serviceUrl) {
           throw new Error(
-            'No LiveKit focus URL found. Set BETTERCORD_LIVEKIT_URL (Docker) or livekitServiceUrl in config.json.',
+            'No LiveKit focus URL found. Set MESH_LIVEKIT_URL (Docker) or livekitServiceUrl in config.json.',
           );
         }
 

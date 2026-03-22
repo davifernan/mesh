@@ -1,24 +1,34 @@
-version: '3.9'
+# mesh — Self-Hosting Docker Compose
+#
+# Quick start:
+#   cp .env.example .env   # fill in your values
+#   docker compose up -d
+#
+# With built-in LiveKit (local dev / no LiveKit Cloud account):
+#   docker compose --profile livekit up -d
+#
+# With Cloudflare Tunnel (auto-HTTPS, no port forwarding needed):
+#   docker compose --profile cloudflare up -d
+#
+# With Polls & Whiteboard activities:
+#   docker compose --profile microapps up -d
+#
+# Combine profiles as needed:
+#   docker compose --profile livekit --profile cloudflare --profile microapps up -d
 
 services:
   # ── mesh frontend (nginx + static SPA) ─────────────────────────────────
   mesh:
-    build:
-      context: .
-      dockerfile: Dockerfile
+    image: ghcr.io/davifernan/mesh:latest
     ports:
       - '${MESH_PORT:-80}:80'
     environment:
       MESH_HOMESERVER: '${MESH_HOMESERVER}'
       MESH_LIVEKIT_URL: '${MESH_LIVEKIT_URL}'
       MESH_PRESENCE_URL: '${MESH_PRESENCE_URL}'
-      # Controls how the frontend resolves participant presence.
-      # "bridge" = bridge is authoritative (recommended for production).
-      # "livekit" = prefer live LiveKit client state (default for local dev).
       MESH_VOICE_STATE_MODE: '${MESH_VOICE_STATE_MODE:-livekit}'
       MESH_AUTHORITATIVE_BRIDGE_MODE: '${MESH_AUTHORITATIVE_BRIDGE_MODE:-false}'
-      # Optional: set these to show Polls/Whiteboard in the Activities catalog.
-      # Must be publicly reachable URLs (loaded by users' browsers, not the container).
+      MESH_ALLOW_CUSTOM_HOMESERVERS: '${MESH_ALLOW_CUSTOM_HOMESERVERS:-false}'
       MESH_POLLS_URL: '${MESH_POLLS_URL:-}'
       MESH_WHITEBOARD_URL: '${MESH_WHITEBOARD_URL:-}'
     depends_on:
@@ -28,24 +38,16 @@ services:
       - mesh
     restart: unless-stopped
 
-  # ── Presence bridge (Bun + Hono) ──────────────────────────────────────────────
+  # ── Presence bridge (Bun + Hono) ───────────────────────────────────────
   bridge:
-    build:
-      context: ./bridge
-      dockerfile: Dockerfile
+    image: ghcr.io/davifernan/mesh-bridge:latest
     environment:
       LIVEKIT_API_KEY: '${LIVEKIT_API_KEY}'
       LIVEKIT_API_SECRET: '${LIVEKIT_API_SECRET}'
       LIVEKIT_URL: '${LIVEKIT_URL:-}'
       PORT: '3001'
-      # Feature flag: when "true" the bridge is the authoritative source of truth
-      # for voice state. Enables stricter consistency guarantees and Redis-backed
-      # state persistence (requires REDIS_URL when set to "true").
       BRIDGE_VOICE_STATE_AUTHORITATIVE: '${BRIDGE_VOICE_STATE_AUTHORITATIVE:-false}'
-      # Redis connection URL for persistent voice state across bridge restarts.
-      # Required when BRIDGE_VOICE_STATE_AUTHORITATIVE=true in production.
-      # Leave empty to use in-memory state only (safe for local dev / single-instance).
-      REDIS_URL: '${REDIS_URL:-}'
+      REDIS_URL: '${REDIS_URL:-redis://redis:6379}'
     ports:
       - '127.0.0.1:3002:3001'
     healthcheck:
@@ -54,23 +56,14 @@ services:
       timeout: 5s
       retries: 3
       start_period: 5s
+    depends_on:
+      redis:
+        condition: service_healthy
     networks:
       - mesh
-      - voicechat
     restart: unless-stopped
 
-  # ── Redis (optional — voice state persistence) ───────────────────────────────
-  #
-  # Enables persistent voice state across bridge restarts and supports
-  # multi-instance bridge deployments (horizontal scaling).
-  #
-  # Setup:
-  #   1. Start with: docker compose --profile redis up -d redis
-  #   2. Set REDIS_URL=redis://redis:6379 and BRIDGE_VOICE_STATE_AUTHORITATIVE=true in .env
-  #   3. Restart the bridge: docker compose restart bridge
-  #
-  # The bridge falls back to in-memory state when REDIS_URL is unset — safe for
-  # single-instance local dev without this service running.
+  # ── Redis (voice state persistence) ────────────────────────────────────
   redis:
     image: redis:7-alpine
     restart: unless-stopped
@@ -79,30 +72,55 @@ services:
       - redis_data:/data
     networks:
       - mesh
-    profiles:
-      - redis
     healthcheck:
       test: ['CMD', 'redis-cli', 'ping']
       interval: 10s
       timeout: 3s
       retries: 3
 
+  # ── LiveKit SFU (optional — local dev / self-hosted) ───────────────────
+  #
+  # Use this when you don't have a LiveKit Cloud account.
+  # Pre-configured dev keys work out of the box with the .env.example defaults.
+  # For production, replace keys and configure your domain in contrib/livekit/.
+  #
+  # Start: docker compose --profile livekit up -d
+  livekit:
+    image: livekit/livekit-server:latest
+    command: --config /etc/livekit/livekit.yaml --dev
+    ports:
+      - '${LIVEKIT_PORT:-7880}:7880'
+      - '7881:7881/tcp'
+      - '7882:7882/udp'
+    volumes:
+      - ./contrib/livekit/livekit.yaml:/etc/livekit/livekit.yaml:ro
+    networks:
+      - mesh
+    profiles:
+      - livekit
+    restart: unless-stopped
+
+  # ── Cloudflare Tunnel (optional — auto-HTTPS, no port forwarding) ──────
+  #
+  # Exposes mesh securely via Cloudflare without opening ports on your server.
+  # Get a tunnel token: dash.cloudflare.com → Zero Trust → Networks → Tunnels
+  #
+  # Start: docker compose --profile cloudflare up -d
+  cloudflare-tunnel:
+    image: cloudflare/cloudflared:latest
+    command: tunnel --no-autoupdate run --token ${CLOUDFLARE_TUNNEL_TOKEN}
+    networks:
+      - mesh
+    profiles:
+      - cloudflare
+    restart: unless-stopped
+
+  # ── Polls widget (optional) ────────────────────────────────────────────
   polls-widget:
-    # nordeck/matrix-poll-widget — self-hosted polls for mesh rooms.
-    #
-    # Setup (server admin):
-    #   1. Start with: docker compose --profile microapps up -d polls-widget
-    #   2. Expose port 3001 via your reverse proxy as a public URL,
-    #      e.g. https://polls.your-domain.com
-    #   3. Set MESH_POLLS_URL=https://polls.your-domain.com in your .env
-    #      and restart the mesh container so config-microapps.js is regenerated.
-    #   4. Polls will now appear in the mesh Activities catalog (🚀 button in call view).
-    #
-    # CORS: the nordeck image allows all origins by default, no extra config needed.
     image: ghcr.io/nordeck/matrix-poll-widget:latest
     restart: unless-stopped
     ports:
-      - "${POLLS_HOST_PORT:-3001}:8080"
+      - '${POLLS_HOST_PORT:-3003}:8080'
     environment:
       REACT_APP_HOME_SERVER_URL: '${MESH_HOMESERVER:-https://matrix.org}'
     networks:
@@ -110,24 +128,12 @@ services:
     profiles:
       - microapps
 
+  # ── Whiteboard widget (optional) ───────────────────────────────────────
   neoboard-widget:
-    # nordeck/matrix-neoboard-widget — collaborative whiteboard for mesh rooms.
-    #
-    # Setup (server admin):
-    #   1. Start with: docker compose --profile microapps up -d neoboard-widget
-    #   2. Expose port 3003 via your reverse proxy as a public URL,
-    #      e.g. https://whiteboard.your-domain.com
-    #   3. Set MESH_WHITEBOARD_URL=https://whiteboard.your-domain.com in your .env
-    #      and restart the mesh container so config-microapps.js is regenerated.
-    #   4. Whiteboard will now appear in the mesh Activities catalog (🚀 button).
-    #
-    # Note: nordeck/matrix-neoboard stores whiteboard state as Matrix room events.
-    # Ensure your homeserver has reasonable rate limits for state events.
-    # Port 3003 (3002 is reserved for the bridge service on the host).
     image: ghcr.io/nordeck/matrix-neoboard-widget:latest
     restart: unless-stopped
     ports:
-      - "${WHITEBOARD_HOST_PORT:-3003}:8080"
+      - '${WHITEBOARD_HOST_PORT:-3004}:8080'
     networks:
       - mesh
     profiles:
@@ -136,9 +142,6 @@ services:
 networks:
   mesh:
     name: mesh
-  voicechat:
-    name: voicechat
-    external: true
 
 volumes:
   redis_data:

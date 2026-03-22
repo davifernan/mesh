@@ -130,7 +130,7 @@ server {
 At container startup `docker-entrypoint.sh` generates `/app/config-microapps.js`:
 
 ```js
-window.__BC_MICROAPPS__ = {
+window.__MESH_MICROAPPS__ = {
   pollsWidgetUrl: "https://polls.your-domain.com",
   whiteboardWidgetUrl: "https://whiteboard.your-domain.com"
 };
@@ -166,7 +166,7 @@ docker compose --profile microapps up -d
 Then point `public/config-microapps.js` at them (dev only, do not commit):
 
 ```js
-window.__BC_MICROAPPS__ = {
+window.__MESH_MICROAPPS__ = {
   pollsWidgetUrl: 'http://localhost:3001',
   whiteboardWidgetUrl: 'http://localhost:3003',
 };

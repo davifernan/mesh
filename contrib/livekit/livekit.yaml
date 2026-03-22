@@ -1,0 +1,33 @@
+# mesh — LiveKit SFU configuration
+#
+# This file is mounted into the livekit container when using --profile livekit.
+# The default keys below match the .env.example dev defaults.
+#
+# For production:
+#   1. Generate real keys: docker run --rm livekit/livekit-server generate-keys
+#   2. Replace the key/secret pair below and in your .env
+#   3. Set use_external_ip: true if LiveKit is reachable from the internet
+#   4. Optionally add TURN server config for NAT traversal
+
+port: 7880
+
+rtc:
+  tcp_port: 7881
+  udp_port: 7882
+  # Set to true when deploying on a public server (VPS, cloud).
+  # Keep false for local development (Docker Desktop, localhost).
+  use_external_ip: false
+
+keys:
+  # Must match LIVEKIT_API_KEY and LIVEKIT_API_SECRET in your .env
+  devkey: devsecret-changeme-32chars-min
+
+webhook:
+  # The bridge receives LiveKit webhooks to track participant presence.
+  # This URL is internal to the Docker network — no external routing needed.
+  api_key: devkey
+  urls:
+    - http://bridge:3001/webhook
+
+logging:
+  level: info

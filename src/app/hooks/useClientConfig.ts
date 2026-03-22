@@ -25,14 +25,14 @@ export type ClientConfig = {
   /**
    * LiveKit JWT service URL — used as fallback when a voice channel room
    * does not yet have an org.matrix.msc3401.call state event.
-   * Set via BETTERCORD_LIVEKIT_URL env var (Docker) or directly in config.json.
+   * Set via MESH_LIVEKIT_URL env var (Docker) or directly in config.json.
    * Example: "https://livekit-jwt.example.com"
    */
   livekitServiceUrl?: string;
 
   /**
    * Presence bridge base URL for SSE streams.
-   * Set via BETTERCORD_PRESENCE_URL env var (Docker) or directly in config.json.
+   * Set via MESH_PRESENCE_URL env var (Docker) or directly in config.json.
    * Defaults to "/api/presence" (proxied through nginx) if not set.
    * Example: "https://presence.example.com/presence"
    */

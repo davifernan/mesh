@@ -26,14 +26,17 @@ if [ -n "$MESH_HOMESERVER" ] || [ -n "$MESH_LIVEKIT_URL" ] || [ -n "$MESH_PRESEN
   MESH_PRESENCE_URL="${MESH_PRESENCE_URL:-$(read_json_string presenceUrl)}"
   MESH_VOICE_STATE_MODE="${MESH_VOICE_STATE_MODE:-$(read_json_string voiceStateMode)}"
   MESH_AUTHORITATIVE_BRIDGE_MODE="${MESH_AUTHORITATIVE_BRIDGE_MODE:-$(read_json_bool authoritativeBridgeMode)}"
+  MESH_ALLOW_CUSTOM_HOMESERVERS="${MESH_ALLOW_CUSTOM_HOMESERVERS:-$(read_json_bool allowCustomHomeservers)}"
 
   : "${MESH_HOMESERVER:=matrix.org}"
   : "${MESH_PRESENCE_URL:=/api/presence}"
   : "${MESH_VOICE_STATE_MODE:=livekit}"
   : "${MESH_AUTHORITATIVE_BRIDGE_MODE:=false}"
+  : "${MESH_ALLOW_CUSTOM_HOMESERVERS:=false}"
 
   export MESH_HOMESERVER MESH_LIVEKIT_URL MESH_PRESENCE_URL \
-    MESH_VOICE_STATE_MODE MESH_AUTHORITATIVE_BRIDGE_MODE
+    MESH_VOICE_STATE_MODE MESH_AUTHORITATIVE_BRIDGE_MODE \
+    MESH_ALLOW_CUSTOM_HOMESERVERS
 
   envsubst < /app/config.template.json > /app/config.json
   echo "[entrypoint] Done. config.json:"

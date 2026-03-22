@@ -3,7 +3,7 @@
   "homeserverList": [
     "${MESH_HOMESERVER}"
   ],
-  "allowCustomHomeservers": false,
+  "allowCustomHomeservers": ${MESH_ALLOW_CUSTOM_HOMESERVERS},
 
   "hashRouter": {
     "enabled": false,
