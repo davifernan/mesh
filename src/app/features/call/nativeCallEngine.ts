@@ -20,7 +20,7 @@
  */
 
 import { useEffect, useRef, useState, useCallback } from 'react';
-import { Room, RoomEvent, Track, VideoQuality, LocalAudioTrack, LocalVideoTrack } from 'livekit-client';
+import { Room, RoomEvent, Track, VideoQuality, LocalAudioTrack, LocalVideoTrack, type E2EEManagerOptions } from 'livekit-client';
 import {
   getSoundboardMixer,
   getSoundboardMixerIfActive,
@@ -61,6 +61,7 @@ export type CallStatus = 'idle' | 'connecting' | 'connected' | 'error';
 
 export interface NativeCallEngine {
   status: CallStatus;
+  isReconnecting: boolean;
   livekitRoom: Room | null;
   isAudioEnabled: boolean;
   isVideoEnabled: boolean;
@@ -173,6 +174,7 @@ export function useNativeCall(roomId: string | null): NativeCallEngine {
 
   // ── State ──────────────────────────────────────────────────────────────────
   const [status, setStatus] = useState<CallStatus>('idle');
+  const [isReconnecting, setIsReconnecting] = useState(false);
   const [livekitRoom, setLivekitRoom] = useState<Room | null>(null);
   const [isAudioEnabled, setIsAudioEnabled] = useState(true);
   const [isVideoEnabled, setIsVideoEnabled] = useState(false);
@@ -188,6 +190,13 @@ export function useNativeCall(roomId: string | null): NativeCallEngine {
   const [callJoinTime, setCallJoinTime] = useState<Date | null>(null);
 
   // ── Refs for imperative cleanup (survive re-renders) ──────────────────────
+  // #58 — guard all setState calls inside async timers against post-unmount updates
+  const isMountedRef = useRef(true);
+  useEffect(() => {
+    isMountedRef.current = true;
+    return () => { isMountedRef.current = false; };
+  }, []);
+
   const roomRef = useRef<Room | null>(null);
   const rtcSessionRef = useRef<any>(null);
   const e2eeWorkerRef = useRef<Worker | null>(null);
@@ -313,11 +322,14 @@ export function useNativeCall(roomId: string | null): NativeCallEngine {
         const isEncrypted = !!matrixRoom.currentState.getStateEvents('m.room.encryption', '');
         let e2eeWorker: Worker | null = null;
         let keyProvider: MatrixKeyProvider | null = null;
-        let e2eeOptions: any;
+        // #61 — proper typing instead of any
+        let e2eeOptions: E2EEManagerOptions | undefined;
 
         if (isEncrypted) {
           e2eeWorker = new E2EEWorker();
           keyProvider = new MatrixKeyProvider();
+          // #62 — E2EE is set up before connect(); mid-call key rotation is handled
+          // by MatrixKeyProvider via MatrixRTCSessionEvent.EncryptionKeyChanged.
           e2eeOptions = { keyProvider, worker: e2eeWorker };
         }
 
@@ -466,7 +478,7 @@ export function useNativeCall(roomId: string | null): NativeCallEngine {
               activateTimers.set(uid, setTimeout(() => {
                 activateTimers.delete(uid);
                 confirmedSpeakers.add(uid);
-                setSpeakingUsers(new Set(confirmedSpeakers));
+                if (isMountedRef.current) setSpeakingUsers(new Set(confirmedSpeakers));
               }, SPEAK_ACTIVATE_MS));
             }
           }
@@ -481,7 +493,7 @@ export function useNativeCall(roomId: string | null): NativeCallEngine {
               deactivateTimers.set(uid, setTimeout(() => {
                 deactivateTimers.delete(uid);
                 confirmedSpeakers.delete(uid);
-                setSpeakingUsers(new Set(confirmedSpeakers));
+                if (isMountedRef.current) setSpeakingUsers(new Set(confirmedSpeakers));
               }, SPEAK_DEACTIVATE_MS));
             }
           }
@@ -534,12 +546,15 @@ export function useNativeCall(roomId: string | null): NativeCallEngine {
           }
         });
         room.on(RoomEvent.ParticipantConnected, (participant) => {
+          try {
           updateRemote(participant);
           playCallSound(CallSoundType.UserJoin, { enabled: callSoundsEnabledRef.current });
-          // If currently deafened, mute this new participant's audio tracks immediately
+          // If currently deafened, unsubscribe from new participant's audio tracks.
+          // setSubscribed(false) stops receiving the encoded audio data entirely —
+          // SFU-level bandwidth saving vs. just disabling the local MediaStreamTrack.
           if (isDeafenedRef.current) {
             for (const pub of participant.audioTrackPublications.values()) {
-              if (pub.track) pub.track.mediaStreamTrack.enabled = false;
+              pub.setSubscribed(false);
             }
           }
           // Catch already-published tracks from this participant (race condition on join)
@@ -550,6 +565,9 @@ export function useNativeCall(roomId: string | null): NativeCallEngine {
               pub.setSubscribed(true);
             }
             // ScreenShare: not subscribed — user must watch
+          }
+          } catch (err) {
+            console.error('[NativeCall] ParticipantConnected handler error:', err);
           }
         });
         room.on(RoomEvent.ParticipantDisconnected, (participant) => {
@@ -583,6 +601,25 @@ export function useNativeCall(roomId: string | null): NativeCallEngine {
 
         room.on(RoomEvent.Disconnected, () => {
           if (!aborted) setStatus('idle');
+        });
+
+        // #42 — track reconnect state so UI can show a reconnecting indicator
+        room.on(RoomEvent.Reconnecting, () => {
+          if (!aborted) setIsReconnecting(true);
+        });
+
+        // #43 — after reconnect, re-apply deafen state (subscriptions are reset by LiveKit)
+        room.on(RoomEvent.Reconnected, () => {
+          if (!aborted) {
+            setIsReconnecting(false);
+            if (isDeafenedRef.current) {
+              for (const p of room.remoteParticipants.values()) {
+                for (const pub of p.audioTrackPublications.values()) {
+                  pub.setSubscribed(false);
+                }
+              }
+            }
+          }
         });
 
         // 8. Connect to the LiveKit SFU
@@ -635,8 +672,9 @@ export function useNativeCall(roomId: string | null): NativeCallEngine {
             const mixer = getSoundboardMixer(rawMst);
             mixerRef.current = mixer;
 
-            // Unpublish the raw mic track (keepDeviceAlive=true so the OS mic stays open).
-            await room.localParticipant.unpublishTrack(rawMicTrack, false);
+            // Unpublish the raw mic track; keepDeviceAlive=true keeps the OS mic LED
+            // on and prevents a re-acquire delay when the mixer track is published.
+            await room.localParticipant.unpublishTrack(rawMicTrack, true);
 
             // Publish the mixer's blended output track as the microphone source.
             const mixedMst = mixer.getMixedTrack();
@@ -787,6 +825,17 @@ export function useNativeCall(roomId: string | null): NativeCallEngine {
     userSettings.noiseSuppression,
   ]);
 
+  // ── Speaker device switching (#30) ────────────────────────────────────────
+  // When the user picks a new speaker in Settings during a call, switch it live.
+  useEffect(() => {
+    if (status !== 'connected' || !roomRef.current) return;
+    const deviceId = userSettings.speakerDeviceId;
+    if (!deviceId) return;
+    roomRef.current.switchActiveDevice('audiooutput', deviceId).catch((err: unknown) => {
+      console.warn('[NativeCall] switchActiveDevice(audiooutput) failed:', err);
+    });
+  }, [userSettings.speakerDeviceId, status]);
+
   // ── Audio-wins-over-video quality fallback ────────────────────────────────
   // When connection quality degrades (Poor/Lost), screenshare + camera video
   // are throttled automatically. Microphone audio is never touched.
@@ -829,8 +878,22 @@ export function useNativeCall(roomId: string | null): NativeCallEngine {
     playCallSound(newEnabled ? CallSoundType.Unmute : CallSoundType.Mute, { enabled: callSoundsEnabledRef.current });
     // Gate the mic branch in the Web Audio graph (clips continue unaffected).
     mixerRef.current?.setMicEnabled(newEnabled);
+
+    // #66 Option B — PTT: update speaking state directly on mic toggle instead
+    // of waiting for ActiveSpeakersChanged (which has a 180ms activation delay).
+    // PTT presses are explicit user intent — no debounce needed.
+    if (userSettingsRef.current.voiceActivityMode === 'ptt') {
+      const localUserId = mx.getUserId() ?? '';
+      setSpeakingUsers((prev) => {
+        const next = new Set(prev);
+        if (newEnabled) next.add(localUserId);
+        else next.delete(localUserId);
+        return next;
+      });
+    }
+
     await lp.setMicrophoneEnabled(newEnabled);
-  }, []);
+  }, [mx]);
 
   const toggleVideo = useCallback(async () => {
     if (!roomRef.current) return;
@@ -936,10 +999,12 @@ export function useNativeCall(roomId: string | null): NativeCallEngine {
     setIsDeafened(next);
     playCallSound(next ? CallSoundType.Deaf : CallSoundType.Undeaf, { enabled: callSoundsEnabledRef.current });
 
-    // Mute/unmute all remote audio output locally (deafen is client-side only in LiveKit)
+    // Subscribe/unsubscribe all remote audio tracks.
+    // setSubscribed(false) stops SFU-to-client audio delivery entirely —
+    // better bandwidth efficiency than locally disabling the MediaStreamTrack.
     for (const p of roomRef.current.remoteParticipants.values()) {
       for (const pub of p.audioTrackPublications.values()) {
-        if (pub.track) pub.track.mediaStreamTrack.enabled = !next;
+        pub.setSubscribed(!next);
       }
     }
 
@@ -1080,6 +1145,7 @@ export function useNativeCall(roomId: string | null): NativeCallEngine {
 
   return {
     status,
+    isReconnecting,
     livekitRoom,
     isAudioEnabled,
     isVideoEnabled,

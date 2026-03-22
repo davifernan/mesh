@@ -73,7 +73,9 @@ export function resolutionToVideoPreset(res?: string): VideoPreset {
     case '720p': return VideoPresets.h720;
     case '1080p': return VideoPresets.h1080;
     case '1440p': return new VideoPreset(2560, 1440, 5_000_000, 30, 'high');
-    case '2160p': return new VideoPreset(3840, 2160, 10_000_000, 30, 'high');
+    // 15 Mbps is the WebRTC VP8 reference for 4K@30fps; +5 Mbps headroom so the
+    // encoder can burst when network allows — adaptive bitrate caps actual usage.
+    case '2160p': return new VideoPreset(3840, 2160, 20_000_000, 30, 'high');
     default: return VideoPresets.h720;
   }
 }
@@ -128,7 +130,7 @@ export function bitrateToAudioPreset(kbps?: number): AudioPreset {
  */
 export function getSimulcastLayers(res?: string): VideoPreset[] {
   switch (res) {
-    case '360p': return [];
+    case '360p': return [VideoPresets.h180];
     case '480p': return [VideoPresets.h180];
     case '720p': return [VideoPresets.h180, VideoPresets.h360];
     case '1080p': return [VideoPresets.h180, VideoPresets.h360, VideoPresets.h720];
@@ -145,7 +147,7 @@ function getCameraBitrateCap(res?: string): number | undefined {
     case '720p': return 4_000_000;
     case '1080p': return 7_000_000;
     case '1440p': return 12_000_000;
-    case '2160p': return 20_000_000;
+    case '2160p': return 25_000_000;
     default: return undefined;
   }
 }
@@ -200,11 +202,16 @@ export type AudioCaptureSettings = Pick<
 >;
 
 export function buildAudioCaptureDefaults(av: AudioCaptureSettings): AudioCaptureOptions {
+  // voiceIsolation is a Chrome 116+ MediaTrackConstraints property that suppresses
+  // background voice bleed — not yet in all TypeScript lib.dom.d.ts versions,
+  // so we merge it via unknown cast to avoid TS2353.
+  const extra = { voiceIsolation: true } as unknown as Partial<AudioCaptureOptions>;
   return {
     deviceId: av.micDeviceId,
     echoCancellation: av.echoCancellation,
     noiseSuppression: av.noiseSuppression,
     autoGainControl: av.autoGainControl,
+    ...extra,
   };
 }
 
@@ -249,7 +256,8 @@ const defaultPublishOptions: TrackPublishDefaults = {
   red: true,
   forceStereo: false,
   videoEncoding: VideoPresets.h720.encoding,
-  backupCodec: { codec: 'vp8', encoding: VideoPresets.h720.encoding },
+  // backupCodec is set dynamically in buildLiveKitRoomOptions to match the chosen
+  // video preset rather than always falling back to h720 encoding.
 };
 
 /**
@@ -301,6 +309,9 @@ export function buildLiveKitRoomOptions(
       audioPreset: bitrateToAudioPreset(av.audioBitrate),
       videoEncoding,
       videoSimulcastLayers: getSimulcastLayers(av.videoResolution),
+      // backupCodec uses the same base encoding as the primary preset so the SFU
+      // falls back to VP8 at comparable quality, not always h720.
+      backupCodec: { codec: 'vp8', encoding: videoPreset.encoding },
     },
 
     // E2EE — only set if key provider is supplied

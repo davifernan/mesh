@@ -10,7 +10,7 @@
  */
 
 import { useAtomValue } from 'jotai';
-import React, { useCallback, useEffect } from 'react';
+import React, { useCallback, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { roomToUnreadAtom } from '../../state/room/roomToUnread';
 import { settingsAtom } from '../../state/settings';
@@ -165,6 +165,13 @@ export function PTTElectronShortcut() {
   const isAudioEnabled = callState?.isAudioEnabled ?? false;
   const toggleAudio = callState?.toggleAudio;
 
+  // #64 — useRef so handlers always see the latest values without re-registering
+  // the global shortcut / re-adding window listeners on every mute/unmute state change.
+  const isAudioEnabledRef = useRef(isAudioEnabled);
+  isAudioEnabledRef.current = isAudioEnabled;
+  const toggleAudioRef = useRef(toggleAudio);
+  toggleAudioRef.current = toggleAudio;
+
   // -------------------------------------------------------------------------
   // Electron global shortcut path
   // -------------------------------------------------------------------------
@@ -187,14 +194,16 @@ export function PTTElectronShortcut() {
     const unsubShortcut = electron.onGlobalShortcut((id: string) => {
       if (cleanedUp) return;
       if (id === pressId) {
-        // Toggle mute state on each global shortcut fire (press)
-        if (!isAudioEnabled && toggleAudio) void toggleAudio();
+        // Use ref so we don't re-register the shortcut on every isAudioEnabled change
+        if (!isAudioEnabledRef.current && toggleAudioRef.current) void toggleAudioRef.current();
       }
     });
 
     // For the release (mute again), listen on the window keyup in Electron too.
     const onKeyUp = (e: KeyboardEvent) => {
-      if (e.code === pttKey && isAudioEnabled && toggleAudio) void toggleAudio();
+      if (e.code === pttKey && isAudioEnabledRef.current && toggleAudioRef.current) {
+        void toggleAudioRef.current();
+      }
     };
     window.addEventListener('keyup', onKeyUp);
 
@@ -204,7 +213,9 @@ export function PTTElectronShortcut() {
       electron.unregisterGlobalShortcut(pttKey).catch(() => {});
       unsubShortcut();
     };
-  }, [voiceActivityMode, pttKey, isAudioEnabled, toggleAudio, callState]);
+    // isAudioEnabled / toggleAudio intentionally excluded — accessed via ref
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [voiceActivityMode, pttKey, callState]);
 
   // -------------------------------------------------------------------------
   // Web / PWA fallback: keydown + keyup on window (only when window focused)
@@ -218,14 +229,14 @@ export function PTTElectronShortcut() {
     const onDown = (e: KeyboardEvent) => {
       if (e.code === pttKey && !active) {
         active = true;
-        if (!isAudioEnabled && toggleAudio) void toggleAudio();
+        if (!isAudioEnabledRef.current && toggleAudioRef.current) void toggleAudioRef.current();
       }
     };
 
     const onUp = (e: KeyboardEvent) => {
       if (e.code === pttKey && active) {
         active = false;
-        if (isAudioEnabled && toggleAudio) void toggleAudio();
+        if (isAudioEnabledRef.current && toggleAudioRef.current) void toggleAudioRef.current();
       }
     };
 
@@ -235,7 +246,9 @@ export function PTTElectronShortcut() {
       window.removeEventListener('keydown', onDown);
       window.removeEventListener('keyup', onUp);
     };
-  }, [voiceActivityMode, pttKey, isAudioEnabled, toggleAudio]);
+    // isAudioEnabled / toggleAudio intentionally excluded — accessed via ref
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [voiceActivityMode, pttKey]);
 
   return null;
 }

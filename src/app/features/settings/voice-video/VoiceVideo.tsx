@@ -62,14 +62,30 @@ function ChipRow<T extends string | number>({
 
 type MediaDeviceInfo2 = { deviceId: string; label: string };
 
+/**
+ * Module-level cache: avoids redundant enumerateDevices() calls across hook
+ * instances for the same kind. Invalidated on every 'devicechange' event.
+ * (#55 fix — enumerateDevices caching)
+ */
+const deviceListCache = new Map<MediaDeviceKind, MediaDeviceInfo2[]>();
+
 function useMediaDeviceList(kind: MediaDeviceKind): MediaDeviceInfo2[] {
-  const [devices, setDevices] = useState<MediaDeviceInfo2[]>([]);
+  const [devices, setDevices] = useState<MediaDeviceInfo2[]>(() => deviceListCache.get(kind) ?? []);
   const permissionRequestedRef = useRef(false);
 
   useEffect(() => {
     let cancelled = false;
 
-    async function load(requestPermission: boolean) {
+    async function load(requestPermission: boolean, bustCache = false) {
+      if (bustCache) deviceListCache.delete(kind);
+
+      // Return cached result immediately if available
+      const cached = deviceListCache.get(kind);
+      if (cached && !bustCache) {
+        if (!cancelled) setDevices(cached);
+        return;
+      }
+
       // If labels are empty, request permission first (browser hides labels until granted)
       if (requestPermission && !permissionRequestedRef.current) {
         permissionRequestedRef.current = true;
@@ -92,6 +108,7 @@ function useMediaDeviceList(kind: MediaDeviceKind): MediaDeviceInfo2[] {
           label: d.label || `${kind === 'audioinput' ? 'Microphone' : kind === 'videoinput' ? 'Camera' : 'Speaker'} ${d.deviceId.slice(0, 6)}`,
         }));
 
+      deviceListCache.set(kind, filtered);
       setDevices(filtered);
 
       // If labels are still empty, retry after requesting permission
@@ -101,10 +118,14 @@ function useMediaDeviceList(kind: MediaDeviceKind): MediaDeviceInfo2[] {
     }
 
     void load(false);
-    navigator.mediaDevices.addEventListener('devicechange', () => void load(false));
+
+    // (#54 fix) stable function reference so removeEventListener actually removes
+    // the correct listener — anonymous arrows create new references each render.
+    const handleDeviceChange = () => void load(false, true);
+    navigator.mediaDevices.addEventListener('devicechange', handleDeviceChange);
     return () => {
       cancelled = true;
-      navigator.mediaDevices.removeEventListener('devicechange', () => void load(false));
+      navigator.mediaDevices.removeEventListener('devicechange', handleDeviceChange);
     };
   }, [kind]);
 

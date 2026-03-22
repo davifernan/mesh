@@ -133,7 +133,7 @@ const defaultSettings: Settings = {
   cameraDeviceId: undefined,
   speakerDeviceId: undefined,
 
-  audioBitrate: 64,
+  audioBitrate: 128,
   // On mobile, disable CPU-intensive browser-side audio DSP by default.
   // These filters run in software on mobile (no hardware offload) and are a
   // significant source of battery drain during calls.
