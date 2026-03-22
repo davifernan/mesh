@@ -10,3 +10,6 @@ devAssets
 .env
 .env.local
 .env.*.local
+# Source icon assets (already integrated into public/)
+favicon_io*/
+

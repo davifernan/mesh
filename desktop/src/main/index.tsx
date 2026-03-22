@@ -23,6 +23,7 @@ import {createRequire} from 'node:module';
 import {BUILD_CHANNEL} from '@electron/common/BuildChannel';
 import {loadDesktopConfig} from '@electron/common/DesktopConfig';
 import {configureUserDataPath} from '@electron/common/UserDataPath';
+import {registerAppProtocol, registerSchemesAsPrivileged} from '@electron/main/AppProtocol';
 import {registerAutostartHandlers} from '@electron/main/Autostart';
 import {handleOpenUrl, handleSecondInstance, initializeDeepLinks} from '@electron/main/DeepLinks';
 import {cleanupGlobalKeyHook, registerGlobalKeyHookHandlers} from '@electron/main/GlobalKeyHook';
@@ -39,6 +40,10 @@ import {
 } from '@electron/main/Window';
 import {app, globalShortcut} from 'electron';
 import log from 'electron-log';
+
+// MUST run before app.whenReady() — registers app:// as a privileged scheme
+// so the bundled web app can use fetch(), secure context APIs (mic/camera/E2EE), etc.
+registerSchemesAsPrivileged();
 
 log.transports.file.level = 'info';
 log.transports.console.level = 'debug';
@@ -96,6 +101,14 @@ if (!gotTheLock) {
 
 	app.whenReady().then(async () => {
 		log.info('App ready, initializing...');
+
+		// Register the app:// protocol handler ASAP — before createWindow()
+		// so the first loadURL('app://mesh/') is served from resources/webapp/.
+		try {
+			registerAppProtocol();
+		} catch (error) {
+			log.error('[Init] Failed to register app:// protocol:', error);
+		}
 
 		try {
 			initializeDeepLinks();

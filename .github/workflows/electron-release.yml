@@ -60,8 +60,8 @@ jobs:
 
       - name: Compile Electron main/preload
         working-directory: desktop
-        env:
-          MESH_APP_URL: https://hostmesh.diy
+        # No MESH_APP_URL needed — the web app is bundled from dist/ via extraResources.
+        # Users enter their own Matrix homeserver in the login screen at first launch.
         run: node scripts/build.mjs
 
       - name: Build & publish Electron app
@@ -70,5 +70,4 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GITHUB_OWNER: davifernan
           GITHUB_REPO: mesh
-          MESH_APP_URL: https://hostmesh.diy
         run: npx electron-builder --${{ matrix.platform }} --config electron-builder.config.cjs --publish always

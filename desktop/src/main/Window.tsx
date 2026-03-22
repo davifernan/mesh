@@ -23,6 +23,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import {fileURLToPath} from 'node:url';
 import {
+	BUNDLED_APP_ORIGIN,
 	CANARY_APP_URL,
 	DEFAULT_WINDOW_HEIGHT,
 	DEFAULT_WINDOW_WIDTH,
@@ -44,7 +45,13 @@ const logger = createChildLogger('Window');
 const VISIBILITY_MARGIN = 32;
 
 const trustedWebOrigins = new Set(
-	[STABLE_APP_URL, CANARY_APP_URL]
+	[
+		// Always trust the bundled app:// origin
+		BUNDLED_APP_ORIGIN,
+		// Trust remote URLs only when explicitly set at build/runtime
+		...(STABLE_APP_URL ? [STABLE_APP_URL] : []),
+		...(CANARY_APP_URL ? [CANARY_APP_URL] : []),
+	]
 		.map((url) => {
 			try {
 				return new URL(url).origin;
