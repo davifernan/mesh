@@ -21,7 +21,7 @@ export interface KeyboardShortcut {
 /** Static shortcut metadata — used by the settings page to show/edit bindings */
 export type ShortcutDefinition = Omit<KeyboardShortcut, 'action' | 'key'>;
 export const SHORTCUT_DEFINITIONS: ShortcutDefinition[] = [
-  { defaultKey: 'mod+k', description: 'Search', category: 'Search' },
+  { defaultKey: 'mod+k', description: 'Spotlight Search', category: 'Navigation' },
   { defaultKey: 'alt+r', description: 'Focus room list', category: 'Navigation', allowInEditable: true },
   { defaultKey: 'alt+t', description: 'Focus message timeline', category: 'Navigation', allowInEditable: true },
   { defaultKey: 'alt+c', description: 'Focus message composer', category: 'Navigation', allowInEditable: true },
@@ -47,10 +47,10 @@ export const useGlobalKeyboardShortcuts = () => {
       const c = (desc: string, defaultKey: string) => customKeys[desc] ?? defaultKey;
       return [
         {
-          key: c('Search', 'mod+k'),
+          key: c('Spotlight Search', 'mod+k'),
           defaultKey: 'mod+k',
-          description: 'Search',
-          category: 'Search',
+          description: 'Spotlight Search',
+          category: 'Navigation',
           action: () => setSearchModal(true),
         },
         {

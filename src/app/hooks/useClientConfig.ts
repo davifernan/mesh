@@ -19,17 +19,20 @@ export type ClientConfig = {
 
   hashRouter?: HashRouterConfig;
 
+  /** @deprecated replaced by livekitServiceUrl */
+  elementCallUrl?: string;
+
   /**
    * LiveKit JWT service URL — used as fallback when a voice channel room
    * does not yet have an org.matrix.msc3401.call state event.
-   * Set via MESH_LIVEKIT_URL env var (Docker) or directly in config.json.
+   * Set via BETTERCORD_LIVEKIT_URL env var (Docker) or directly in config.json.
    * Example: "https://livekit-jwt.example.com"
    */
   livekitServiceUrl?: string;
 
   /**
    * Presence bridge base URL for SSE streams.
-   * Set via MESH_PRESENCE_URL env var (Docker) or directly in config.json.
+   * Set via BETTERCORD_PRESENCE_URL env var (Docker) or directly in config.json.
    * Defaults to "/api/presence" (proxied through nginx) if not set.
    * Example: "https://presence.example.com/presence"
    */
@@ -46,14 +49,7 @@ export type ClientConfig = {
   voiceStateMode?: 'livekit' | 'bridge';
 
   /**
-   * Default audio bitrate in kbps applied to new user profiles.
-   * Operator-configurable override for the in-app default (128 kbps).
-   * Supported values: 32 | 64 | 128 | 256 | 510
-   */
-  defaultAudioBitrate?: 32 | 64 | 128 | 256 | 510;
-
-  /**
-   * Feature flags for the authoritative bridge migration and experimental features.
+   * Feature flags for the authoritative bridge migration.
    */
   featureFlags?: {
     /**
@@ -68,15 +64,14 @@ export type ClientConfig = {
     authoritativeBridgeMode?: boolean;
 
     /**
-     * Issue #72: When true, enables AV1 video codec for camera tracks.
-     * AV1 offers 30-50% better compression than VP8 at equal quality.
+     * When true, AV1 is used as the primary video codec (with VP8 as backupCodec).
+     * AV1 provides ~30–50% better compression than VP8 at the same quality.
+     * Requires Chrome 70+, Edge 79+, or Firefox 93+.
+     * Falls back to VP8 automatically on unsupported clients via backupCodec.
      *
-     * IMPORTANT: This is NOT VP9. The VP9 ban in AGENTS.md does not apply here.
-     * Automatic fallback to VP8 if the browser does not support AV1 encoding.
-     *
-     * Default: false (safe — VP8 is always supported).
+     * Default: false (keep VP8 for backward compat — safe to enable for modern clients).
      */
-    experimentalAV1?: boolean;
+    av1Video?: boolean;
   };
 };
 

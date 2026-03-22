@@ -58,6 +58,7 @@ import { ClientInitStorageAtom } from './client/ClientInitStorageAtom';
 import { ClientNonUIFeatures } from './client/ClientNonUIFeatures';
 import { AuthRouteThemeManager, UnAuthRouteThemeManager } from './ThemeManager';
 import { ReceiveSelfDeviceVerification } from '../components/DeviceVerification';
+import { CallPopoutPage } from './call-popout/CallPopoutPage'; // #81
 import { AutoRestoreBackupOnVerification } from '../components/BackupRestore';
 import { RoomSettingsRenderer } from '../features/room-settings';
 import { ClientRoomsNotificationPreferences } from './client/ClientRoomsNotificationPreferences';
@@ -331,6 +332,8 @@ export const createRouter = (clientConfig: ClientConfig, screenSize: ScreenSize,
           <Route path={_INVITES_PATH} element={<Invites />} />
         </Route>
       </Route>
+      {/* #81 — Electron popout: /popout?room=<roomId> opens call in a native window */}
+      <Route path="/popout" element={<CallPopoutPage />} />
       <Route path="/*" element={<p>Page not found</p>} />
     </Route>
   );

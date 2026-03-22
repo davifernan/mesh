@@ -1,49 +1,31 @@
-import React, { useEffect, useRef } from 'react';
+/**
+ * CallPopoutPage.tsx — #81
+ *
+ * Minimal page for the /popout route, opened via window.open() in Electron.
+ * Electron's setWindowOpenHandler (desktop/src/main/Window.tsx) allows new
+ * BrowserWindows when frameName starts with 'bettercord_' and pathname === '/popout'.
+ *
+ * The page reads ?room=<roomId> from the URL, and renders NativeCallView
+ * inside its own CallProvider — no sidebar, no shell.
+ *
+ * Usage (from NativeCallControlBar — Electron only):
+ *   window.open(`${origin}/popout?room=${roomId}`, `bettercord_call_${roomId}`, 'width=960,height=640');
+ */
+
+import React, { useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { useCallState } from '../client/call/CallProvider';
+import { CallProvider, useCallState } from '../client/call/CallProvider';
 import { NativeCallView } from '../client/call/NativeCallView';
 
-/**
- * CallPopoutPage — Electron-only popout window showing just the call UI.
- *
- * Rendered at /popout?room=<roomId> (or /#/popout?room=... for hash router).
- * Opened via window.open() from NativeCallControlBar when running in Electron.
- * Electron's setWindowOpenHandler (desktop/src/main/Window.tsx) intercepts
- * mesh_* frameName and creates a native BrowserWindow without chrome.
- *
- * Provider requirements are satisfied by the existing auth-protected route
- * group in Router.tsx (ClientRoot → CallProvider wraps all auth routes).
- */
-export function CallPopoutPage() {
-  const [searchParams] = useSearchParams();
-  const roomId = searchParams.get('room');
-  const { setActiveCallRoomId, hangUp } = useCallState();
+function PopoutInner() {
+  const [params] = useSearchParams();
+  const roomId = params.get('room') ?? null;
+  const { setActiveCallRoomId } = useCallState();
 
-  // Keep a stable ref to hangUp so cleanup effects always call the latest version
-  const hangUpRef = useRef(hangUp);
   useEffect(() => {
-    hangUpRef.current = hangUp;
-  }, [hangUp]);
-
-  // Join the call when roomId is available
-  useEffect(() => {
-    if (!roomId) return;
-    setActiveCallRoomId(roomId, true);
+    if (roomId) setActiveCallRoomId(roomId);
+    return () => setActiveCallRoomId(null);
   }, [roomId, setActiveCallRoomId]);
-
-  // Hang up when the component unmounts (navigate away or app closes)
-  useEffect(() => {
-    return () => {
-      hangUpRef.current();
-    };
-  }, []);
-
-  // Also hang up when the window is closed via OS close button
-  useEffect(() => {
-    const handler = () => hangUpRef.current();
-    window.addEventListener('beforeunload', handler);
-    return () => window.removeEventListener('beforeunload', handler);
-  }, []);
 
   if (!roomId) {
     return (
@@ -53,26 +35,26 @@ export function CallPopoutPage() {
           alignItems: 'center',
           justifyContent: 'center',
           height: '100vh',
-          color: 'var(--text-muted)',
-          fontSize: '14px',
-          background: 'var(--background-primary)',
+          color: '#949ba4',
+          fontFamily: 'sans-serif',
         }}
       >
-        No room specified.
+        Kein Raum angegeben. Bitte dieses Fenster schließen.
       </div>
     );
   }
 
   return (
-    <div
-      style={{
-        position: 'fixed',
-        inset: 0,
-        zIndex: 9999,
-        background: 'var(--background-primary)',
-      }}
-    >
+    <div style={{ width: '100vw', height: '100vh', background: '#111214', overflow: 'hidden' }}>
       <NativeCallView />
     </div>
+  );
+}
+
+export function CallPopoutPage() {
+  return (
+    <CallProvider>
+      <PopoutInner />
+    </CallProvider>
   );
 }

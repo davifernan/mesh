@@ -6,7 +6,7 @@ import {
   MonitorPlay,
   CornersOut,
   SpeakerSlash,
-  MusicNote,
+  User,
 } from '@phosphor-icons/react';
 import { useMatrixClient } from '../../../hooks/useMatrixClient';
 import { useMediaAuthentication } from '../../../hooks/useMediaAuthentication';
@@ -55,7 +55,6 @@ export function NativeCallParticipantTile({
   const {
     activeCallRoomId,
     remoteParticipantStates,
-    remoteSoundboardClips,
     speakingUsers,
     isAudioEnabled,
     isDeafened,
@@ -131,13 +130,7 @@ export function NativeCallParticipantTile({
     return pState !== undefined ? pState.videoEnabled : participant.isCameraEnabled;
   }, [isLocal, remoteParticipantStates, userId, participant.isCameraEnabled]);
 
-  // Local: use engine's own deafen state. Remote: use LiveKit attribute fast-path (#78).
-  const isParticipantDeafened = isLocal
-    ? isDeafened
-    : (remoteParticipantStates.get(userId)?.isDeafened ?? false);
-
-  // Soundboard clip this participant is currently playing (from data channel, #80)
-  const activeSoundboardClip = remoteSoundboardClips.get(userId) ?? null;
+  const isParticipantDeafened = isLocal && isDeafened;
 
   const presenceState = useMemo(
     () => ({
@@ -224,31 +217,30 @@ export function NativeCallParticipantTile({
         ) : (
           <div
             className={styles.initial}
-            style={{ backgroundColor: tileAccentColor }}
-          >
-            <span style={{
-              fontSize: `${Math.round(avatarSize * 0.4)}px`,
-              fontWeight: 700,
+            style={{
+              backgroundColor: tileAccentColor,
+              // #77 — show initials, not a generic icon
+              fontSize: Math.round(avatarSize * 0.36),
+              fontWeight: 600,
               color: '#fff',
-              lineHeight: 1,
-              userSelect: 'none',
-            }}>
-              {displayName.slice(0, 2).toUpperCase()}
-            </span>
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              letterSpacing: '0.02em',
+            }}
+          >
+            {displayName
+              .split(' ')
+              .map((p) => p[0]?.toUpperCase() ?? '')
+              .filter(Boolean)
+              .slice(0, 2)
+              .join('') || '?'}
           </div>
         )}
       </div>
 
       {/* ── "You" self-view pill ─────────────────────────────────────── */}
       {isLocal && <div className={styles.selfBadge}>You</div>}
-
-      {/* ── Soundboard clip badge (#80) ───────────────────────────────── */}
-      {activeSoundboardClip && (
-        <div className={styles.soundboardBadge} title={`Playing: ${activeSoundboardClip}`}>
-          <MusicNote size={11} weight="fill" aria-hidden="true" />
-          {activeSoundboardClip}
-        </div>
-      )}
 
       {/* ── Screen share badge ───────────────────────────────────────── */}
       {badgeKinds.includes('live') && (

@@ -62,23 +62,27 @@ function ChipRow<T extends string | number>({
 
 type MediaDeviceInfo2 = { deviceId: string; label: string };
 
-// Module-level cache per device kind — persists across component mounts so that
-// re-opening the settings panel does not trigger a redundant enumerateDevices() call.
-// Invalidated only when a 'devicechange' event fires. (#55)
-const _deviceCache = new Map<MediaDeviceKind, MediaDeviceInfo2[]>();
+/**
+ * Module-level cache: avoids redundant enumerateDevices() calls across hook
+ * instances for the same kind. Invalidated on every 'devicechange' event.
+ * (#55 fix — enumerateDevices caching)
+ */
+const deviceListCache = new Map<MediaDeviceKind, MediaDeviceInfo2[]>();
 
 function useMediaDeviceList(kind: MediaDeviceKind): MediaDeviceInfo2[] {
-  const [devices, setDevices] = useState<MediaDeviceInfo2[]>(() => _deviceCache.get(kind) ?? []);
+  const [devices, setDevices] = useState<MediaDeviceInfo2[]>(() => deviceListCache.get(kind) ?? []);
   const permissionRequestedRef = useRef(false);
 
   useEffect(() => {
     let cancelled = false;
 
-    async function load(requestPermission: boolean) {
-      // Use cached result when available and no permission grant is needed.
-      // This avoids a redundant enumerateDevices() call on every settings open. (#55)
-      if (!requestPermission && _deviceCache.has(kind)) {
-        if (!cancelled) setDevices(_deviceCache.get(kind)!);
+    async function load(requestPermission: boolean, bustCache = false) {
+      if (bustCache) deviceListCache.delete(kind);
+
+      // Return cached result immediately if available
+      const cached = deviceListCache.get(kind);
+      if (cached && !bustCache) {
+        if (!cancelled) setDevices(cached);
         return;
       }
 
@@ -104,7 +108,7 @@ function useMediaDeviceList(kind: MediaDeviceKind): MediaDeviceInfo2[] {
           label: d.label || `${kind === 'audioinput' ? 'Microphone' : kind === 'videoinput' ? 'Camera' : 'Speaker'} ${d.deviceId.slice(0, 6)}`,
         }));
 
-      _deviceCache.set(kind, filtered);
+      deviceListCache.set(kind, filtered);
       setDevices(filtered);
 
       // If labels are still empty, retry after requesting permission
@@ -114,11 +118,10 @@ function useMediaDeviceList(kind: MediaDeviceKind): MediaDeviceInfo2[] {
     }
 
     void load(false);
-    // Store handler reference so removeEventListener receives the SAME function. (#54)
-    const handleDeviceChange = () => {
-      _deviceCache.delete(kind); // Invalidate cache so next load fetches fresh data. (#55)
-      void load(false);
-    };
+
+    // (#54 fix) stable function reference so removeEventListener actually removes
+    // the correct listener — anonymous arrows create new references each render.
+    const handleDeviceChange = () => void load(false, true);
     navigator.mediaDevices.addEventListener('devicechange', handleDeviceChange);
     return () => {
       cancelled = true;

@@ -1,3 +1,21 @@
+/**
+ * NativeCallControlBar — #71 redesign
+ *
+ * Two-pill layout matching Discord's visual hierarchy:
+ *
+ *   [ 🎙️▲ | 📷▲ ]   [ 🖥️  🎮  🎵  ··· ]   [ 🔴 ]   [ ⛶ ]
+ *    Pill 1 (A/V)     Pill 2 (actions)    Hangup  Fullscreen
+ *
+ * Changes vs. old single-pill bar:
+ * - Deafen removed (lives in UserArea per #38)
+ * - Noise Suppression moved to Mic dropdown
+ * - Stats + Stop-Watching moved to ··· overflow menu
+ * - Chat button moved to NativeCallView header (see NativeCallView.tsx)
+ * - Hangup is standalone outside both pills
+ * - Fullscreen button far right (desktop only)
+ * - Mic dropdown extended: Noise Sup toggle + Speaker device list
+ */
+
 import React, { useState, useCallback, useEffect, useRef } from 'react';
 import {
   Microphone,
@@ -9,27 +27,27 @@ import {
   EyeSlash,
   PhoneDisconnect,
   ChartBar,
-  ChatCircle,
   Waveform,
+  SpeakerHigh,
+  SpeakerSlash,
   CaretDown,
   ArrowsClockwise,
   MusicNote,
   Rocket,
-  CornersOut,
-  ArrowSquareOut,
+  DotsThree,
+  ArrowsOut,
+  ArrowsIn,
 } from '@phosphor-icons/react';
 import { ScreenSize, useScreenSizeContext } from '../../../hooks/useScreenSize';
 import { useLocalParticipant } from '@livekit/components-react';
 import { Track } from 'livekit-client';
 import { useAtom } from 'jotai';
 import { useCallState } from './CallProvider';
-import { useMatrixClient } from '../../../hooks/useMatrixClient';
 import { settingsAtom } from '../../../state/settings';
 import { ScreenShareModal } from '../../../components/voice/ScreenShareModal/ScreenShareModal';
 import { SoundboardPanel } from '../../../components/soundboard';
 import { showStatsAtom } from './VoiceCallLayoutStore';
 import { ActivityPicker } from './ActivityPicker';
-import { ConnectionQualityBadge } from './ConnectionQualityBadge';
 import styles from './NativeCallControlBar.module.css';
 
 function formatDuration(s: number): string {
@@ -43,7 +61,6 @@ function formatDuration(s: number): string {
 export function NativeCallControlBar() {
   const screenSize = useScreenSizeContext();
   const isMobile = screenSize === ScreenSize.Mobile;
-  const mx = useMatrixClient();
 
   const {
     hangUp,
@@ -52,16 +69,10 @@ export function NativeCallControlBar() {
     flipCamera,
     isAudioEnabled,
     isVideoEnabled,
-    isChatOpen,
-    toggleChat,
-    toggleCallView,
     activeCallRoomId,
     callStatus,
-    isReconnecting,
     startScreenShare,
     stopScreenShare,
-    toggleScreenShareAudio,
-    isScreenShareAudioEnabled,
     livekitRoom,
     callJoinTime,
     isSoundboardOpen,
@@ -71,11 +82,8 @@ export function NativeCallControlBar() {
     unwatchScreenShare,
   } = useCallState();
 
-  // Screen share state comes from the LiveKit RoomContext — no polling needed.
   const { localParticipant } = useLocalParticipant();
   const isScreenShareEnabled = localParticipant.isScreenShareEnabled;
-  // Audio cannot be enabled mid-share if no ScreenShareAudio track exists yet.
-  // The track is only published when the share starts with ssAudio=true.
   const hasScreenShareAudioTrack = !!localParticipant.getTrackPublication(Track.Source.ScreenShareAudio);
   const audioLockedMidShare = isScreenShareEnabled && !hasScreenShareAudioTrack;
 
@@ -88,13 +96,26 @@ export function NativeCallControlBar() {
   }, [watchedScreenShares, unwatchScreenShare]);
 
   const [userSettings, setUserSettings] = useAtom(settingsAtom);
-
   const [showQualityModal, setShowQualityModal] = useState(false);
   const [showStats, setShowStats] = useAtom(showStatsAtom);
 
-  // ── Call duration timer ────────────────────────────────────────────────────
-  const [duration, setDuration] = useState(0);
+  // ── Fullscreen ────────────────────────────────────────────────────────────
+  const [isFullscreen, setIsFullscreen] = useState(!!document.fullscreenElement);
+  useEffect(() => {
+    const handler = () => setIsFullscreen(!!document.fullscreenElement);
+    document.addEventListener('fullscreenchange', handler);
+    return () => document.removeEventListener('fullscreenchange', handler);
+  }, []);
+  const toggleFullscreen = useCallback(() => {
+    if (document.fullscreenElement) {
+      document.exitFullscreen().catch(() => {});
+    } else {
+      document.documentElement.requestFullscreen().catch(() => {});
+    }
+  }, []);
 
+  // ── Call duration timer ───────────────────────────────────────────────────
+  const [duration, setDuration] = useState(0);
   useEffect(() => {
     if (callStatus !== 'connected') return;
     const id = setInterval(() => {
@@ -103,94 +124,84 @@ export function NativeCallControlBar() {
     return () => clearInterval(id);
   }, [callStatus, callJoinTime]);
 
-  // ── Device picker state ────────────────────────────────────────────────────
+  // ── Device picker state ───────────────────────────────────────────────────
   const [micDevices, setMicDevices] = useState<MediaDeviceInfo[]>([]);
+  const [speakerDevices, setSpeakerDevices] = useState<MediaDeviceInfo[]>([]);
   const [camDevices, setCamDevices] = useState<MediaDeviceInfo[]>([]);
   const [showMicMenu, setShowMicMenu] = useState(false);
   const [showCamMenu, setShowCamMenu] = useState(false);
-
-  // ── Screen share context menu ──────────────────────────────────────────────
   const [showSSMenu, setShowSSMenu] = useState(false);
   const [showActivities, setShowActivities] = useState(false);
-  const activitiesRef = useRef<HTMLDivElement>(null);
+  const [showOverflow, setShowOverflow] = useState(false);
 
-  // Close menus when clicking outside
   const micMenuRef = useRef<HTMLDivElement>(null);
   const camMenuRef = useRef<HTMLDivElement>(null);
   const ssMenuRef = useRef<HTMLDivElement>(null);
   const soundboardMenuRef = useRef<HTMLDivElement>(null);
+  const activitiesRef = useRef<HTMLDivElement>(null);
+  const overflowRef = useRef<HTMLDivElement>(null);
 
+  // Close any open menu when clicking outside
   useEffect(() => {
-    const anyOpen = showMicMenu || showCamMenu || showSSMenu || isSoundboardOpen;
+    const anyOpen = showMicMenu || showCamMenu || showSSMenu || isSoundboardOpen || showActivities || showOverflow;
     if (!anyOpen) return;
     const handler = (e: MouseEvent) => {
-      if (showMicMenu && micMenuRef.current && !micMenuRef.current.contains(e.target as Node)) {
-        setShowMicMenu(false);
-      }
-      if (showCamMenu && camMenuRef.current && !camMenuRef.current.contains(e.target as Node)) {
-        setShowCamMenu(false);
-      }
-      if (showSSMenu && ssMenuRef.current && !ssMenuRef.current.contains(e.target as Node)) {
-        setShowSSMenu(false);
-      }
-      if (isSoundboardOpen && soundboardMenuRef.current && !soundboardMenuRef.current.contains(e.target as Node)) {
-        setSoundboardOpen(false);
-      }
+      const t = e.target as Node;
+      if (showMicMenu && micMenuRef.current && !micMenuRef.current.contains(t)) setShowMicMenu(false);
+      if (showCamMenu && camMenuRef.current && !camMenuRef.current.contains(t)) setShowCamMenu(false);
+      if (showSSMenu && ssMenuRef.current && !ssMenuRef.current.contains(t)) setShowSSMenu(false);
+      if (isSoundboardOpen && soundboardMenuRef.current && !soundboardMenuRef.current.contains(t)) setSoundboardOpen(false);
+      if (showActivities && activitiesRef.current && !activitiesRef.current.contains(t)) setShowActivities(false);
+      if (showOverflow && overflowRef.current && !overflowRef.current.contains(t)) setShowOverflow(false);
     };
     document.addEventListener('mousedown', handler);
     return () => document.removeEventListener('mousedown', handler);
-  }, [showMicMenu, showCamMenu, showSSMenu, isSoundboardOpen, setSoundboardOpen]);
+  }, [showMicMenu, showCamMenu, showSSMenu, isSoundboardOpen, showActivities, showOverflow, setSoundboardOpen]);
 
-  const toggleActivities = useCallback(() => {
-    setShowActivities((v) => !v);
-    setShowMicMenu(false);
-    setShowCamMenu(false);
-    setShowSSMenu(false);
-  }, []);
-
+  // ── Device menu openers ───────────────────────────────────────────────────
   const openMicMenu = useCallback(async (e: React.MouseEvent) => {
     e.stopPropagation();
-    const devices = await navigator.mediaDevices.enumerateDevices();
-    setMicDevices(devices.filter((d) => d.kind === 'audioinput'));
+    const all = await navigator.mediaDevices.enumerateDevices();
+    setMicDevices(all.filter((d) => d.kind === 'audioinput'));
+    setSpeakerDevices(all.filter((d) => d.kind === 'audiooutput'));
     setShowMicMenu((v) => !v);
     setShowCamMenu(false);
     setShowSSMenu(false);
+    setShowOverflow(false);
   }, []);
 
   const openCamMenu = useCallback(async (e: React.MouseEvent) => {
     e.stopPropagation();
-    const devices = await navigator.mediaDevices.enumerateDevices();
-    setCamDevices(devices.filter((d) => d.kind === 'videoinput'));
+    const all = await navigator.mediaDevices.enumerateDevices();
+    setCamDevices(all.filter((d) => d.kind === 'videoinput'));
     setShowCamMenu((v) => !v);
     setShowMicMenu(false);
     setShowSSMenu(false);
+    setShowOverflow(false);
   }, []);
 
-  const selectMicDevice = useCallback(
-    (deviceId: string) => {
-      setUserSettings({ ...userSettings, micDeviceId: deviceId });
-      setShowMicMenu(false);
-      // Apply immediately to the live call — no rejoin needed
-      if (livekitRoom) {
-        void livekitRoom.switchActiveDevice('audioinput', deviceId);
-      }
-    },
-    [userSettings, setUserSettings, livekitRoom],
-  );
+  const selectMicDevice = useCallback((deviceId: string) => {
+    setUserSettings({ ...userSettings, micDeviceId: deviceId });
+    setShowMicMenu(false);
+    if (livekitRoom) void livekitRoom.switchActiveDevice('audioinput', deviceId);
+  }, [userSettings, setUserSettings, livekitRoom]);
 
-  const selectCamDevice = useCallback(
-    (deviceId: string) => {
-      setUserSettings({ ...userSettings, cameraDeviceId: deviceId });
-      setShowCamMenu(false);
-      // Apply immediately to the live call — no rejoin needed
-      if (livekitRoom) {
-        void livekitRoom.switchActiveDevice('videoinput', deviceId);
-      }
-    },
-    [userSettings, setUserSettings, livekitRoom],
-  );
+  const selectSpeakerDevice = useCallback((deviceId: string) => {
+    setUserSettings({ ...userSettings, speakerDeviceId: deviceId });
+    if (livekitRoom) void livekitRoom.switchActiveDevice('audiooutput', deviceId);
+  }, [userSettings, setUserSettings, livekitRoom]);
 
-  // ── Screen share handler ───────────────────────────────────────────────────
+  const selectCamDevice = useCallback((deviceId: string) => {
+    setUserSettings({ ...userSettings, cameraDeviceId: deviceId });
+    setShowCamMenu(false);
+    if (livekitRoom) void livekitRoom.switchActiveDevice('videoinput', deviceId);
+  }, [userSettings, setUserSettings, livekitRoom]);
+
+  const handleToggleNoiseSup = useCallback(() => {
+    setUserSettings({ ...userSettings, noiseSuppression: !userSettings.noiseSuppression });
+  }, [setUserSettings, userSettings]);
+
+  // ── Screen share ──────────────────────────────────────────────────────────
   const handleScreenShare = () => {
     if (isScreenShareEnabled) {
       setShowSSMenu((v) => !v);
@@ -201,73 +212,84 @@ export function NativeCallControlBar() {
     }
   };
 
-  const handleStopSharing = useCallback(() => {
-    void stopScreenShare();
-    setShowSSMenu(false);
-  }, [stopScreenShare]);
-
-  const handleShareSettings = useCallback(() => {
-    setShowSSMenu(false);
-    setShowQualityModal(true);
-  }, []);
-
-  const handleConfirmScreenShare = useCallback(
-    (ssRes: string, ssFps: number, ssAudio: boolean) => {
-      setUserSettings({
-        ...userSettings,
-        ssResolution: ssRes as typeof userSettings.ssResolution,
-        ssFps: ssFps as typeof userSettings.ssFps,
-        ssAudio,
-      });
-      if (isScreenShareEnabled) {
-        // Mid-share: update quality without restarting the track
-        void updateScreenShareSettings(ssRes, ssFps, ssAudio);
-      } else {
-        // New share
-        void startScreenShare(ssRes, ssFps, ssAudio);
-      }
-      setShowQualityModal(false);
-    },
-    [setUserSettings, startScreenShare, updateScreenShareSettings, isScreenShareEnabled, userSettings],
-  );
-
-  const handleToggleNoiseSup = useCallback(() => {
-    const next = !userSettings.noiseSuppression;
-    setUserSettings({ ...userSettings, noiseSuppression: next });
-  }, [setUserSettings, userSettings]);
-
-  const handleFullscreen = useCallback(() => {
-    if (!document.fullscreenElement) {
-      void document.documentElement.requestFullscreen();
+  const handleConfirmScreenShare = useCallback((ssRes: string, ssFps: number, ssAudio: boolean) => {
+    setUserSettings({
+      ...userSettings,
+      ssResolution: ssRes as typeof userSettings.ssResolution,
+      ssFps: ssFps as typeof userSettings.ssFps,
+      ssAudio,
+    });
+    if (isScreenShareEnabled) {
+      void updateScreenShareSettings(ssRes, ssFps, ssAudio);
     } else {
-      void document.exitFullscreen();
+      void startScreenShare(ssRes, ssFps, ssAudio);
     }
-  }, []);
+    setShowQualityModal(false);
+  }, [setUserSettings, startScreenShare, updateScreenShareSettings, isScreenShareEnabled, userSettings]);
 
-  const handlePopout = useCallback(() => {
-    if (!window.electron || !activeCallRoomId) return;
-    const encoded = encodeURIComponent(activeCallRoomId);
-    // Support both browser router (/popout) and hash router (/#/popout)
-    const isHashRoute = window.location.hash.length > 1;
-    const popoutUrl = isHashRoute
-      ? `${window.location.origin}${window.location.pathname}#/popout?room=${encoded}`
-      : `${window.location.origin}/popout?room=${encoded}`;
-    window.open(popoutUrl, `mesh_${activeCallRoomId}`, 'width=960,height=640');
-    toggleCallView();
-  }, [activeCallRoomId, toggleCallView]);
-
-  // Derive a human-readable room display name from the Matrix room.
   const roomDisplayName = activeCallRoomId
-    ? (mx.getRoom(activeCallRoomId)?.name ?? activeCallRoomId)
+    ? (activeCallRoomId.replace(/^!/, '').split(':')[0] ?? activeCallRoomId)
     : null;
+
+  // ── Mic dropdown content (devices + noise sup + speakers) ─────────────────
+  const MicDropdown = (
+    <div className={styles.deviceMenu}>
+      {/* Mic devices */}
+      <div className={styles.menuSectionLabel}>MICROPHONE</div>
+      {micDevices.length === 0 && (
+        <div className={styles.deviceItem} style={{ color: 'var(--text-secondary)' }}>No microphones found</div>
+      )}
+      {micDevices.map((d) => (
+        <div
+          key={d.deviceId}
+          className={`${styles.deviceItem}${userSettings.micDeviceId === d.deviceId ? ` ${styles.deviceItemSelected}` : ''}`}
+          onClick={() => selectMicDevice(d.deviceId)}
+          role="button" tabIndex={0}
+          onKeyDown={(e) => e.key === 'Enter' && selectMicDevice(d.deviceId)}
+        >
+          {d.label || `Microphone ${d.deviceId.slice(0, 8)}`}
+        </div>
+      ))}
+
+      {/* Noise suppression toggle */}
+      <div className={styles.menuDivider} />
+      <div
+        className={`${styles.deviceItem} ${styles.menuToggleItem}`}
+        onClick={handleToggleNoiseSup}
+        role="button" tabIndex={0}
+        onKeyDown={(e) => e.key === 'Enter' && handleToggleNoiseSup()}
+        aria-pressed={userSettings.noiseSuppression}
+      >
+        <Waveform size={14} />
+        <span>Noise Suppression</span>
+        <span className={`${styles.togglePill} ${userSettings.noiseSuppression ? styles.togglePillOn : ''}`}>
+          {userSettings.noiseSuppression ? 'ON' : 'OFF'}
+        </span>
+      </div>
+
+      {/* Speaker devices */}
+      {speakerDevices.length > 0 && (
+        <>
+          <div className={styles.menuDivider} />
+          <div className={styles.menuSectionLabel}>SPEAKER</div>
+          {speakerDevices.map((d) => (
+            <div
+              key={d.deviceId}
+              className={`${styles.deviceItem}${userSettings.speakerDeviceId === d.deviceId ? ` ${styles.deviceItemSelected}` : ''}`}
+              onClick={() => selectSpeakerDevice(d.deviceId)}
+              role="button" tabIndex={0}
+              onKeyDown={(e) => e.key === 'Enter' && selectSpeakerDevice(d.deviceId)}
+            >
+              {d.label || `Speaker ${d.deviceId.slice(0, 8)}`}
+            </div>
+          ))}
+        </>
+      )}
+    </div>
+  );
 
   return (
     <>
-      {isReconnecting && (
-        <div className={styles.reconnectingBanner}>
-          Verbindung wird wiederhergestellt...
-        </div>
-      )}
       {showQualityModal && (
         <ScreenShareModal
           onConfirm={handleConfirmScreenShare}
@@ -276,8 +298,9 @@ export function NativeCallControlBar() {
           audioLocked={audioLockedMidShare}
         />
       )}
+
       <div className={styles.bar}>
-        {/* Left: room name + timer */}
+        {/* Room name + duration */}
         <div className={styles.leftSection}>
           {roomDisplayName && (
             <span className={styles.roomName} title={activeCallRoomId ?? undefined}>
@@ -285,327 +308,211 @@ export function NativeCallControlBar() {
             </span>
           )}
           {callStatus === 'connected' && (
-            <>
-              <span className={styles.durationText}>{formatDuration(duration)}</span>
-              <ConnectionQualityBadge />
-            </>
+            <span className={styles.durationText}>{formatDuration(duration)}</span>
           )}
         </div>
 
-        <div className={styles.controls}>
-          {/* ── Left pill: mic + cam ──────────────────────────────────── */}
-          <div className={styles.pillGroup}>
-            {/* Microphone + device caret */}
-            <div className={styles.btnWrap} ref={micMenuRef}>
+        {/* ── Pill 1: A/V controls ── */}
+        <div className={styles.pill}>
+          {/* Mic */}
+          <div className={styles.btnWrap} ref={micMenuRef}>
+            <button
+              className={`${styles.btn} ${!isAudioEnabled ? styles.btnMuted : ''}`}
+              onClick={() => void toggleAudio()}
+              title={isAudioEnabled ? 'Mute microphone' : 'Unmute microphone'}
+              aria-label={isAudioEnabled ? 'Mute microphone' : 'Unmute microphone'}
+              aria-pressed={!isAudioEnabled}
+            >
+              {isAudioEnabled ? <Microphone size={20} /> : <MicrophoneSlash size={20} />}
+            </button>
+            <button
+              className={styles.caretBtn}
+              onClick={openMicMenu}
+              title="Microphone settings"
+              aria-label="Microphone settings"
+            >
+              <CaretDown size={12} />
+            </button>
+            {showMicMenu && MicDropdown}
+          </div>
+
+          {/* Camera / Flip */}
+          {isMobile ? (
+            <>
               <button
-                className={`${styles.btn} ${!isAudioEnabled ? styles.btnMuted : ''}`}
-                onClick={() => void toggleAudio()}
-                title={isAudioEnabled ? 'Mute microphone' : 'Unmute microphone'}
-                aria-label={isAudioEnabled ? 'Mute microphone' : 'Unmute microphone'}
-                aria-pressed={!isAudioEnabled}
+                className={`${styles.btn} ${!isVideoEnabled ? styles.btnMuted : ''}`}
+                onClick={() => void toggleVideo()}
+                title={isVideoEnabled ? 'Disable camera' : 'Enable camera'}
+                aria-label={isVideoEnabled ? 'Disable camera' : 'Enable camera'}
+                aria-pressed={!isVideoEnabled}
               >
-                {isAudioEnabled ? <Microphone size={20} /> : <MicrophoneSlash size={20} />}
+                {isVideoEnabled ? <VideoCamera size={20} /> : <VideoCameraSlash size={20} />}
+              </button>
+              <button
+                className={styles.btn}
+                onClick={() => void flipCamera()}
+                title="Flip camera"
+                aria-label="Flip camera"
+              >
+                <ArrowsClockwise size={20} />
+              </button>
+            </>
+          ) : (
+            <div className={styles.btnWrap} ref={camMenuRef}>
+              <button
+                className={`${styles.btn} ${!isVideoEnabled ? styles.btnMuted : ''}`}
+                onClick={() => void toggleVideo()}
+                title={isVideoEnabled ? 'Disable camera' : 'Enable camera'}
+                aria-label={isVideoEnabled ? 'Disable camera' : 'Enable camera'}
+                aria-pressed={!isVideoEnabled}
+              >
+                {isVideoEnabled ? <VideoCamera size={20} /> : <VideoCameraSlash size={20} />}
               </button>
               <button
                 className={styles.caretBtn}
-                onClick={openMicMenu}
-                title="Switch microphone"
-                aria-label="Switch microphone device"
+                onClick={openCamMenu}
+                title="Switch camera"
+                aria-label="Switch camera device"
               >
                 <CaretDown size={12} />
               </button>
-              {showMicMenu && (
+              {showCamMenu && (
                 <div className={styles.deviceMenu}>
-                  {micDevices.length === 0 && (
-                    <div className={styles.deviceItem} style={{ color: 'var(--text-secondary)' }}>
-                      No microphones found
-                    </div>
+                  <div className={styles.menuSectionLabel}>CAMERA</div>
+                  {camDevices.length === 0 && (
+                    <div className={styles.deviceItem} style={{ color: 'var(--text-secondary)' }}>No cameras found</div>
                   )}
-                  {micDevices.map((d) => (
+                  {camDevices.map((d) => (
                     <div
                       key={d.deviceId}
-                      className={styles.deviceItem}
-                      onClick={() => selectMicDevice(d.deviceId)}
-                      role="button"
-                      tabIndex={0}
-                      onKeyDown={(e) => e.key === 'Enter' && selectMicDevice(d.deviceId)}
-                      aria-pressed={userSettings.micDeviceId === d.deviceId}
-                      style={userSettings.micDeviceId === d.deviceId ? { color: 'var(--brand-primary)' } : undefined}
+                      className={`${styles.deviceItem}${userSettings.cameraDeviceId === d.deviceId ? ` ${styles.deviceItemSelected}` : ''}`}
+                      onClick={() => selectCamDevice(d.deviceId)}
+                      role="button" tabIndex={0}
+                      onKeyDown={(e) => e.key === 'Enter' && selectCamDevice(d.deviceId)}
                     >
-                      {d.label || `Microphone ${d.deviceId.slice(0, 8)}`}
+                      {d.label || `Camera ${d.deviceId.slice(0, 8)}`}
                     </div>
                   ))}
                 </div>
               )}
             </div>
+          )}
+        </div>
 
-            <div className={styles.pillDivider} />
+        {/* ── Pill 2: Action controls ── */}
+        <div className={styles.pill}>
+          {/* Screen Share */}
+          <div className={styles.btnWrap} ref={ssMenuRef}>
+            <button
+              className={`${styles.btn} ${isScreenShareEnabled ? styles.btnActive : ''}`}
+              onClick={handleScreenShare}
+              onContextMenu={(e) => {
+                if (isScreenShareEnabled) { e.preventDefault(); setShowSSMenu(true); }
+              }}
+              title={isScreenShareEnabled ? 'Screen share options' : 'Share screen'}
+              aria-label={isScreenShareEnabled ? 'Screen share options' : 'Share screen'}
+              aria-pressed={isScreenShareEnabled}
+            >
+              {isScreenShareEnabled ? <Monitor size={20} /> : <MonitorArrowUp size={20} />}
+            </button>
+            {showSSMenu && (
+              <div className={styles.ssMenu}>
+                <div className={styles.deviceItem} onClick={() => { void stopScreenShare(); setShowSSMenu(false); }} role="button" tabIndex={0} onKeyDown={(e) => e.key === 'Enter' && void stopScreenShare()}>
+                  Stop Sharing
+                </div>
+                <div className={styles.deviceItem} onClick={() => { setShowSSMenu(false); setShowQualityModal(true); }} role="button" tabIndex={0}>
+                  Quality Settings
+                </div>
+              </div>
+            )}
+          </div>
 
-            {isMobile ? (
-              <>
-                <button
-                  className={`${styles.btn} ${!isVideoEnabled ? styles.btnMuted : ''}`}
-                  onClick={() => void toggleVideo()}
-                  title={isVideoEnabled ? 'Disable camera' : 'Enable camera'}
-                  aria-label={isVideoEnabled ? 'Disable camera' : 'Enable camera'}
-                  aria-pressed={!isVideoEnabled}
-                >
-                  {isVideoEnabled ? <VideoCamera size={20} /> : <VideoCameraSlash size={20} />}
-                </button>
+          {/* Activities */}
+          <div className={styles.btnWrap} ref={activitiesRef}>
+            <button
+              className={`${styles.btn} ${showActivities ? styles.btnActive : ''}`}
+              onClick={() => { setShowActivities((v) => !v); setShowMicMenu(false); setShowCamMenu(false); setShowOverflow(false); }}
+              title="Activities"
+              aria-label="Open activities picker"
+              aria-pressed={showActivities}
+            >
+              <Rocket size={20} />
+            </button>
+            {showActivities && <ActivityPicker onClose={() => setShowActivities(false)} />}
+          </div>
 
-                <button
-                  className={styles.btn}
-                  onClick={() => void flipCamera()}
-                  title="Flip camera"
-                  aria-label="Flip camera"
+          {/* Soundboard */}
+          <div className={styles.btnWrap} ref={soundboardMenuRef}>
+            <button
+              className={`${styles.btn} ${isSoundboardOpen ? styles.btnActive : ''}`}
+              onClick={() => setSoundboardOpen(!isSoundboardOpen)}
+              title="Soundboard"
+              aria-label="Toggle soundboard"
+              aria-pressed={isSoundboardOpen}
+            >
+              <MusicNote size={20} />
+            </button>
+            {isSoundboardOpen && <SoundboardPanel onClose={() => setSoundboardOpen(false)} />}
+          </div>
+
+          {/* ··· Overflow */}
+          <div className={styles.btnWrap} ref={overflowRef}>
+            <button
+              className={`${styles.btn} ${showOverflow ? styles.btnActive : ''}`}
+              onClick={() => { setShowOverflow((v) => !v); setShowMicMenu(false); setShowCamMenu(false); }}
+              title="More options"
+              aria-label="More options"
+              aria-pressed={showOverflow}
+            >
+              <DotsThree size={20} weight="bold" />
+            </button>
+            {showOverflow && (
+              <div className={styles.overflowMenu}>
+                <div
+                  className={`${styles.deviceItem} ${showStats ? styles.deviceItemSelected : ''}`}
+                  onClick={() => { setShowStats((s) => !s); setShowOverflow(false); }}
+                  role="button" tabIndex={0}
+                  onKeyDown={(e) => e.key === 'Enter' && setShowStats((s) => !s)}
                 >
-                  <ArrowsClockwise size={20} />
-                </button>
-              </>
-            ) : (
-              /* Camera + device caret (desktop) */
-              <div className={styles.btnWrap} ref={camMenuRef}>
-                <button
-                  className={`${styles.btn} ${!isVideoEnabled ? styles.btnMuted : ''}`}
-                  onClick={() => void toggleVideo()}
-                  title={isVideoEnabled ? 'Disable camera' : 'Enable camera'}
-                  aria-label={isVideoEnabled ? 'Disable camera' : 'Enable camera'}
-                  aria-pressed={!isVideoEnabled}
-                >
-                  {isVideoEnabled ? <VideoCamera size={20} /> : <VideoCameraSlash size={20} />}
-                </button>
-                <button
-                  className={styles.caretBtn}
-                  onClick={openCamMenu}
-                  title="Switch camera"
-                  aria-label="Switch camera device"
-                >
-                  <CaretDown size={12} />
-                </button>
-                {showCamMenu && (
-                  <div className={styles.deviceMenu}>
-                    {camDevices.length === 0 && (
-                      <div className={styles.deviceItem} style={{ color: 'var(--text-secondary)' }}>
-                        No cameras found
-                      </div>
-                    )}
-                    {camDevices.map((d) => (
-                      <div
-                        key={d.deviceId}
-                        className={styles.deviceItem}
-                        onClick={() => selectCamDevice(d.deviceId)}
-                        role="button"
-                        tabIndex={0}
-                        onKeyDown={(e) => e.key === 'Enter' && selectCamDevice(d.deviceId)}
-                        aria-pressed={userSettings.cameraDeviceId === d.deviceId}
-                        style={userSettings.cameraDeviceId === d.deviceId ? { color: 'var(--brand-primary)' } : undefined}
-                      >
-                        {d.label || `Camera ${d.deviceId.slice(0, 8)}`}
-                      </div>
-                    ))}
+                  <ChartBar size={14} />
+                  <span>Call Stats</span>
+                </div>
+                {isWatchingScreenShare && (
+                  <div
+                    className={styles.deviceItem}
+                    onClick={() => { stopWatchingAll(); setShowOverflow(false); }}
+                    role="button" tabIndex={0}
+                  >
+                    <EyeSlash size={14} />
+                    <span>Stop Watching</span>
                   </div>
                 )}
               </div>
             )}
           </div>
-
-          {/* ── Right pill: screen share, noise, soundboard, activities, stats, chat, watch ── */}
-          <div className={styles.pillGroup}>
-            {!isMobile && (
-              <>
-                {/* Screen Share + context menu when active */}
-                <div className={styles.btnWrap} ref={ssMenuRef}>
-                  <button
-                    className={`${styles.btn} ${isScreenShareEnabled ? styles.btnActive : ''}`}
-                    onClick={handleScreenShare}
-                    onContextMenu={(e) => {
-                      if (isScreenShareEnabled) {
-                        e.preventDefault();
-                        setShowSSMenu(true);
-                      }
-                    }}
-                    title={isScreenShareEnabled ? 'Screen share options' : 'Share screen'}
-                    aria-label={isScreenShareEnabled ? 'Screen share options' : 'Share screen'}
-                    aria-pressed={isScreenShareEnabled}
-                  >
-                    {isScreenShareEnabled ? <Monitor size={20} /> : <MonitorArrowUp size={20} />}
-                  </button>
-                  {showSSMenu && (
-                    <div className={styles.ssMenu}>
-                      {/* Issue #45: toggle system audio mid-share via stop→restart */}
-                      <div
-                        className={styles.deviceItem}
-                        onClick={() => { void toggleScreenShareAudio(); setShowSSMenu(false); }}
-                        role="button"
-                        tabIndex={0}
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter') { void toggleScreenShareAudio(); setShowSSMenu(false); }
-                        }}
-                        title={isScreenShareAudioEnabled ? 'Disable system audio (brief restart)' : 'Enable system audio (brief restart)'}
-                      >
-                        {isScreenShareAudioEnabled ? 'Disable System Audio' : 'Enable System Audio'}
-                      </div>
-                      <div
-                        className={styles.deviceItem}
-                        onClick={handleStopSharing}
-                        role="button"
-                        tabIndex={0}
-                        onKeyDown={(e) => e.key === 'Enter' && handleStopSharing()}
-                      >
-                        Stop Sharing
-                      </div>
-                      <div
-                        className={styles.deviceItem}
-                        onClick={handleShareSettings}
-                        role="button"
-                        tabIndex={0}
-                        onKeyDown={(e) => e.key === 'Enter' && handleShareSettings()}
-                      >
-                        Quality Settings
-                      </div>
-                    </div>
-                  )}
-                </div>
-
-                <div className={styles.pillDivider} />
-
-                {/* Noise Suppression */}
-                <button
-                  className={`${styles.btn} ${userSettings.noiseSuppression ? styles.btnActive : styles.btnMuted}`}
-                  onClick={handleToggleNoiseSup}
-                  title={userSettings.noiseSuppression ? 'Noise suppression on' : 'Noise suppression off'}
-                  aria-label={userSettings.noiseSuppression ? 'Disable noise suppression' : 'Enable noise suppression'}
-                  aria-pressed={userSettings.noiseSuppression}
-                >
-                  <Waveform size={20} />
-                </button>
-
-                {/* Soundboard */}
-                <div className={styles.btnWrap} ref={soundboardMenuRef}>
-                  <button
-                    className={`${styles.btn} ${isSoundboardOpen ? styles.btnActive : ''}`}
-                    onClick={() => setSoundboardOpen(!isSoundboardOpen)}
-                    title="Soundboard"
-                    aria-label="Toggle soundboard"
-                    aria-pressed={isSoundboardOpen}
-                  >
-                    <MusicNote size={20} />
-                  </button>
-                  {isSoundboardOpen && (
-                    <SoundboardPanel onClose={() => setSoundboardOpen(false)} />
-                  )}
-                </div>
-
-                {/* Activities */}
-                <div className={styles.btnWrap} ref={activitiesRef}>
-                  <button
-                    className={`${styles.btn} ${showActivities ? styles.btnActive : ''}`}
-                    onClick={toggleActivities}
-                    title="Activities"
-                    aria-label="Open activities picker"
-                    aria-pressed={showActivities}
-                  >
-                    <Rocket size={20} />
-                  </button>
-                  {showActivities && (
-                    <ActivityPicker onClose={() => setShowActivities(false)} />
-                  )}
-                </div>
-
-                {/* Stats */}
-                <button
-                  className={`${styles.btn} ${showStats ? styles.btnActive : ''}`}
-                  onClick={() => setShowStats((s) => !s)}
-                  title="Call stats"
-                  aria-label="Toggle call stats"
-                  aria-pressed={showStats}
-                >
-                  <ChartBar size={20} />
-                </button>
-
-                <div className={styles.pillDivider} />
-              </>
-            )}
-
-            {isMobile && (
-              /* Soundboard on mobile */
-              <div className={styles.btnWrap} ref={soundboardMenuRef}>
-                <button
-                  className={`${styles.btn} ${isSoundboardOpen ? styles.btnActive : ''}`}
-                  onClick={() => setSoundboardOpen(!isSoundboardOpen)}
-                  title="Soundboard"
-                  aria-label="Toggle soundboard"
-                  aria-pressed={isSoundboardOpen}
-                >
-                  <MusicNote size={20} />
-                </button>
-                {isSoundboardOpen && (
-                  <SoundboardPanel onClose={() => setSoundboardOpen(false)} />
-                )}
-              </div>
-            )}
-
-            {/* Chat */}
-            <button
-              className={`${styles.btn} ${isChatOpen ? styles.btnActive : ''}`}
-              onClick={() => void toggleChat()}
-              title={isChatOpen ? 'Hide chat' : 'Show chat'}
-              aria-label={isChatOpen ? 'Hide chat' : 'Show chat'}
-              aria-pressed={isChatOpen}
-            >
-              <ChatCircle size={20} />
-            </button>
-
-            {/* Stop Watching screen share */}
-            {isWatchingScreenShare && (
-              <button
-                type="button"
-                className={`${styles.btn} ${styles.btnActive}`}
-                onClick={stopWatchingAll}
-                title="Stop Watching"
-                aria-label="Stop watching screen share"
-              >
-                <EyeSlash size={20} />
-              </button>
-            )}
-          </div>
-
-          {/* ── Hang up — outside pills ───────────────────────────────── */}
-          <button
-            className={`${styles.btn} ${styles.btnHangupOutside}`}
-            onClick={hangUp}
-            title="Leave call"
-            aria-label="Leave call"
-          >
-            <PhoneDisconnect size={20} />
-          </button>
-
-          {/* ── Popout (Electron only) ────────────────────────────────── */}
-          {!isMobile && !!window.electron && (
-            <button
-              className={`${styles.btn}`}
-              onClick={handlePopout}
-              title="Open call in separate window"
-              aria-label="Open call in separate window"
-            >
-              <ArrowSquareOut size={20} />
-            </button>
-          )}
-
-          {/* ── Fullscreen ────────────────────────────────────────────── */}
-          {!isMobile && (
-            <button
-              className={`${styles.btn} ${styles.fullscreenBtn}`}
-              onClick={handleFullscreen}
-              title="Toggle fullscreen"
-              aria-label="Toggle fullscreen"
-            >
-              <CornersOut size={20} />
-            </button>
-          )}
         </div>
 
-        <div className={styles.rightSection} />
+        {/* ── Hangup — standalone outside pills ── */}
+        <button
+          className={`${styles.btn} ${styles.btnHangup}`}
+          onClick={hangUp}
+          title="Leave call"
+          aria-label="Leave call"
+        >
+          <PhoneDisconnect size={20} />
+        </button>
+
+        {/* ── Fullscreen — far right, desktop only ── */}
+        {!isMobile && (
+          <button
+            className={styles.btnFullscreen}
+            onClick={toggleFullscreen}
+            title={isFullscreen ? 'Exit fullscreen' : 'Enter fullscreen'}
+            aria-label={isFullscreen ? 'Exit fullscreen' : 'Enter fullscreen'}
+          >
+            {isFullscreen ? <ArrowsIn size={18} /> : <ArrowsOut size={18} />}
+          </button>
+        )}
       </div>
     </>
   );

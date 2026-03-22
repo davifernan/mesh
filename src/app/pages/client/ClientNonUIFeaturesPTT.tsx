@@ -4,7 +4,7 @@
  * Split from ClientNonUIFeatures.tsx to stay under the 650-line limit.
  * Contains:
  *  - PWABadge          — navigator.setAppBadge() for PWA/browser badge count
- *  - ElectronDeepLink  — mesh:// URL handler (Electron + web fallback)
+ *  - ElectronDeepLink  — bettercord:// URL handler (Electron + web fallback)
  *                        Extended to handle invite/CODE and room/ROOM_ID patterns
  *  - PTTElectronShortcut — Push-to-Talk via Electron globalShortcut or web keydown/keyup
  */
@@ -47,12 +47,12 @@ export function PWABadge() {
 
 // ---------------------------------------------------------------------------
 // ElectronDeepLink (extended)
-// Handles mesh:// URLs from both Electron and (on web) window.location.
+// Handles bettercord:// URLs from both Electron and (on web) window.location.
 //
 // Supported patterns:
-//   mesh://app/<path>         → /<path>  (existing behaviour)
-//   mesh://invite/<CODE>      → /home/join/ (with invite code in hash/search)
-//   mesh://room/<ROOM_ID>     → /home/<roomIdOrAlias>/
+//   bettercord://app/<path>         → /<path>  (existing behaviour)
+//   bettercord://invite/<CODE>      → /home/join/ (with invite code in hash/search)
+//   bettercord://room/<ROOM_ID>     → /home/<roomIdOrAlias>/
 // ---------------------------------------------------------------------------
 
 export function ElectronDeepLink() {
@@ -62,11 +62,11 @@ export function ElectronDeepLink() {
     (url: string) => {
       try {
         const parsed = new URL(url);
-        const scheme = parsed.protocol; // e.g. "mesh:"
+        const scheme = parsed.protocol; // e.g. "bettercord:"
         const host = parsed.host;       // e.g. "invite", "room", "app"
         const pathParts = parsed.pathname.replace(/^\//, '').split('/').filter(Boolean);
 
-        if (scheme !== 'mesh:') {
+        if (scheme !== 'bettercord:') {
           // Not our scheme — try treating as normal URL
           const appPath = getAppPathFromHref(getOriginBaseUrl(), url);
           if (appPath && appPath !== '/') navigate(appPath);
@@ -74,7 +74,7 @@ export function ElectronDeepLink() {
         }
 
         if (host === 'invite') {
-          // mesh://invite/CODE → navigate to join flow with the code pre-filled
+          // bettercord://invite/CODE → navigate to join flow with the code pre-filled
           const code = pathParts[0] ?? parsed.pathname.replace(/^\//, '');
           if (code) {
             // HOME_JOIN_PATH = /home/join/
@@ -82,13 +82,13 @@ export function ElectronDeepLink() {
             navigate(`${getHomeJoinPath()}?alias=${encodeURIComponent(code)}`);
           }
         } else if (host === 'room') {
-          // mesh://room/ROOM_ID_OR_ALIAS → navigate directly to that room
+          // bettercord://room/ROOM_ID_OR_ALIAS → navigate directly to that room
           const roomId = pathParts[0] ?? parsed.pathname.replace(/^\//, '');
           if (roomId) {
             navigate(getHomeRoomPath(roomId));
           }
         } else {
-          // mesh://app/some/path → /some/path  (legacy / default)
+          // bettercord://app/some/path → /some/path  (legacy / default)
           const path = `/${host}${parsed.pathname}${parsed.search}${parsed.hash}`.replace(
             /^\/app/,
             ''
@@ -121,7 +121,7 @@ export function ElectronDeepLink() {
   }, [handleDeepLinkUrl]);
 
   // -------------------------------------------------------------------------
-  // Web fallback: handle mesh:// URLs arriving via window.location
+  // Web fallback: handle bettercord:// URLs arriving via window.location
   // (some OS / browser setups redirect custom protocol URLs to the PWA).
   // Check on mount and on popstate/hashchange.
   // -------------------------------------------------------------------------
@@ -130,7 +130,7 @@ export function ElectronDeepLink() {
 
     const checkLocation = () => {
       const href = window.location.href;
-      if (href.startsWith('mesh://')) {
+      if (href.startsWith('bettercord://')) {
         handleDeepLinkUrl(href);
       }
     };
@@ -165,8 +165,8 @@ export function PTTElectronShortcut() {
   const isAudioEnabled = callState?.isAudioEnabled ?? false;
   const toggleAudio = callState?.toggleAudio;
 
-  // Refs so event handlers always read the latest values without causing
-  // the effect to re-run (and reset the `active` flag) on every toggle.
+  // #64 — useRef so handlers always see the latest values without re-registering
+  // the global shortcut / re-adding window listeners on every mute/unmute state change.
   const isAudioEnabledRef = useRef(isAudioEnabled);
   isAudioEnabledRef.current = isAudioEnabled;
   const toggleAudioRef = useRef(toggleAudio);
@@ -194,7 +194,7 @@ export function PTTElectronShortcut() {
     const unsubShortcut = electron.onGlobalShortcut((id: string) => {
       if (cleanedUp) return;
       if (id === pressId) {
-        // Use ref to avoid stale closure on audio state
+        // Use ref so we don't re-register the shortcut on every isAudioEnabled change
         if (!isAudioEnabledRef.current && toggleAudioRef.current) void toggleAudioRef.current();
       }
     });
@@ -213,7 +213,8 @@ export function PTTElectronShortcut() {
       electron.unregisterGlobalShortcut(pttKey).catch(() => {});
       unsubShortcut();
     };
-    // isAudioEnabled / toggleAudio intentionally omitted — read via refs
+    // isAudioEnabled / toggleAudio intentionally excluded — accessed via ref
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [voiceActivityMode, pttKey, callState]);
 
   // -------------------------------------------------------------------------
@@ -223,9 +224,6 @@ export function PTTElectronShortcut() {
     if (window.electron) return; // Electron path above handles it
     if (voiceActivityMode !== 'ptt' || !pttKey) return;
 
-    // `active` tracks whether the PTT key is currently held. Using a closure
-    // variable (not state) prevents the effect from re-running and resetting
-    // the held state mid-press. Refs provide the latest audio state values.
     let active = false;
 
     const onDown = (e: KeyboardEvent) => {
@@ -248,7 +246,8 @@ export function PTTElectronShortcut() {
       window.removeEventListener('keydown', onDown);
       window.removeEventListener('keyup', onUp);
     };
-    // isAudioEnabled / toggleAudio intentionally omitted — read via refs
+    // isAudioEnabled / toggleAudio intentionally excluded — accessed via ref
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [voiceActivityMode, pttKey]);
 
   return null;
