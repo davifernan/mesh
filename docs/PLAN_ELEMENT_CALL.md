@@ -66,8 +66,8 @@ Gute Nachricht: Jotai kennen wir bereits aus BetterCord.
 - [ ] IBM Plex Sans + IBM Plex Mono statt Element-Fonts
 - [ ] Phosphor Icons statt Compound Icons
 - [ ] Dark Theme als Standard (passend zu BetterCord `#313338`)
-- [ ] Participant-Tiles: Fluxer-Style (abgerundete Kacheln, Name unten links)
-- [ ] Control-Bar unten: Fluxer-Style (Mute, Cam, Screen, Disconnect)
+- [ ] Participant-Tiles: BetterCord-Style (abgerundete Kacheln, Name unten links)
+- [ ] Control-Bar unten: BetterCord-Style (Mute, Cam, Screen, Disconnect)
 - [ ] Speaking Indicator: grüner Glow-Ring direkt auf Kachel + Avatar
 
 ### Funktional
@@ -75,7 +75,7 @@ Gute Nachricht: Jotai kennen wir bereits aus BetterCord.
 - [ ] Verbindungsstatistiken Panel direkt in EC (RTCPeerConnection.getStats())
 - [ ] Rauschunterdrückung Toggle direkt als Button in der Control-Bar
 - [ ] Qualitäts-Settings direkt in EC UI (Resolution, FPS, Bitrate)
-- [ ] Screenshare Settings Modal (Fluxer-Style, wie in PLAN.md Phase 10 beschrieben)
+- [ ] Screenshare Settings Modal (BetterCord-Style, wie in PLAN.md Phase 10 beschrieben)
 - [ ] "Watching" Mode UI wenn man einem Stream zuschaut
 
 ### Entfernen
@@ -152,7 +152,7 @@ Nachteil:
 Schritt 1  →  Fork + Setup + lokaler Build             ~1 Tag
 Schritt 2  →  BetterCord Design-System einbauen        ~2 Tage
 Schritt 3  →  Speaking Indicator                       ~1 Tag
-Schritt 4  →  Control-Bar Redesign (Fluxer-Style)      ~2 Tage
+Schritt 4  →  Control-Bar Redesign (BetterCord-Style)  ~2 Tage
 Schritt 5  →  Participant-Tiles Redesign               ~2 Tage
 Schritt 6  →  Verbindungsstatistiken Panel             ~1 Tag
 Schritt 7  →  Rauschunterdrückung + Qualitäts-Toggle   ~1 Tag
@@ -251,13 +251,13 @@ window.parent.postMessage({
 
 ## Schritt 4 — Control-Bar Redesign
 
-Aktuell hat EC eine eigene Control-Bar. Wir ersetzen sie durch Fluxer-Style:
+Aktuell hat EC eine eigene Control-Bar. Wir ersetzen sie durch BetterCord-Style:
 
 ```
 Vorher (EC default):
 [🎙] [📹] [🖥] [⚙] [📞✕]
 
-Nachher (BetterCord/Fluxer-Style):
+Nachher (BetterCord-Style):
 [🎙 Mute] [🔇 Deaf] [📹 Cam] [🖥 Screen] [⚙ Settings] [📞✕ Disconnect]
 ```
 
@@ -273,7 +273,7 @@ Nachher (BetterCord/Fluxer-Style):
 ```
 Vorher (EC default): rechteckige Kacheln, Name mittig
 
-Nachher (BetterCord/Fluxer-Style):
+Nachher (BetterCord-Style):
 ┌─────────────────────┐
 │                     │
 │   [Avatar / Video]  │
@@ -330,7 +330,7 @@ Button direkt in der Control-Bar — kein Umweg über Settings nötig.
 
 ## Schritt 8 — Screenshare Settings Modal
 
-Vor dem Screenshare-Start öffnet sich das Modal (Fluxer-Style):
+Vor dem Screenshare-Start öffnet sich das Modal (BetterCord-Style):
 ```
 [480p] [720p ✓] [1080p] [Quelle]
 [5fps] [15fps] [30fps ✓] [60fps]

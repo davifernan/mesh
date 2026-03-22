@@ -1,7 +1,7 @@
-Fluxer Web App — Comprehensive Design & UX Report
+BetterCord Web App — Comprehensive Design & UX Report
 1. Overall App Structure / Layout
 App Shell Architecture
-Fluxer uses a multi-column grid layout (very similar to Discord). The overall hierarchy, from outermost to innermost, is:
+BetterCord uses a multi-column grid layout (very similar to Discord). The overall hierarchy, from outermost to innermost, is:
 AppWrapper (fixed full-viewport)
 └── appContainer (100svh, overflow:hidden, background-primary)
     └── AppLayout (CSS grid 1fr)
@@ -228,7 +228,7 @@ Scroller (Scroller.module.css)
 4. Navigation UX — Server/Guild List (Left Sidebar Strip)
 Structure (72px wide strip)
 Scrollable vertical list of circular icons. From top to bottom:
-1. Fluxer button — home/DM page
+1. BetterCord button — home/DM page
 2. Favorites button
 3. DM list — avatars for channels with unread DMs
 4. Divider — 2px tall, 32px wide, border-radius: 1px, background: --background-modifier-hover
@@ -461,7 +461,7 @@ Views (single modal, animated transitions):
 1. Landing — "Add a Community" header
    - Two action buttons: "Create Community" (house icon) and "Join Community" (link icon)
    - Descriptive paragraph text
-   
+
 2. Create Community:
    - Community icon upload section (preview circle/squircle → shows initials until uploaded)
    - Icon initials use same getInitialsLength logic as guild list
@@ -489,7 +489,7 @@ Common icons observed:
 - ExclamationMarkIcon — unavailable guild
 - Channel icons: # (text), speaker (voice)
 Custom SVG components in src/components/icons/ directory.
-Fluxer logo: custom SVG in src/images/, .fluxerSymbolIcon { height: 2.75rem, width: 2.75rem }
+BetterCord logo: custom SVG in src/images/
 ---
 14. Animations & Micro-Interactions
 Guild icon: Circle → Squircle morph
@@ -566,7 +566,7 @@ When dragging one server icon onto another, a 2×2 grid combine preview appears:
 HDR display support
 dynamic-range-limit: high when HDR mode enabled.
 Custom theme CSS injection
-Users can provide custom CSS via AccessibilityStore.customThemeCss — injected as <style id="fluxer-custom-theme-style">.
+Users can provide custom CSS via AccessibilityStore.customThemeCss — injected as <style id="bettercord-custom-theme-style">.
 ---
 18. Key Libraries Used
 Library
@@ -591,7 +591,7 @@ react-modal-sheet
 colorjs.io
 ---
 Summary: Design DNA
-Fluxer is a near-faithful spiritual successor to Discord's design language with these key characteristics:
+BetterCord is a near-faithful spiritual successor to Discord's design language with these key characteristics:
 1. Three-column dark app shell — server strip (72px) | channel sidebar (270px) | main content
 2. Programmatically generated color system — HSL scales with saturation factor, three themes (dark/light/coal)
 3. Brand color: violet-indigo (~hsl(242, 70%, 55%)) — not Discord's blurple but same family
