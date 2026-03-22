@@ -27,12 +27,21 @@ export function useScreenShareViewerCount(trackRef: TrackReference): number {
   const room = useRoomContext();
   const [count, setCount] = useState(0);
 
+  // Use stable identity values as deps instead of the full trackRef object —
+  // trackRef is a new object reference on every render which would cause the effect
+  // to re-run constantly, accumulating duplicate listeners. (#56)
+  const pubSid = trackRef.publication?.sid;
+  const participantSid = trackRef.participant?.sid;
+  const isLocal = trackRef.participant?.isLocal ?? false;
+
   useEffect(() => {
     const pub = trackRef.publication;
-    if (!pub) return;
+    // Always return a cleanup even when there's nothing to clean up,
+    // to prevent stale listeners if pub becomes available later. (#56)
+    if (!pub) return () => {};
 
     const update = () => {
-      if (trackRef.participant.isLocal) {
+      if (isLocal) {
         setCount(0);
       } else {
         let n = 0;
@@ -52,7 +61,8 @@ export function useScreenShareViewerCount(trackRef: TrackReference): number {
       room.off(RoomEvent.TrackSubscribed, update);
       room.off(RoomEvent.TrackUnsubscribed, update);
     };
-  }, [room, trackRef]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [room, pubSid, participantSid, isLocal]);
 
   return count;
 }

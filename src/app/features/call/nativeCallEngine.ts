@@ -20,7 +20,7 @@
  */
 
 import { useEffect, useRef, useState, useCallback } from 'react';
-import { Room, RoomEvent, Track, VideoQuality, LocalAudioTrack, LocalVideoTrack } from 'livekit-client';
+import { Room, RoomEvent, Track, VideoQuality, LocalAudioTrack, LocalVideoTrack, ConnectionState } from 'livekit-client';
 import {
   getSoundboardMixer,
   getSoundboardMixerIfActive,
@@ -215,6 +215,10 @@ export function useNativeCall(roomId: string | null): NativeCallEngine {
   // Stays false if the user manually muted before deafening — we don't touch their manual mute.
   const mutedByDeafenRef = useRef(false);
 
+  // Guards speaking timer callbacks (and other async callbacks) from firing after hangUp()
+  // or after the effect cleanup. Set to false in hangUp() and in the useEffect cleanup.
+  const isMountedRef = useRef(true);
+
   // Holds the active SoundboardMixer for the current call session.
   // Created when the mic track is first obtained; torn down on cleanup/hangUp.
   const mixerRef = useRef<SoundboardMixer | null>(null);
@@ -235,6 +239,7 @@ export function useNativeCall(roomId: string | null): NativeCallEngine {
   useEffect(() => {
     if (!roomId) return;
 
+    isMountedRef.current = true;
     let aborted = false;
     // Soundboard data-channel unsubscribe fn — set by connect(), called in cleanup
     let unsubscribeSoundboard: (() => void) | undefined;
@@ -510,6 +515,7 @@ export function useNativeCall(roomId: string | null): NativeCallEngine {
             if (dt !== undefined) { clearTimeout(dt); deactivateTimers.delete(uid); }
             if (!confirmedSpeakers.has(uid) && !activateTimers.has(uid)) {
               activateTimers.set(uid, setTimeout(() => {
+                if (!isMountedRef.current) return;
                 activateTimers.delete(uid);
                 confirmedSpeakers.add(uid);
                 setSpeakingUsers(new Set(confirmedSpeakers));
@@ -525,6 +531,7 @@ export function useNativeCall(roomId: string | null): NativeCallEngine {
             if (at !== undefined) { clearTimeout(at); activateTimers.delete(uid); continue; }
             if (!deactivateTimers.has(uid)) {
               deactivateTimers.set(uid, setTimeout(() => {
+                if (!isMountedRef.current) return;
                 deactivateTimers.delete(uid);
                 confirmedSpeakers.delete(uid);
                 setSpeakingUsers(new Set(confirmedSpeakers));
@@ -583,20 +590,16 @@ export function useNativeCall(roomId: string | null): NativeCallEngine {
           try {
             updateRemote(participant);
             playCallSound(CallSoundType.UserJoin, { enabled: callSoundsEnabledRef.current });
-            // If currently deafened, mute this new participant's audio tracks immediately
-            if (isDeafenedRef.current) {
-              for (const pub of participant.audioTrackPublications.values()) {
-                if (pub.track) pub.track.mediaStreamTrack.enabled = false;
-              }
-            }
-            // Catch already-published tracks from this participant (race condition on join)
+            // Catch already-published tracks from this participant (race condition on join).
+            // setSubscribed(!isDeafenedRef.current) handles deafen: SFU stops sending audio
+            // immediately, saving full receive bandwidth for this participant while deafened.
             for (const pub of participant.trackPublications.values()) {
               if (pub.source === Track.Source.Microphone) {
                 await pub.setSubscribed(!isDeafenedRef.current);
               } else if (pub.source === Track.Source.Camera) {
                 await pub.setSubscribed(true);
               }
-              // ScreenShare: not subscribed — user must watch
+              // ScreenShare: not subscribed — user must click Watch
             }
           } catch (err) {
             console.error('[BetterCord] ParticipantConnected subscription error:', err);
@@ -700,6 +703,18 @@ export function useNativeCall(roomId: string | null): NativeCallEngine {
           }
         }, soundboardEncKeyRef.current);
 
+        // Re-apply deafen after reconnect: LiveKit resets all subscriptions on reconnect,
+        // so we must re-apply setSubscribed(false) for all remote audio tracks if deafened.
+        room.on(RoomEvent.ConnectionStateChanged, (state) => {
+          if (state === ConnectionState.Connected && isDeafenedRef.current) {
+            for (const participant of room.remoteParticipants.values()) {
+              for (const pub of participant.audioTrackPublications.values()) {
+                void pub.setSubscribed(false);
+              }
+            }
+          }
+        });
+
         // 8. Connect to the LiveKit SFU
         await room.connect(sfuConfig.url, sfuConfig.jwt, { autoSubscribe: false });
 
@@ -791,6 +806,9 @@ export function useNativeCall(roomId: string | null): NativeCallEngine {
       aborted = true;
       unsubscribeSoundboard?.();
       soundboardEncKeyRef.current = null;
+      // Guard speaking timer callbacks (and other async ops) from firing after cleanup.
+      // isMountedRef is also set false in hangUp() to close the gap before this runs.
+      isMountedRef.current = false;
 
       // If we were in the call (rtcSession still held) and are the last member,
       // clear the server-stored call start time so the timer resets for everyone.
@@ -800,7 +818,10 @@ export function useNativeCall(roomId: string | null): NativeCallEngine {
         }
       }
 
-      // Tear down the soundboard mixer before disconnecting the room.
+      // Cleanup ordering note (#57): removeAllListeners() runs here before React's
+      // useAudioWinsOverVideo effect cleanup (which calls room.off(ConnectionQualityChanged)).
+      // That room.off() call becomes a no-op — intentional and harmless. The grace timer
+      // inside callQualityFallback is guarded by roomRef.current null-check and is safe.
       destroySoundboardMixerSingleton();
       mixerRef.current = null;
       roomRef.current?.removeAllListeners();
@@ -950,6 +971,9 @@ export function useNativeCall(roomId: string | null): NativeCallEngine {
   // ── Control Functions ──────────────────────────────────────────────────────
 
   const hangUp = useCallback(() => {
+    // Disable isMountedRef immediately so speaking timer callbacks that fire before
+    // the useEffect cleanup (which also clears timers) are no-ops. (#58)
+    isMountedRef.current = false;
     playCallSound(CallSoundType.VoiceDisconnect, { enabled: callSoundsEnabledRef.current });
     // If we're the last member, clear the server-stored call start time.
     const leaveRoomId = roomRef.current ? (rtcSessionRef.current ? roomId : null) : null;
@@ -1092,10 +1116,12 @@ export function useNativeCall(roomId: string | null): NativeCallEngine {
     setIsDeafened(next);
     playCallSound(next ? CallSoundType.Deaf : CallSoundType.Undeaf, { enabled: callSoundsEnabledRef.current });
 
-    // Mute/unmute all remote audio output locally (deafen is client-side only in LiveKit)
+    // Unsubscribe/resubscribe all remote audio at SFU level — the SFU stops sending
+    // RTP packets entirely when unsubscribed, saving ~48 kbps per participant (opus).
+    // In a 10-person call this is ~480 kbps vs 0 kbps — 100% bandwidth reduction.
     for (const p of roomRef.current.remoteParticipants.values()) {
       for (const pub of p.audioTrackPublications.values()) {
-        if (pub.track) pub.track.mediaStreamTrack.enabled = !next;
+        await pub.setSubscribed(!next);
       }
     }
 
