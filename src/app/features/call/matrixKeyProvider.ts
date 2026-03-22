@@ -5,6 +5,9 @@ import { MatrixRTCSessionEvent } from 'matrix-js-sdk/lib/matrixrtc';
 export class MatrixKeyProvider extends BaseKeyProvider {
   private session: MatrixRTCSession | undefined;
 
+  /** Optional callback invoked when E2EE key injection fails. */
+  onError?: (message: string) => void;
+
   constructor() {
     super({ ratchetWindowSize: 10, keyringSize: 256 });
   }
@@ -37,6 +40,7 @@ export class MatrixKeyProvider extends BaseKeyProvider {
       })
       .catch((err) => {
         console.error('[MatrixKeyProvider] Failed to import encryption key:', err);
+        this.onError?.('E2EE Verschlüsselung konnte nicht initialisiert werden');
       });
   };
 }

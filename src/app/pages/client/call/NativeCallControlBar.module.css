@@ -1,3 +1,15 @@
+.reconnectingBanner {
+  background: rgba(250, 166, 26, 0.15);
+  border: 1px solid rgba(250, 166, 26, 0.3);
+  color: #faa61a;
+  padding: 4px 12px;
+  border-radius: 6px;
+  font-size: 12px;
+  text-align: center;
+  margin-bottom: 4px;
+  white-space: nowrap;
+}
+
 .bar {
   /* Floating pill — centered, no full-width background */
   display: inline-flex;
