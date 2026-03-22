@@ -64,7 +64,10 @@ services:
       redis:
         condition: service_healthy
     networks:
-      - mesh
+      mesh:
+      voicechat:
+        aliases:
+          - bridge
     restart: unless-stopped
 
   # ── Redis (voice state persistence) ────────────────────────────────────
@@ -146,6 +149,8 @@ services:
 networks:
   mesh:
     name: mesh
+  voicechat:
+    external: true
 
 volumes:
   redis_data:
