@@ -61,6 +61,9 @@ docker compose --profile livekit up -d
 | `LIVEKIT_API_KEY` | LiveKit API key | `devkey` |
 | `LIVEKIT_API_SECRET` | LiveKit API secret | `devsecret-...` |
 | `MESH_VOICE_STATE_MODE` | `livekit` or `bridge` | `livekit` |
+| `BRIDGE_ALLOWED_ORIGINS` | Allowed CORS origins for presence bridge (comma-separated) | _(empty = all)_ |
+| `BRIDGE_AUTH_SECRET` | Shared secret for presence bridge auth | _(empty = disabled)_ |
+| `MESH_TOKEN_STORAGE_MODE` | Token storage: `encrypted-local`, `local`, or `session` | `encrypted-local` |
 | `CLOUDFLARE_TUNNEL_TOKEN` | Cloudflare Tunnel for auto-HTTPS | _(empty)_ |
 
 See [`.env.example`](.env.example) for the full list with documentation.
@@ -137,6 +140,19 @@ mesh (one app, no iframe)
 ```
 
 See [`AGENTS.md`](AGENTS.md) for the full technical architecture and implementation rules.
+
+---
+
+## Privacy & Security Notes
+
+mesh aims for strong privacy, but there are inherent limitations you should be aware of:
+
+- **E2EE scope:** End-to-end encryption protects message content and call media (audio/video frames) in encrypted rooms. Public rooms do not support E2EE — this is a Matrix protocol limitation, not a mesh choice.
+- **Metadata visibility:** Call membership events (who joins/leaves a call) are Matrix state events, which [cannot currently be encrypted](https://github.com/matrix-org/matrix-spec-proposals/pull/3401). Your homeserver operator can see who participates in calls, even in encrypted rooms. This is a known open problem in the Matrix spec.
+- **SFU routing:** Voice and video streams are routed through a LiveKit SFU. With E2EE enabled, the SFU forwards encrypted frames it cannot decrypt. Without E2EE (public rooms), the SFU can see media content.
+- **Presence bridge:** The optional presence bridge tracks call state (mute/camera/screenshare) server-side for sidebar badges. This metadata is visible to the bridge operator.
+
+For maximum privacy, use encrypted rooms and self-host both your Matrix homeserver and LiveKit instance.
 
 ---
 

@@ -37,17 +37,19 @@ import type { VoiceStateStore } from './store.js';
 import type { SSEManager } from './sseManager.js';
 import type { BridgeStats, SendFn } from './types.js';
 import type { Reconciler } from './reconciler.js';
+import { bearerAuthMiddleware, sseTicketMiddleware } from './ticketAuth.js';
 
 export function registerPresenceRoutes(
   app: Hono,
   store: VoiceStateStore,
   sse: SSEManager,
   stats: BridgeStats,
+  authSecret: string,
   reconciler?: Reconciler,
 ): void {
   // ── GET /presence/:roomId ─────────────────────────────────────────────────
 
-  app.get('/presence/:roomId', async (c) => {
+  app.get('/presence/:roomId', bearerAuthMiddleware(authSecret), async (c) => {
     const roomId = c.req.param('roomId');
     let snapshot = await store.getRoomSnapshot(roomId);
 
@@ -64,7 +66,7 @@ export function registerPresenceRoutes(
 
   // ── GET /presence/:roomId/stream ──────────────────────────────────────────
 
-  app.get('/presence/:roomId/stream', async (c) => {
+  app.get('/presence/:roomId/stream', sseTicketMiddleware(authSecret), async (c) => {
     const roomId = c.req.param('roomId');
     const encoder = new TextEncoder();
 

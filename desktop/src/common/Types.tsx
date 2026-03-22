@@ -198,6 +198,10 @@ export interface ElectronAPI {
 	switchInstanceUrl: (options: SwitchInstanceUrlOptions) => Promise<void>;
 	consumeDesktopHandoffCode: () => Promise<string | null>;
 
+	// safeStorage: OS keychain for access token encryption
+	safeStorageEncrypt: (plaintext: string) => Promise<string>;
+	safeStorageDecrypt: (encryptedBase64: string) => Promise<string | null>;
+
 	getDesktopSources: (types: Array<'screen' | 'window'>, requestId?: string) => Promise<Array<DesktopSource>>;
 	onDisplayMediaRequested?: (callback: (requestId: string, info: DisplayMediaRequestInfo) => void) => () => void;
 	selectDisplayMediaSource: (requestId: string, sourceId: string | null, withAudio: boolean) => void;

@@ -2,6 +2,7 @@ import { ReactNode, useCallback, useEffect, useState } from 'react';
 import { AsyncStatus, useAsyncCallback } from '../hooks/useAsyncCallback';
 import { ClientConfig } from '../hooks/useClientConfig';
 import { trimTrailingSlash } from '../utils/common';
+import { setTokenStorageMode } from '../state/sessions';
 
 const getClientConfig = async (): Promise<ClientConfig> => {
   const url = `${trimTrailingSlash(import.meta.env.BASE_URL)}/config.json`;
@@ -33,6 +34,9 @@ export function ClientConfigLoader({ fallback, error, children }: ClientConfigLo
   }
 
   const config: ClientConfig = state.status === AsyncStatus.Success ? state.data : {};
+
+  // Initialize token storage mode from config before any session access
+  setTokenStorageMode(config.tokenStorageMode);
 
   return children(config);
 }

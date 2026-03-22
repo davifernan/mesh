@@ -39,6 +39,25 @@ export type ClientConfig = {
   presenceUrl?: string;
 
   /**
+   * Token storage mode for access token security.
+   * - "local": plaintext in localStorage (legacy, least secure)
+   * - "encrypted-local": AES-GCM encrypted in localStorage (default, recommended)
+   * - "session": plaintext in sessionStorage only (strictest)
+   * Electron apps always use OS keychain (safeStorage) regardless.
+   * Set via MESH_TOKEN_STORAGE_MODE env var.
+   */
+  tokenStorageMode?: 'local' | 'encrypted-local' | 'session';
+
+  /**
+   * Shared secret for presence bridge authentication.
+   * When set, the frontend sends this as a Bearer token for REST presence requests
+   * and uses it to obtain single-use SSE tickets via POST /presence/ticket.
+   * Set via BRIDGE_AUTH_SECRET env var.
+   * Leave empty to disable auth (dev mode).
+   */
+  presenceAuthSecret?: string;
+
+  /**
    * Coarse-grained voice state mode for deploy-time rollouts.
    *
    * - `livekit` keeps the historic UI preference chain.

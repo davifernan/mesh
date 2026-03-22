@@ -37,7 +37,7 @@ import { useSyncState } from '../../hooks/useSyncState';
 import { stopPropagation } from '../../utils/keyboard';
 import { SyncStatus } from './SyncStatus';
 import { AuthMetadataProvider } from '../../hooks/useAuthMetadata';
-import { getFallbackSession, removeSecondarySession } from '../../state/sessions';
+import { getFallbackSession, getSessionAsync, removeSecondarySession } from '../../state/sessions';
 import { specVersions, SpecVersions as SpecVersionsData } from '../../cs-api';
 import { SpecVersionsProvider } from '../../hooks/useSpecVersions';
 import type { ServerConfigs } from '../../components/ServerConfigsLoader';
@@ -206,8 +206,8 @@ export function ClientRoot({ children }: ClientRootProps) {
   }, [baseUrl]);
 
   const [loadState, loadMatrix] = useAsyncCallback<MatrixClient, Error, []>(
-    useCallback(() => {
-      const session = getFallbackSession();
+    useCallback(async () => {
+      const session = await getSessionAsync();
       if (!session) {
         throw new Error('No session Found!');
       }

@@ -31,6 +31,7 @@ import { Reconciler } from './reconciler.js';
 import { createWebhookHandler } from './webhookHandler.js';
 import { registerPresenceRoutes } from './presenceRoutes.js';
 import { registerHealthRoute } from './healthRoute.js';
+import { bearerAuthMiddleware, createTicket } from './ticketAuth.js';
 
 // ── Env ───────────────────────────────────────────────────────────────────────
 
@@ -39,6 +40,11 @@ const LIVEKIT_API_SECRET = process.env.LIVEKIT_API_SECRET ?? '';
 const LIVEKIT_URL = process.env.LIVEKIT_URL ?? '';
 const REDIS_URL = process.env.REDIS_URL ?? '';
 const BRIDGE_VOICE_STATE_AUTHORITATIVE = process.env.BRIDGE_VOICE_STATE_AUTHORITATIVE === 'true';
+const BRIDGE_ALLOWED_ORIGINS = (process.env.BRIDGE_ALLOWED_ORIGINS ?? '')
+  .split(',')
+  .map((o) => o.trim())
+  .filter(Boolean);
+const BRIDGE_AUTH_SECRET = process.env.BRIDGE_AUTH_SECRET ?? '';
 const PORT = Number(process.env.PORT ?? 3001);
 
 if (!LIVEKIT_API_KEY || !LIVEKIT_API_SECRET) {
@@ -97,10 +103,35 @@ if (LIVEKIT_URL && LIVEKIT_API_KEY && LIVEKIT_API_SECRET) {
 
 const sse = new SSEManager(stats);
 const app = new Hono();
-app.use('*', cors({ origin: '*', allowMethods: ['GET', 'POST', 'OPTIONS'] }));
+app.use(
+  '*',
+  cors({
+    origin: (origin) => {
+      // No allowed origins configured → dev mode: allow all
+      if (BRIDGE_ALLOWED_ORIGINS.length === 0) return origin ?? '*';
+      // Check if the request origin is in the allow-list
+      if (origin && BRIDGE_ALLOWED_ORIGINS.includes(origin)) return origin;
+      // Deny: return empty string (Hono omits the Access-Control-Allow-Origin header)
+      return '';
+    },
+    allowMethods: ['GET', 'POST', 'OPTIONS'],
+  }),
+);
 
 app.post('/webhook', createWebhookHandler(store, sse, stats, LIVEKIT_API_KEY, LIVEKIT_API_SECRET));
-registerPresenceRoutes(app, store, sse, stats, reconciler);
+
+// Ticket endpoint — exchange Bearer secret for a single-use SSE ticket
+app.post('/presence/ticket', bearerAuthMiddleware(BRIDGE_AUTH_SECRET), async (c) => {
+  const body = await c.req.json<{ roomId?: string }>().catch(() => ({}));
+  const roomId = body.roomId;
+  if (!roomId || typeof roomId !== 'string') {
+    return c.json({ error: 'roomId is required' }, 400);
+  }
+  const result = createTicket(roomId);
+  return c.json(result);
+});
+
+registerPresenceRoutes(app, store, sse, stats, BRIDGE_AUTH_SECRET, reconciler);
 registerHealthRoute(app, store, stats);
 
 // ── Startup banner ────────────────────────────────────────────────────────────
@@ -112,10 +143,13 @@ console.log(`[bridge] LiveKit API secret: ${LIVEKIT_API_SECRET ? '✓ set' : '�
 console.log(`[bridge] LiveKit URL:        ${LIVEKIT_URL || '(not set — reconcile disabled)'}`);
 console.log(`[bridge] Redis URL:          ${REDIS_URL ? '✓ set' : '(not set — using in-memory store)'}`);
 console.log(`[bridge] Authoritative mode: ${BRIDGE_VOICE_STATE_AUTHORITATIVE ? 'enabled' : 'disabled'}`);
+console.log(`[bridge] CORS origins:      ${BRIDGE_ALLOWED_ORIGINS.length > 0 ? BRIDGE_ALLOWED_ORIGINS.join(', ') : '* (all — set BRIDGE_ALLOWED_ORIGINS for production)'}`);
+console.log(`[bridge] Auth:             ${BRIDGE_AUTH_SECRET ? 'shared-secret (BRIDGE_AUTH_SECRET set)' : 'disabled (dev mode — set BRIDGE_AUTH_SECRET for production)'}`);
 console.log(`[bridge] Endpoints:`);
 console.log(`[bridge]   POST /webhook              — LiveKit webhook receiver`);
-console.log(`[bridge]   GET  /presence/:roomId     — full room snapshot`);
-console.log(`[bridge]   GET  /presence/:roomId/stream — SSE stream`);
+console.log(`[bridge]   POST /presence/ticket        — obtain SSE ticket (Bearer auth)`);
+console.log(`[bridge]   GET  /presence/:roomId     — full room snapshot (Bearer auth)`);
+console.log(`[bridge]   GET  /presence/:roomId/stream — SSE stream (ticket auth)`);
 console.log(`[bridge]   GET  /health               — health + stats`);
 console.log(`[bridge] ─────────────────────────────────────────────`);
 

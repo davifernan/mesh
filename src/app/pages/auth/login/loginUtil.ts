@@ -114,10 +114,11 @@ export const useLoginComplete = (data?: CustomLoginResponse) => {
   useEffect(() => {
     if (data) {
       const { response: loginRes, baseUrl: loginBaseUrl } = data;
-      setFallbackSession(loginRes.access_token, loginRes.device_id, loginRes.user_id, loginBaseUrl);
-      const afterLoginRedirectUrl = getAfterLoginRedirectPath();
-      deleteAfterLoginRedirectPath();
-      navigate(afterLoginRedirectUrl ?? getHomePath(), { replace: true });
+      void setFallbackSession(loginRes.access_token, loginRes.device_id, loginRes.user_id, loginBaseUrl).then(() => {
+        const afterLoginRedirectUrl = getAfterLoginRedirectPath();
+        deleteAfterLoginRedirectPath();
+        navigate(afterLoginRedirectUrl ?? getHomePath(), { replace: true });
+      });
     }
   }, [data, navigate]);
 };

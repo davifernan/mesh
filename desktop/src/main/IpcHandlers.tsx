@@ -861,6 +861,33 @@ function downloadFile(url: string, destPath: string): Promise<void> {
 	});
 }
 
+	// ── safeStorage: OS keychain for access token encryption ──────────────────
+	// Uses Electron's safeStorage API which delegates to macOS Keychain,
+	// Windows DPAPI, or Linux libsecret depending on platform.
+
+	ipcMain.handle('safe-storage-encrypt', (_event, plaintext: string): string => {
+		const { safeStorage } = require('electron') as typeof import('electron');
+		if (!safeStorage.isEncryptionAvailable()) {
+			throw new Error('safeStorage encryption not available');
+		}
+		const encrypted = safeStorage.encryptString(plaintext);
+		return encrypted.toString('base64');
+	});
+
+	ipcMain.handle('safe-storage-decrypt', (_event, encryptedBase64: string): string | null => {
+		const { safeStorage } = require('electron') as typeof import('electron');
+		if (!safeStorage.isEncryptionAvailable()) {
+			return null;
+		}
+		try {
+			const buffer = Buffer.from(encryptedBase64, 'base64');
+			return safeStorage.decryptString(buffer);
+		} catch {
+			return null;
+		}
+	});
+}
+
 export function cleanupIpcHandlers(): void {
 	globalShortcut.unregisterAll();
 	registeredShortcuts.clear();

@@ -17,7 +17,7 @@ import App from './app/pages/App';
 // import i18n (needs to be bundled ;))
 import './app/i18n';
 import { pushSessionToSW } from './sw-session';
-import { getFallbackSession } from './app/state/sessions';
+import { getSessionAsync } from './app/state/sessions';
 
 document.body.classList.add(configClass, varsClass);
 
@@ -28,19 +28,19 @@ if ('serviceWorker' in navigator) {
       ? `${trimTrailingSlash(import.meta.env.BASE_URL)}/sw.js`
       : `/dev-sw.js?dev-sw`;
 
-  const sendSessionToSW = () => {
-    const session = getFallbackSession();
+  const sendSessionToSW = async () => {
+    const session = await getSessionAsync();
     pushSessionToSW(session?.baseUrl, session?.accessToken);
   };
 
-  navigator.serviceWorker.register(swUrl).then(sendSessionToSW);
-  navigator.serviceWorker.ready.then(sendSessionToSW);
+  navigator.serviceWorker.register(swUrl).then(() => void sendSessionToSW());
+  navigator.serviceWorker.ready.then(() => void sendSessionToSW());
 
   navigator.serviceWorker.addEventListener('message', (ev) => {
     const { type } = ev.data ?? {};
 
     if (type === 'requestSession') {
-      sendSessionToSW();
+      void sendSessionToSW();
     }
   });
 }

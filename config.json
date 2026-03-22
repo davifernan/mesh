@@ -13,6 +13,8 @@
   "livekitServiceUrl": "",
   "presenceUrl": "",
 
+  "tokenStorageMode": "encrypted-local",
+
   "defaultAudioBitrate": 128,
 
   "voiceStateMode": "livekit",

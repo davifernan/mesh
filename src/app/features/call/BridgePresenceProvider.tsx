@@ -58,10 +58,12 @@ const EMPTY_MAP: ReadonlyMap<string, CallPresenceState> = new Map();
 type Props = { children: ReactNode };
 
 export function BridgePresenceProvider({ children }: Props) {
-  const { presenceUrl } = useClientConfig();
+  const { presenceUrl, presenceAuthSecret } = useClientConfig();
   // Stable ref so URL changes don't invalidate callbacks
   const presenceBaseRef = useRef<string>(presenceUrl ?? '/api/presence');
   presenceBaseRef.current = presenceUrl ?? '/api/presence';
+  const authSecretRef = useRef<string>(presenceAuthSecret ?? '');
+  authSecretRef.current = presenceAuthSecret ?? '';
 
   // Pool lebt in einem Ref (kein State) – Reactivity laeuft ueber listeners
   const pool = useRef<Map<string, ConnectionEntry>>(new Map());
@@ -146,12 +148,54 @@ export function BridgePresenceProvider({ children }: Props) {
       // snapshot_end yet so accept all events during replay.
       e.snapshotSeq = -1;
 
-      const url = `${presenceBaseRef.current}/${encodeURIComponent(roomId)}/stream`;
-      const es = new EventSource(url);
-      e.es = es;
+      const baseUrl = presenceBaseRef.current;
+      const secret = authSecretRef.current;
 
-      es.onmessage = (ev: MessageEvent<string>) => {
+      // If auth is configured, fetch a single-use ticket before opening SSE
+      const openStream = (ticketParam: string) => {
         const en = pool.current.get(roomId);
+        if (!en || en.subscriberCount === 0) return;
+        const url = `${baseUrl}/${encodeURIComponent(roomId)}/stream${ticketParam}`;
+        const es = new EventSource(url);
+        en.es = es;
+        wireEvents(es, roomId, connect);
+      };
+
+      if (secret) {
+        fetch(`${baseUrl}/ticket`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${secret}`,
+          },
+          body: JSON.stringify({ roomId }),
+        })
+          .then(async (res) => {
+            if (!res.ok) throw new Error(`Ticket request failed: ${res.status}`);
+            const data = (await res.json()) as { ticket: string };
+            openStream(`?ticket=${encodeURIComponent(data.ticket)}`);
+          })
+          .catch(() => {
+            // Ticket fetch failed — retry with backoff
+            const en = pool.current.get(roomId);
+            if (!en || en.subscriberCount === 0) return;
+            const delay = en.backoff;
+            en.backoff = Math.min(delay * 2, MAX_BACKOFF_MS);
+            en.retryTimer = setTimeout(connect, delay);
+          });
+      } else {
+        // No auth — connect directly (dev mode)
+        const url = `${baseUrl}/${encodeURIComponent(roomId)}/stream`;
+        const es = new EventSource(url);
+        e.es = es;
+        wireEvents(es, roomId, connect);
+      }
+    }
+
+    // Wire EventSource handlers (shared between auth and no-auth paths)
+    function wireEvents(es: EventSource, rid: string, reconnect: () => void): void {
+      es.onmessage = (ev: MessageEvent<string>) => {
+        const en = pool.current.get(rid);
         if (!en) return;
         try {
           const raw = JSON.parse(ev.data) as BridgePayload | SnapshotEndPayload;
@@ -188,7 +232,7 @@ export function BridgePresenceProvider({ children }: Props) {
           }
           en.backoff = 1_000;
           if (changed) {
-            notifyListeners(roomId);
+            notifyListeners(rid);
           }
         } catch {
           // Malformed JSON – ignorieren
@@ -196,14 +240,14 @@ export function BridgePresenceProvider({ children }: Props) {
       };
 
       es.onerror = () => {
-        const en = pool.current.get(roomId);
+        const en = pool.current.get(rid);
         if (!en) return;
         es.close();
         en.es = null;
         if (en.subscriberCount === 0) return;
         const delay = en.backoff;
         en.backoff = Math.min(delay * 2, MAX_BACKOFF_MS);
-        en.retryTimer = setTimeout(connect, delay);
+        en.retryTimer = setTimeout(reconnect, delay);
       };
     }
 
@@ -235,7 +279,12 @@ export function BridgePresenceProvider({ children }: Props) {
     const abort = new AbortController();
     entry.restoreAbort = abort;
 
-    fetch(`${presenceBaseRef.current}/${encodeURIComponent(roomId)}`, { signal: abort.signal })
+    const headers: Record<string, string> = {};
+    if (authSecretRef.current) {
+      headers.Authorization = `Bearer ${authSecretRef.current}`;
+    }
+
+    fetch(`${presenceBaseRef.current}/${encodeURIComponent(roomId)}`, { signal: abort.signal, headers })
       .then(async (res) => {
         if (!res.ok) return;
         const data = (await res.json()) as Record<string, Partial<BridgePayload>>;

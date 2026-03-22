@@ -287,6 +287,12 @@ const api: ElectronAPI = {
 		ipcRenderer.invoke('spellcheck-replace-misspelling', replacement),
 	spellcheckAddWordToDictionary: (word: string): Promise<void> =>
 		ipcRenderer.invoke('spellcheck-add-word-to-dictionary', word),
+
+	// safeStorage: OS keychain for access token encryption
+	safeStorageEncrypt: (plaintext: string): Promise<string> =>
+		ipcRenderer.invoke('safe-storage-encrypt', plaintext),
+	safeStorageDecrypt: (encryptedBase64: string): Promise<string | null> =>
+		ipcRenderer.invoke('safe-storage-decrypt', encryptedBase64),
 };
 
 window.addEventListener(

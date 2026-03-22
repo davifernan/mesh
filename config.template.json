@@ -12,6 +12,9 @@
 
   "livekitServiceUrl": "${MESH_LIVEKIT_URL}",
   "presenceUrl": "${MESH_PRESENCE_URL}",
+  "presenceAuthSecret": "${BRIDGE_AUTH_SECRET}",
+
+  "tokenStorageMode": "${MESH_TOKEN_STORAGE_MODE}",
 
   "defaultAudioBitrate": 128,
 
