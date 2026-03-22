@@ -479,7 +479,6 @@ export function NativeCallControlBar() {
                 >
                   <Waveform size={20} />
                 </button>
-              </div>
 
                 {/* Soundboard */}
                 <div className={styles.btnWrap} ref={soundboardMenuRef}>
