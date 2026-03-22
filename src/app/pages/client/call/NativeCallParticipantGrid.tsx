@@ -316,7 +316,7 @@ export function NativeCallParticipantGrid({ onPin, widgets }: NativeCallParticip
         data-tile-count={String(gridTileCount)}
         style={gridStyle}
       >
-        {/* Fluxer parity: in grid mode, everything is a regular tile, including screenshares. */}
+        {/* In grid mode, everything is a regular tile, including screenshares. */}
         {(widgets ?? []).map((w) => (
           <div key={`widget-${w.id}`} className={styles.gridItem}>
             <AppTile
