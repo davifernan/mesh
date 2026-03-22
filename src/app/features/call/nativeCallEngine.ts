@@ -699,9 +699,11 @@ export function useNativeCall(roomId: string | null): NativeCallEngine {
             const mixer = getSoundboardMixer(rawMst);
             mixerRef.current = mixer;
 
-            // Unpublish the raw mic track; keepDeviceAlive=true keeps the OS mic LED
-            // on and prevents a re-acquire delay when the mixer track is published.
-            await room.localParticipant.unpublishTrack(rawMicTrack, true);
+            // Unpublish the raw mic track with stopOnUnpublish=false so the
+            // underlying MediaStreamTrack stays alive — the SoundboardMixer's
+            // AudioContext is already processing rawMst, and stopping the track
+            // here would silence the mixer output before republishing.
+            await room.localParticipant.unpublishTrack(rawMicTrack, false);
 
             // Publish the mixer's blended output track as the microphone source.
             const mixedMst = mixer.getMixedTrack();
