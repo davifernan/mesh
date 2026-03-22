@@ -137,7 +137,7 @@ export class RedisVoiceStateStore implements VoiceStateStore {
 
     const aggregated = await this._recomputeAggregated(roomId, userId, seq);
     if (aggregated) {
-      await this.redis.hset(roomKey, { [userId]: JSON.stringify(aggregated) });
+      await this.redis.send('HSET', [roomKey, userId, JSON.stringify(aggregated)]);
     }
 
     this.connected = true;
@@ -196,7 +196,7 @@ export class RedisVoiceStateStore implements VoiceStateStore {
 
     const aggregated = await this._recomputeAggregated(roomId, userId, seq);
     if (aggregated) {
-      await this.redis.hset(roomKey, { [userId]: JSON.stringify(aggregated) });
+      await this.redis.send('HSET', [roomKey, userId, JSON.stringify(aggregated)]);
     }
 
     return { changed: true, next: aggregated ?? withSeq };
@@ -236,7 +236,7 @@ export class RedisVoiceStateStore implements VoiceStateStore {
 
     if (remaining === 0) {
       // Last device — remove from room hash
-      await this.redis.hdel(roomKey, userId);
+      await this.redis.send('HDEL', [roomKey, userId]);
 
       // If room hash is now empty, remove from rooms set
       const roomSize = await this.redis.hlen(roomKey);
@@ -247,7 +247,7 @@ export class RedisVoiceStateStore implements VoiceStateStore {
       // Recompute aggregated presence from remaining identities
       aggregated = await this._recomputeAggregated(roomId, userId, seq);
       if (aggregated) {
-        await this.redis.hset(roomKey, { [userId]: JSON.stringify(aggregated) });
+        await this.redis.send('HSET', [roomKey, userId, JSON.stringify(aggregated)]);
       }
     }
 
