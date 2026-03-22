@@ -714,7 +714,7 @@ export function Space() {
             }}
           >
             <RoomListbox
-              id="cinny-room-listbox"
+              id="bettercord-room-listbox"
               aria-label="Space room list"
               items={roomsOnly}
               focusedIndex={keyboardNav.focusedIndex}

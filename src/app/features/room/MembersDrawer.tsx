@@ -464,7 +464,7 @@ export function MembersDrawer({
 
   return (
     <Box
-      id="cinny-members-panel"
+      id="bettercord-members-panel"
       role="region"
       aria-label="Members panel"
       tabIndex={-1}
