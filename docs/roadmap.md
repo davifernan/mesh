@@ -1,15 +1,16 @@
-# mesh — UX Backlog
+# mesh — UX Roadmap
 
-Analysiert aus dem mesh-Frontend-Quellcode.
-Nur Features die **im Frontend umsetzbar** sind — entweder rein clientseitig oder mit nativer Matrix-API-Unterstützung.
+Frontend UX features — either pure client-side or using native Matrix APIs.
+
+Last audited: March 2026. Items marked `[x]` are already implemented.
 
 ---
 
-## Legende
+## Legend
 
-- `[FE]` = Pure Frontend, kein Backend nötig
-- `[MX]` = Braucht Matrix API (aber Matrix unterstützt es nativ)
-- `[ ]` = offen · `[x]` = erledigt
+- `[FE]` = Pure frontend, no backend needed
+- `[MX]` = Needs Matrix API (Matrix supports it natively)
+- `[ ]` = Open · `[x]` = Done · `[~]` = Partial (exists but incomplete)
 
 ---
 
@@ -17,7 +18,7 @@ Nur Features die **im Frontend umsetzbar** sind — entweder rein clientseitig o
 
 ---
 
-### 1. Arrow-Up → letzte Nachricht editieren `[FE]`
+### 1. [ ] Arrow-Up → letzte Nachricht editieren `[FE]` — [#127](https://github.com/davifernan/mesh/issues/127)
 
 **Was:** Wenn die Textarea leer ist und der User `Arrow Up` drückt, wird seine letzte eigene Nachricht sofort in den Edit-Modus versetzt.
 
@@ -29,7 +30,7 @@ Nur Features die **im Frontend umsetzbar** sind — entweder rein clientseitig o
 
 ---
 
-### 2. Escape-Key Chain `[FE]`
+### 2. [x] Escape-Key Chain `[FE]`
 
 **Was:** Escape führt eine Prioritätskette aus:
 1. Edit aktiv → Edit abbrechen, Textarea fokussieren
@@ -44,7 +45,7 @@ Nur Features die **im Frontend umsetzbar** sind — entweder rein clientseitig o
 
 ---
 
-### 3. Draft Persistence per Channel `[FE]`
+### 3. [x] Draft Persistence per Channel `[FE]`
 
 **Was:** Der aktuelle Textarea-Inhalt wird pro Channel in `localStorage` gespeichert. Beim Wechsel zurück in einen Channel wird der Draft automatisch wiederhergestellt.
 
@@ -56,7 +57,7 @@ Nur Features die **im Frontend umsetzbar** sind — entweder rein clientseitig o
 
 ---
 
-### 4. Markdown Keybinds `[FE]`
+### 4. [x] Markdown Keybinds `[FE]`
 
 **Was:** Keyboard-Shortcuts für Markdown-Formatierung während man im Textarea tippt:
 - `Ctrl/Cmd+B` → `**fett**`
@@ -72,7 +73,7 @@ Nur Features die **im Frontend umsetzbar** sind — entweder rein clientseitig o
 
 ---
 
-### 5. Typing Indicator — Über der Textarea, mit Namen + Overflow `[FE]`
+### 5. [~] Typing Indicator — Über der Textarea, mit Namen + Overflow `[FE]` — [#136](https://github.com/davifernan/mesh/issues/136)
 
 **Was:** Der Typing-Indicator wird komplett neu positioniert und verbessert:
 
@@ -106,7 +107,7 @@ Nur Features die **im Frontend umsetzbar** sind — entweder rein clientseitig o
 
 ---
 
-### 6. Member List: Online/Offline Farbunterschied `[FE]`
+### 6. [x] Member List: Online/Offline Farbunterschied `[FE]`
 
 **Was:** In der rechten Member-Sidebar sollen Online- und Offline-User visuell klar unterscheidbar sein — nicht nur über den kleinen Status-Dot, sondern direkt über die Textfarbe des Namens:
 
@@ -137,7 +138,7 @@ Die Sektion-Überschriften `ONLINE — 12` / `OFFLINE — 34` bekommen ihre Zahl
 
 ---
 
-### 7. Character Counter `[FE]`
+### 7. [x] Character Counter `[FE]`
 
 **Was:** Unter der Textarea erscheint ein Zähler `aktuell / max` — aber **nur wenn man über 80% der maximalen Länge ist**. Darunter ist er unsichtbar.
 
@@ -149,7 +150,7 @@ Die Sektion-Überschriften `ONLINE — 12` / `OFFLINE — 34` bekommen ihre Zahl
 
 ---
 
-### 7. Reaction Count Animation `[FE]`
+### 8. [ ] Reaction Count Animation `[FE]` — [#128](https://github.com/davifernan/mesh/issues/128)
 
 **Was:** Wenn eine Reaktion hinzugefügt oder entfernt wird, gleitet die Zahl sanft nach oben (bei Erhöhung) oder nach unten (bei Senkung) — nicht einfach abrupt wechseln.
 
@@ -161,7 +162,7 @@ Die Sektion-Überschriften `ONLINE — 12` / `OFFLINE — 34` bekommen ihre Zahl
 
 ---
 
-### 8. New Messages Bar (oben sticky) + NEW-Divider `[FE]`
+### 9. [x] New Messages Bar (oben sticky) + NEW-Divider `[FE]`
 
 **Was:**
 - **Bar oben:** Wenn ungelesene Nachrichten oberhalb des aktuellen Scrollbereichs liegen, erscheint ein sticky Banner: `"N neue Nachrichten seit [Uhrzeit]"` mit einem `✓ Als gelesen markieren` Button.
@@ -177,7 +178,7 @@ Die Sektion-Überschriften `ONLINE — 12` / `OFFLINE — 34` bekommen ihre Zahl
 
 ---
 
-### 9. "Jump to Present" Bar `[FE]`
+### 10. [x] "Jump to Present" Bar `[FE]`
 
 **Was:** Wenn der User in der History nach oben gescrollt hat (ältere Nachrichten), erscheint am unteren Rand ein Banner: `"Du siehst ältere Nachrichten · Zu aktuellen Nachrichten springen"`.
 
@@ -189,7 +190,7 @@ Die Sektion-Überschriften `ONLINE — 12` / `OFFLINE — 34` bekommen ihre Zahl
 
 ---
 
-### 10. Channel Hover Affordances `[FE]`
+### 11. [~] Channel Hover Affordances `[FE]`
 
 **Was:** Beim Hovern über ein Channel-Item in der Sidebar erscheinen rechts kleine Action-Icons:
 - `⚙` Channel-Settings (nur wenn `canManageRoom`)
@@ -205,7 +206,7 @@ Die Icons sind standardmäßig unsichtbar (`opacity: 0`) und werden auf `opacity
 
 ---
 
-### 11. Create Channel Modal `[FE]`
+### 12. [x] Create Channel Modal `[FE]`
 
 **Was:** Ein neues Modal zum Erstellen eines Channels mit 3 Typen:
 1. **Text** (Standard-Matrix-Room)
@@ -222,7 +223,7 @@ Nach der Erstellung wird automatisch zum neuen Channel navigiert.
 
 ---
 
-### 12. Create Category Modal `[FE]`
+### 13. [x] Create Category Modal `[FE]`
 
 **Was:** Minimales Modal zum Erstellen einer Kategorie (in Matrix: ein Space oder ein speziell markierter Room als "Kategorie").
 
@@ -234,7 +235,7 @@ Nach der Erstellung wird automatisch zum neuen Channel navigiert.
 
 ---
 
-### 13. Mark All Read Shortcuts `[FE]`
+### 14. [ ] Mark All Read Shortcuts `[FE]` — [#129](https://github.com/davifernan/mesh/issues/129)
 
 **Was:**
 - `Escape` → Aktuellen Channel als gelesen markieren + zum Ende scrollen
@@ -249,7 +250,7 @@ Nach der Erstellung wird automatisch zum neuen Channel navigiert.
 
 ---
 
-### 14. Pin: Shift+Click Bypass `[FE]`
+### 15. [ ] Pin: Shift+Click Bypass `[FE]` — [#130](https://github.com/davifernan/mesh/issues/130)
 
 **Was:** Normalerweise erscheint beim Pinnen einer Nachricht ein Bestätigungs-Modal. Wenn der User beim Klick auf "Pin" die Shift-Taste gedrückt hält, wird das Modal übersprungen und direkt gepinnt.
 
@@ -261,7 +262,7 @@ Nach der Erstellung wird automatisch zum neuen Channel navigiert.
 
 ---
 
-### 15. Message Forward Modal `[FE]`
+### 16. [ ] Message Forward Modal `[FE]` — [#131](https://github.com/davifernan/mesh/issues/131)
 
 **Was:** Aus der Message-Action-Bar heraus (oder Rechtsklick-Menü) kann eine Nachricht an einen anderen Channel oder DM weitergeleitet werden. Ein Modal öffnet sich mit einer Channel-/DM-Suche.
 
@@ -273,7 +274,7 @@ Nach der Erstellung wird automatisch zum neuen Channel navigiert.
 
 ---
 
-### 16. Message Bookmark / Gespeicherte Nachrichten `[FE]`
+### 17. [ ] Message Bookmark / Gespeicherte Nachrichten `[FE]` — [#132](https://github.com/davifernan/mesh/issues/132)
 
 **Was:** Nachrichten können über die Action-Bar mit einem Lesezeichen versehen werden. Gespeicherte Nachrichten sind in einem eigenen Panel zugänglich.
 
@@ -307,7 +308,7 @@ Nach der Erstellung wird automatisch zum neuen Channel navigiert.
 
 ---
 
-### 18. Quick Switcher (Ctrl+K) `[MX]`
+### 18. [x] Quick Switcher (Ctrl+K) `[MX]`
 
 **Was:** Das wichtigste UX-Feature. Ein Modal-Overlay für schnelle Navigation zu allem:
 - Rooms / Spaces / DMs
@@ -342,7 +343,7 @@ Nach der Erstellung wird automatisch zum neuen Channel navigiert.
 
 ---
 
-### 19. Keyboard Shortcuts System `[MX]`
+### 19. [x] Keyboard Shortcuts System `[MX]`
 
 **Was:** ~20 essentielle Shortcuts (Subset von 50):
 
@@ -374,7 +375,7 @@ Nach der Erstellung wird automatisch zum neuen Channel navigiert.
 
 ---
 
-### 20. User Profile Popup `[MX]`
+### 20. [x] User Profile Popup `[MX]`
 
 **Was:** Klick auf einen Username/Avatar in der Chat-Timeline öffnet eine floating Karte mit:
 - Avatar + Banner (falls in Matrix-Profil vorhanden)
@@ -400,7 +401,7 @@ Nach der Erstellung wird automatisch zum neuen Channel navigiert.
 
 ---
 
-### 21. Member List Sidebar (rechte Spalte) `[MX]`
+### 21. [x] Member List Sidebar (rechte Spalte) `[MX]`
 
 **Was:** Eine optionale rechte Sidebar (270px) die alle Mitglieder des aktuellen Rooms zeigt, gruppiert nach:
 - Online (grüner Dot)
@@ -427,7 +428,7 @@ Klick auf ein Member → öffnet User Profile Popup.
 
 ---
 
-### 22. Invite Modal — verbesserte Version `[MX]`
+### 22. [~] Invite Modal — verbesserte Version `[MX]` — [#137](https://github.com/davifernan/mesh/issues/137)
 
 **Was:** Verbesserung des bestehenden Einlade-Flows mit:
 - **Normal View:** Link kopieren Button + "Advanced" Toggle
@@ -446,7 +447,7 @@ Klick auf ein Member → öffnet User Profile Popup.
 
 ---
 
-### 23. Custom Status (Emoji + Text + Ablaufzeit) `[MX]`
+### 23. [ ] Custom Status (Emoji + Text + Ablaufzeit) `[MX]` — [#133](https://github.com/davifernan/mesh/issues/133)
 
 **Was:** Unter dem eigenen Avatar-Bereich (User Area) kann man einen Custom Status setzen:
 - Emoji (Unicode oder Custom) + Text (max 128 Zeichen)
@@ -469,7 +470,7 @@ Der Status ist für andere sichtbar (in Profile Cards, Member List).
 
 ---
 
-### 24. Ban Member Modal (verbessert) `[MX]`
+### 24. [ ] Ban Member Modal (verbessert) `[MX]` — [#134](https://github.com/davifernan/mesh/issues/134)
 
 **Was:** Beim Kicken/Bannen eines Mitglieds öffnet sich ein Modal mit:
 - Bestätigung + Warnung
@@ -488,7 +489,7 @@ Der Status ist für andere sichtbar (in Profile Cards, Member List).
 
 ---
 
-### 25. Nagbar System `[MX]`
+### 25. [ ] Nagbar System `[MX]` — [#135](https://github.com/davifernan/mesh/issues/135)
 
 **Was:** Dünne Bannerleisten ganz oben in der App für wichtige System-Hinweise:
 

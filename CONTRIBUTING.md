@@ -1,14 +1,96 @@
 # Contributing to mesh
 
-First off, thanks for taking the time to contribute! ❤️
+Thanks for taking the time to contribute!
 
-All types of contributions are encouraged and valued. Please make sure to read the relevant section before making your contribution. It will make it a lot easier for us maintainers and smooth out the experience for all involved. The community looks forward to your contributions. 🎉
+All types of contributions are encouraged and valued. Please read the relevant section before contributing — it makes the process smoother for everyone.
 
-> And if you like the project, but just don't have time to contribute, that's fine. There are other easy ways to support the project and show your appreciation, which we would also be very happy about:
-> - Star the project
-> - Tweet about it
-> - Refer this project in your project's readme
-> - Mention the project at local meetups and tell your friends/colleagues
+> If you like the project but don't have time to contribute, that's fine too. You can support it by starring the repo, mentioning it to friends, or using it for your community.
+
+---
+
+## Development Setup
+
+> **This is for contributors who want to run mesh from source.**
+> If you just want to self-host mesh for your community, see [DEPLOY.md](DEPLOY.md) instead — that guide uses pre-built Docker images and doesn't require Node.js.
+
+### Prerequisites
+
+- Node.js 20+ and npm
+- A Matrix account on any homeserver (e.g. `matrix.org`)
+- Optional: [Bun](https://bun.sh) for running the presence bridge locally
+
+### 1. Clone and install
+
+```bash
+git clone https://github.com/davifernan/mesh.git
+cd mesh
+npm install
+```
+
+### 2. Configure environment
+
+```bash
+cp .env.example .env
+```
+
+Open `.env` and fill in at minimum:
+
+```env
+# Required for GIF picker — get a free key at developers.giphy.com
+VITE_GIPHY_API_KEY=your_key_here
+```
+
+Everything else has sensible defaults for local development.
+
+### 3. Start the web app
+
+```bash
+npm run dev
+# → http://localhost:8080
+```
+
+The app connects to whichever Matrix homeserver you log in with. `matrix.org` works out of the box.
+
+### 4. Start the presence bridge (optional)
+
+The presence bridge tracks call state (mute/camera/deafen badges in the sidebar). You only need it if you are working on voice/call features.
+
+```bash
+cd bridge
+bun install
+
+# You also need a local LiveKit instance — start it via Docker:
+cd ..
+docker compose --profile livekit up -d livekit
+
+# Then start the bridge:
+cd bridge
+LIVEKIT_API_KEY=devkey LIVEKIT_API_SECRET=devsecret bun run dev
+# → http://localhost:3001
+```
+
+Dev LiveKit credentials (`devkey` / `devsecret`) match the defaults in `.env.example` and `contrib/livekit/livekit.yaml`.
+
+### 5. Desktop app (optional)
+
+```bash
+# In a second terminal, while npm run dev is already running:
+cd desktop
+npm install
+npm run dev
+# → opens Electron window pointing at localhost:8080
+```
+
+### Verify everything works
+
+```bash
+npm run typecheck   # TypeScript — zero errors expected
+npm run lint        # ESLint
+```
+
+> **Before touching voice/call code:** read [AGENTS.md](AGENTS.md) — it documents critical rules and known pitfalls for the Matrix RTC + LiveKit layer.
+
+---
 
 ## Bug reports
 

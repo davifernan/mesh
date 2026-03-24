@@ -1,174 +1,129 @@
 # mesh Desktop
 
-Electron-Hülle für mesh. Basiert auf `fluxer_desktop` (AGPL-3.0), angepasst für mesh/Matrix.
-Lädt die mesh Web-App und ergänzt sie mit nativen OS-Features:
-Benachrichtigungen, globale Shortcuts, Screenshare-Picker, Auto-Update, Badges.
+Electron wrapper for the mesh web app. Adds native OS capabilities on top of the web interface:
+system notifications, global shortcuts, screen share picker, auto-update, and taskbar/dock badges.
+
+Based on [Fluxer Desktop](https://github.com/FluxerApp/Fluxer) (AGPL-3.0), adapted for mesh/Matrix.
+
+> **Status: Pre-release.** The desktop app is functional for development. A few items need to be
+> completed before shipping distributable packages — see [Known Gaps](#known-gaps).
 
 ---
 
-## ⚠ Offene TODOs — vor erstem Release erledigen
+## Requirements
 
-### 1. Domain eintragen (KRITISCH)
-
-In **zwei Dateien** muss `DEINE-DOMAIN.com` durch die echte mesh-Domain ersetzt werden:
-
-**`src/common/Constants.tsx`**
-```typescript
-// JETZT:
-export const STABLE_APP_URL = 'https://DEINE-DOMAIN.com';
-export const CANARY_APP_URL = 'https://DEINE-DOMAIN.com';
-
-// ERSETZEN MIT:
-export const STABLE_APP_URL = 'https://deine-echte-domain.com';
-export const CANARY_APP_URL = 'https://deine-echte-domain.com';
-```
-
-**`src/main/Updater.tsx`**
-```typescript
-// JETZT:
-baseUrl: `https://DEINE-DOMAIN.com/dl/desktop/${BUILD_CHANNEL}/...`
-
-// ERSETZEN MIT (Option A — eigener Update-Server):
-baseUrl: `https://deine-echte-domain.com/dl/desktop/${BUILD_CHANNEL}/...`
-
-// ERSETZEN MIT (Option B — GitHub Releases nutzen, einfacher):
-// updateSource auf { type: UpdateSourceType.ElectronPublicUpdateService, repo: 'davifernan/mesh' }
-```
+- Node.js 18+
+- npm
 
 ---
 
-### 2. Icons erstellen (KRITISCH)
-
-Der Ordner `build_resources/icons/` muss mit mesh-Icons befüllt werden.
-Aktuell sind noch Fluxer-Icons drin — electron-builder bricht sonst beim Build.
-
-Benötigte Dateien:
-
-| Datei | Format | Größe | Verwendet für |
-|-------|--------|-------|--------------|
-| `_compiled/AppIcon.icns` | ICNS | 1024×1024 | macOS App-Icon |
-| `icon.ico` | ICO | 256×256 (multi-size) | Windows App-Icon |
-| `icon.png` | PNG | 512×512 | Linux App-Icon |
-| `badges/` | PNGs | div. | Windows Taskbar-Badge Overlays |
-
-**Tool-Empfehlung:** https://icon.kitchen — generiert alle Formate aus einem einzigen PNG.
-
----
-
-### 3. window.electron API in mesh verdrahten (nach Phase 1–8)
-
-Die Electron-Hülle stellt via `preload/index.tsx` eine `window.electron` API bereit.
-Die mesh Web-App (`src/`) muss diese API an den folgenden Stellen nutzen:
-
-| Feature | Datei in `src/` | API-Methode | Priorität |
-|---------|----------------|-------------|-----------|
-| **Screenshare-Picker** | `app/components/voice/ScreenShareSettingsModal/` | `onDisplayMediaRequested()` + `getDesktopSources()` + `selectDisplayMediaSource()` | 🔴 Hoch |
-| **Unread Badge** | `app/pages/client/ClientNonUIFeatures.tsx` | `setBadgeCount(count)` | 🟡 Mittel |
-| **Push-to-Talk global** | `app/features/settings/voice-video/VoiceSettings.tsx` | `registerGlobalShortcut()` + `onGlobalShortcut()` | 🟡 Mittel |
-| **Custom Titlebar** | `app/components/layout/GuildsLayout/` | `windowMinimize()` / `windowMaximize()` / `windowClose()` | 🟡 Mittel |
-| **Deep Links** | `app/pages/client/ClientRoot.tsx` | `onDeepLink()` + `getInitialDeepLink()` | 🟡 Mittel |
-| **Auto-Update Banner** | `app/components/common/UpdateBanner.tsx` (neu) | `onUpdaterEvent()` + `updaterInstall()` | 🟢 Niedrig |
-| **Zoom** | `app/pages/client/ClientRoot.tsx` | `onZoomIn()` / `onZoomOut()` / `onZoomReset()` | 🟢 Niedrig |
-
-**Wichtig:** Immer mit `window.electron?.` (optional chaining) aufrufen —
-so funktioniert die App auch im Browser/PWA wenn kein Electron vorhanden ist.
-
-**Typ-Declaration erstellen** damit TypeScript `window.electron` kennt:
-```typescript
-// src/types/electron.d.ts  ← neue Datei anlegen
-// ElectronAPI aus desktop/src/common/Types.tsx importieren/duplizieren
-interface Window {
-  electron?: import('../../../desktop/src/common/Types').ElectronAPI;
-}
-```
-
-#### Screenshare im Detail (komplexester Part)
-
-```typescript
-// In ScreenShareSettingsModal.tsx:
-useEffect(() => {
-  if (!window.electron) return; // Browser: normales getDisplayMedia(), nichts tun
-
-  return window.electron.onDisplayMediaRequested(async (requestId, info) => {
-    // 1. Verfügbare Fenster/Screens von Electron holen (mit Thumbnails)
-    const sources = await window.electron!.getDesktopSources(['screen', 'window'], requestId);
-    // 2. Modal öffnen und Sources als Liste anzeigen
-    setAvailableSources(sources);
-    setElectronRequestId(requestId);
-    setModalOpen(true);
-  });
-}, []);
-
-// Nach User-Auswahl im Modal:
-const handleConfirm = (sourceId: string, withAudio: boolean) => {
-  window.electron!.selectDisplayMediaSource(electronRequestId, sourceId, withAudio);
-  // Electron gibt den Stream jetzt an Element Call weiter
-};
-```
-
----
-
-## Konfiguration (User-seitig)
-
-Die Desktop-App liest beim Start optional eine `settings.json` aus dem User-Daten-Verzeichnis.
-
-### Speicherorte
-
-| Platform | Stable | Canary |
-|----------|--------|--------|
-| Windows | `%APPDATA%\mesh\settings.json` | `%APPDATA%\meshcanary\settings.json` |
-| macOS | `~/Library/Application Support/mesh/settings.json` | `~/Library/Application Support/meshcanary/settings.json` |
-| Linux | `~/.config/mesh/settings.json` | `~/.config/meshcanary/settings.json` |
-
-### Optionen
-
-| Key | Type | Default | Beschreibung |
-|-----|------|---------|-------------|
-| `app_url` | string | `STABLE_APP_URL` | Eigene mesh-Instanz laden |
-
-### Beispiel
-```json
-{
-  "app_url": "https://meine-eigene-instanz.de"
-}
-```
-
----
-
-## Entwicklung
+## Development
 
 ```bash
-# Terminal 1 — Web-App starten
-cd ..   # ins mesh/ Root
-npm run dev
-# → http://localhost:8080
+# Terminal 1 — start the mesh web app
+cd ..        # mesh/ root
+npm install
+npm run dev  # → http://localhost:8080
 
-# Terminal 2 — Electron starten
+# Terminal 2 — start Electron
 cd desktop
 npm install
-npm run dev
-# → öffnet Electron-Fenster mit localhost:8080
+npm run dev  # → opens Electron window pointing at localhost:8080
 ```
 
-## Build & Release
+---
+
+## Build
 
 ```bash
-# macOS (nur auf macOS)
+cd desktop
+
+# macOS (must be run on macOS)
 npx electron-builder --mac
 
-# Windows (auf Windows oder via GitHub Actions)
+# Windows (on Windows or via GitHub Actions)
 npx electron-builder --win
 
 # Linux
 npx electron-builder --linux
-
-# Alle Plattformen automatisch via GitHub Actions:
-# git tag v1.0.0 && git push --tags
-# → .github/workflows/electron-release.yml übernimmt den Rest
 ```
 
-## macOS Hinweis (Code-Signing)
+Releases for all platforms are built automatically via GitHub Actions when a tag is pushed:
 
-Ohne Apple Developer Account ($99/Jahr) erscheint beim ersten Start eine Warnung.
-Für private Nutzung: Systemeinstellungen → Datenschutz & Sicherheit → "Trotzdem öffnen".
-Für öffentliche Distribution: `CSC_LINK` + `CSC_KEY_PASSWORD` Environment-Variablen setzen.
+```bash
+git tag v0.1.0 && git push --tags
+# → .github/workflows/electron-release.yml handles the rest
+```
+
+---
+
+## User Configuration
+
+The desktop app reads an optional `settings.json` from the platform user-data directory at startup.
+
+### Locations
+
+| Platform | Path |
+|----------|------|
+| Windows | `%APPDATA%\mesh\settings.json` |
+| macOS | `~/Library/Application Support/mesh/settings.json` |
+| Linux | `~/.config/mesh/settings.json` |
+
+### Options
+
+| Key | Type | Description |
+|-----|------|-------------|
+| `app_url` | string | Load a custom mesh instance instead of the built-in URL |
+
+### Example
+
+```json
+{
+  "app_url": "https://your-mesh-instance.example.com"
+}
+```
+
+---
+
+## macOS Code Signing
+
+Without an Apple Developer account, Gatekeeper shows a warning on first launch.
+
+- **Personal use:** System Preferences → Privacy & Security → "Open Anyway"
+- **Public distribution:** Set `CSC_LINK` and `CSC_KEY_PASSWORD` environment variables before building
+
+---
+
+## Packaging
+
+Distribution package specs live in [`packaging/`](packaging/):
+
+- [`packaging/winget/`](packaging/winget/) — Windows Package Manager
+- [`packaging/homebrew/`](packaging/homebrew/) — Homebrew (macOS/Linux)
+- [`packaging/aur/`](packaging/aur/) — Arch User Repository
+- [`packaging/linux/`](packaging/linux/) — deb/rpm
+
+---
+
+## Known Gaps
+
+These items must be completed before the first public desktop release:
+
+**App URL** — `src/common/Constants.tsx` and `src/main/Updater.tsx` contain placeholder domain
+values (`DEINE-DOMAIN.com`) that must be replaced with the actual hosted mesh URL.
+
+**App icons** — `build_resources/icons/` currently contains placeholder icons from the upstream
+Fluxer project. mesh-branded icons are needed before building distributable packages:
+
+| File | Format | Size | Used for |
+|------|--------|------|----------|
+| `_compiled/AppIcon.icns` | ICNS | 1024×1024 | macOS |
+| `icon.ico` | ICO | 256×256 multi-size | Windows |
+| `icon.png` | PNG | 512×512 | Linux |
+
+Tool recommendation: [icon.kitchen](https://icon.kitchen) — generates all formats from a single PNG.
+
+**Native API wiring** — The `window.electron` API (exposed by `preload/index.tsx`) is not yet
+consumed by the mesh web app for screen share picker, push-to-talk global shortcut, deep links,
+and auto-update banner. The web app uses `window.electron?.` optional chaining everywhere, so it
+degrades gracefully in browser/PWA mode until these are wired up.

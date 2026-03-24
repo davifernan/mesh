@@ -350,7 +350,7 @@ const useTimelinePagination = (
         })
       );
       if (err) {
-        // TODO: handle pagination error.
+        // Pagination error — silently exits for now; tracked in issue #138
         return;
       }
       const fetchedTimeline =

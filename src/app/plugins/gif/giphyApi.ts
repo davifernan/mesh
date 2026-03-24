@@ -2,7 +2,6 @@ import { GiphyFetch } from '@giphy/js-fetch-api';
 import type { IGif } from '@giphy/js-types';
 import { GifItem } from './types';
 
-// TODO: Set VITE_GIPHY_API_KEY in .env before shipping
 const GIPHY_API_KEY = import.meta.env.VITE_GIPHY_API_KEY ?? '';
 
 export const GIPHY_RATING_DEFAULT = 'pg-13' as const;

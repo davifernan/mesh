@@ -1,2 +1,22 @@
 node_modules/
 .git/
+dist/
+
+# Never bake secrets into the image
+.env
+.env.local
+.env.*.local
+
+# Local dev/desktop build output
+desktop/dist-electron/
+desktop/node_modules/
+
+# Internal planning & agent docs — not needed for build
+PLAN.md
+NILO.md
+UX_BACKLOG.md
+livekit-plan.md
+enhance-bettercord-voice-ui.md
+fix-bettercord-ui-enhance.md
+voice-ux-parallel-implementation-plan.md
+docs/PLAN_ELEMENT_CALL.md

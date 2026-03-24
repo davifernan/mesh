@@ -8,6 +8,25 @@ mesh is a self-hosted Matrix client with a Discord-style interface, native LiveK
 
 ---
 
+## How this project was built — and why
+
+mesh is an **early, experimental project built entirely with AI assistance**. Not a single line of code was written by hand. This is stated upfront because transparency matters more than optics.
+
+**The backstory:** I was looking for a decentralized, privacy-focused Discord alternative and came across [Fluxer](https://github.com/FluxerApp/Fluxer) — a well-built open-source Discord-like platform. But when I saw that their focus wasn't on privacy and decentralization, I decided to take matters into my own hands.
+
+Starting from [Cinny](https://github.com/cinnyapp/cinny) (a clean Matrix client) and its Element Call integration (which has since been merged upstream into Cinny itself), I took a different direction: **native LiveKit voice/video integration** — no iframe, no Element Call dependency — combined with a **Discord-style UI** so that people switching from Discord have a familiar, lower-friction experience.
+
+**The current state is honest:**
+- The core features work — voice, video, screenshare, E2EE, messaging, spaces, channels.
+- It is not fully polished. Not everything is optimized. Some rough edges remain.
+- It is early, experimental software — not a finished product.
+
+**What happens next is up to the community.** The foundation is there. From here, I'd love for others to get involved — whether that's opening issues, sending PRs, suggesting improvements, or forking it into something entirely their own. All of that would genuinely make me happy.
+
+This project doesn't pretend to be something it isn't. It's an AI-built starting point for a privacy-first, decentralized Discord alternative — open for anyone to inspect, improve, or build upon.
+
+---
+
 ## Features
 
 - **Matrix protocol** — Decentralized and federated messaging. Voice/video routed via LiveKit SFU.

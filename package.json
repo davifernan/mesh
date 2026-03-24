@@ -1,7 +1,7 @@
 {
   "name": "mesh",
   "version": "0.1.0",
-  "description": "Discord-Look. Matrix-Privatsphäre.",
+  "description": "Discord-style Matrix client with native LiveKit voice/video calls",
   "main": "index.js",
   "type": "module",
   "engines": {
@@ -20,7 +20,7 @@
     "test:watch": "vitest"
   },
   "keywords": [],
-  "author": "Ajay Bura",
+  "author": "mesh Contributors",
   "license": "AGPL-3.0-only",
   "dependencies": {
     "@atlaskit/pragmatic-drag-and-drop": "1.7.7",

@@ -1,4 +1,5 @@
-// TODO(V2): Instant Buttons / Myinstants integration
+// Instant Buttons / Myinstants integration — not yet implemented
+// See: https://github.com/davifernan/mesh/issues/139
 //
 // ⚠ COPYRIGHT & TERMS REVIEW REQUIRED BEFORE IMPLEMENTING ⚠
 //

@@ -1,7 +1,16 @@
-# mesh — Agent Rules & Learnings
+# mesh — Architecture Reference & Agent Rules
 
-> This file documents hard-won knowledge from implementing Matrix RTC + LiveKit voice
-> in mesh. Read it before touching ANYTHING call/voice related.
+This file is the authoritative reference for the voice/call layer of mesh.
+It documents hard-won implementation knowledge, critical rules, and known pitfalls
+accumulated during development.
+
+**Human contributors and AI coding agents alike should read this before touching
+any code in `src/app/features/call/`, `src/app/pages/client/call/`, or `bridge/`.**
+
+> mesh was built with AI-assisted development. This file serves double duty:
+> architecture docs for human contributors, and strict operating rules for AI agents.
+> Both audiences: read it carefully — the rules exist because breaking them causes
+> subtle bugs that are hard to reproduce.
 
 ---
 

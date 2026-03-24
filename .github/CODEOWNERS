@@ -1,0 +1,21 @@
+# CODEOWNERS
+# Auto-assigns reviewers for pull requests.
+# Last matching pattern takes precedence.
+# https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/about-code-owners
+
+# Default owner for everything
+*                                   @davifernan
+
+# Call / voice engine — critical, always needs careful review
+/src/app/features/call/             @davifernan
+/src/app/hooks/useCallMemberships.ts @davifernan
+
+# Presence bridge
+/bridge/                            @davifernan
+
+# Electron desktop app
+/desktop/                           @davifernan
+
+# CI/CD, security, and repo governance
+/.github/                           @davifernan
+/AGENTS.md                          @davifernan
