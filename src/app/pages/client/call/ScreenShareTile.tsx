@@ -358,8 +358,9 @@ export function ScreenShareTile({
     return `${w}×${h}${fps ? ` · ${Math.round(fps)}fps` : ''}`;
   }, [trackRef.publication, trackRef.participant?.isLocal]);
 
-  // Remote tile that hasn't been subscribed yet — show watch overlay instead of video
-  const showWatchOverlay = !trackRef.participant?.isLocal && !isWatching;
+  // With autoSubscribe: true, remote screenshare tracks are always subscribed.
+  // Show video immediately — no watch gate needed.
+  const showWatchOverlay = false;
 
   return (
     <div className={styles.screenTile} ref={tileRef}>
