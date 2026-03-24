@@ -83,11 +83,13 @@ export function useScreenShareViewerCount(trackRef: TrackReference): number {
 export function ScreenShareTile({
   trackRef,
   onWatch,
+  onStopWatching,
   livekitRoom,
   matrixRoom,
 }: {
   trackRef: TrackReference;
   onWatch?: () => void;
+  onStopWatching?: () => void;
   livekitRoom: Room | null;
   /** Matrix room — used to resolve the sharer's display name. */
   matrixRoom?: MatrixRoom | null;
@@ -106,6 +108,7 @@ export function ScreenShareTile({
   const { watchedScreenShares, watchScreenShare, unwatchScreenShare } = useCallState();
   const participantIdentity = trackRef.participant?.identity ?? '';
   const isWatching = watchedScreenShares.has(participantIdentity);
+  const isLocalShare = trackRef.participant?.isLocal ?? false;
 
   const popoutWindowRef = useRef<Window | null>(null);
   const popoutVideoRef = useRef<HTMLMediaElement | null>(null);
@@ -358,14 +361,13 @@ export function ScreenShareTile({
     return `${w}×${h}${fps ? ` · ${Math.round(fps)}fps` : ''}`;
   }, [trackRef.publication, trackRef.participant?.isLocal]);
 
-  // With autoSubscribe: true, remote screenshare tracks are always subscribed.
-  // Show video immediately — no watch gate needed.
-  const showWatchOverlay = false;
+  const showWatchOverlay = !isLocalShare && !isWatching;
+  const canRenderVideo = !showWatchOverlay && !!trackRef.publication?.track;
 
   return (
     <div className={styles.screenTile} ref={tileRef}>
       {/* Video — only rendered when watching or it's our own share */}
-      {!showWatchOverlay && (
+      {canRenderVideo && (
         <VideoTrack trackRef={trackRef} style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
       )}
 
@@ -395,7 +397,7 @@ export function ScreenShareTile({
       )}
 
       {/* ── Controls (fullscreen / popout) — only when video is visible ─── */}
-      {!showWatchOverlay && (
+      {canRenderVideo && (
         <div className={styles.screenActions}>
           <button
             type="button"
@@ -425,7 +427,7 @@ export function ScreenShareTile({
       )}
 
       {/* ── Quality pill — sender outbound stats OR viewer remote dims ───── */}
-      {!showWatchOverlay && (qualityLabel || remoteQualityLabel) && (
+      {canRenderVideo && (qualityLabel || remoteQualityLabel) && (
         <div className={trackRef.participant?.isLocal ? styles.screenQualityPill : styles.screenQualityPillViewer}>
           {trackRef.participant?.isLocal ? qualityLabel : remoteQualityLabel}
         </div>
@@ -436,7 +438,11 @@ export function ScreenShareTile({
         <button
           type="button"
           className={styles.screenStopWatchBtn}
-          onClick={(e) => { e.stopPropagation(); void unwatchScreenShare(participantIdentity); }}
+          onClick={(e) => {
+            e.stopPropagation();
+            void unwatchScreenShare(participantIdentity);
+            onStopWatching?.();
+          }}
         >
           Stop Watching
         </button>

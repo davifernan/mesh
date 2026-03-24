@@ -144,16 +144,18 @@ export function NativeCallView() {
           </span>
         </div>
         {/* #71 — Chat button moved from control bar to header top-right */}
-        <button
-          type="button"
-          className={`${styles.headerChatBtn}${isChatOpen ? ` ${styles.headerChatBtnActive}` : ''}`}
-          onClick={() => void toggleChat()}
-          title={isChatOpen ? 'Hide chat' : 'Show chat'}
-          aria-label={isChatOpen ? 'Hide chat' : 'Show chat'}
-          aria-pressed={isChatOpen}
-        >
-          <ChatCircle size={18} />
-        </button>
+        {!isMobileLike && (
+          <button
+            type="button"
+            className={`${styles.headerChatBtn}${isChatOpen ? ` ${styles.headerChatBtnActive}` : ''}`}
+            onClick={() => void toggleChat()}
+            title={isChatOpen ? 'Hide chat' : 'Show chat'}
+            aria-label={isChatOpen ? 'Hide chat' : 'Show chat'}
+            aria-pressed={isChatOpen}
+          >
+            <ChatCircle size={18} />
+          </button>
+        )}
       </div>
 
       {/* RoomContext wraps grid, stats panel, and control bar */}

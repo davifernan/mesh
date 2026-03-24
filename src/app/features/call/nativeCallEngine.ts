@@ -487,6 +487,28 @@ export function useNativeCall(roomId: string | null): NativeCallEngine {
           });
         };
 
+        const syncRemoteScreenShareSubscription = (
+          pub: {
+            source: Track.Source;
+            setSubscribed: (subscribed: boolean) => Promise<void> | void;
+          },
+          participantIdentity: string,
+        ) => {
+          if (
+            pub.source !== Track.Source.ScreenShare &&
+            pub.source !== Track.Source.ScreenShareAudio
+          ) {
+            return;
+          }
+
+          const shouldSubscribe = watchedScreenSharesRef.current.has(participantIdentity);
+          void pub.setSubscribed(shouldSubscribe);
+
+          if (shouldSubscribe && pub.source === Track.Source.ScreenShare && 'setVideoQuality' in pub) {
+            try { (pub as any).setVideoQuality(VideoQuality.HIGH); } catch { /* best-effort */ }
+          }
+        };
+
         // Snapshot initial remote participants already in the room.
         // NOTE: room.remoteParticipants is empty here (before connect) — this
         // loop is a no-op. The real post-connect snapshot happens after step 8.
@@ -555,18 +577,19 @@ export function useNativeCall(roomId: string | null): NativeCallEngine {
         room.on(RoomEvent.TrackPublished, (_pub, participant) => {
           updateRemote(participant);
           // With autoSubscribe: true, Mic and Camera are subscribed automatically.
-          // ScreenShare tracks are also auto-subscribed but immediately unsubscribed
-          // below (TrackSubscribed handler) unless the user explicitly watches them.
+          // ScreenShare tracks are immediately unsubscribed again unless the user
+          // explicitly chose to watch that stream.
+          syncRemoteScreenShareSubscription(_pub, participant.identity);
           // Deafen: if currently deafened, unsubscribe newly published mic tracks.
           if (_pub.source === Track.Source.Microphone && isDeafenedRef.current) {
             _pub.setSubscribed(false);
           }
         });
 
-        // With autoSubscribe: true all tracks stay subscribed by default.
-        // Screenshare tracks are kept subscribed so remote participants see
-        // them immediately — no "watch" gate. Deafen is handled in
-        // TrackPublished + ParticipantConnected above.
+        room.on(RoomEvent.TrackSubscribed, (_track, pub, participant) => {
+          syncRemoteScreenShareSubscription(pub, participant.identity);
+        });
+
         room.on(RoomEvent.TrackUnpublished, (_pub, participant) => {
           updateRemote(participant);
           // When a remote screenshare track disappears, remove them from watchedScreenShares
@@ -584,11 +607,15 @@ export function useNativeCall(roomId: string | null): NativeCallEngine {
           try {
           updateRemote(participant);
           playCallSound(CallSoundType.UserJoin, { enabled: callSoundsEnabledRef.current });
-          // With autoSubscribe: true, tracks are subscribed automatically.
+          for (const pub of participant.trackPublications.values()) {
+            syncRemoteScreenShareSubscription(pub, participant.identity);
+          }
           // Apply deafen if active — unsubscribe audio tracks from this participant.
           if (isDeafenedRef.current) {
             for (const pub of participant.audioTrackPublications.values()) {
-              pub.setSubscribed(false);
+              if (pub.source === Track.Source.Microphone) {
+                pub.setSubscribed(false);
+              }
             }
           }
           } catch (err) {
@@ -669,9 +696,10 @@ export function useNativeCall(roomId: string | null): NativeCallEngine {
         room.on(RoomEvent.Reconnected, () => {
           if (!aborted) {
             setIsReconnecting(false);
-            if (isDeafenedRef.current) {
-              for (const p of room.remoteParticipants.values()) {
-                for (const pub of p.audioTrackPublications.values()) {
+            for (const p of room.remoteParticipants.values()) {
+              for (const pub of p.trackPublications.values()) {
+                syncRemoteScreenShareSubscription(pub, p.identity);
+                if (isDeafenedRef.current && pub.source === Track.Source.Microphone) {
                   pub.setSubscribed(false);
                 }
               }
@@ -685,19 +713,23 @@ export function useNativeCall(roomId: string | null): NativeCallEngine {
         // This avoids a race condition where WebRTC delivers a track before the
         // SDK has registered the participant internally ("Tried to add a track
         // for a participant, that's not present"). Unwanted subscriptions
-        // (screenshare, deafened audio) are cleaned up in TrackSubscribed above.
+        // (screenshare, deafened audio) are cleaned up immediately after connect.
         await room.connect(sfuConfig.url, sfuConfig.jwt, { autoSubscribe: true });
 
         // 8b. Snapshot pre-existing remote participants for UI state + apply deafen.
         for (const p of room.remoteParticipants.values()) {
           updateRemote(p);
+          for (const pub of p.trackPublications.values()) {
+            syncRemoteScreenShareSubscription(pub, p.identity);
+          }
           // If deafened at join, unsubscribe their audio tracks now.
           if (isDeafenedRef.current) {
             for (const pub of p.audioTrackPublications.values()) {
-              pub.setSubscribed(false);
+              if (pub.source === Track.Source.Microphone) {
+                pub.setSubscribed(false);
+              }
             }
           }
-          // Screenshare tracks stay subscribed (autoSubscribe: true) — no gating.
         }
 
         // Announce Matrix user ID via LiveKit participant attributes.

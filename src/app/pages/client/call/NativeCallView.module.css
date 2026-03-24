@@ -193,10 +193,10 @@
 
 @media (max-width: 768px) {
   .controlBarWrap {
-    /* On mobile: full-width solid navbar flush to the bottom edge.
-       Switch to block so the bar stretches to full width naturally. */
-    display: block;
-    padding: 0;
+    display: flex;
+    justify-content: center;
+    align-items: flex-end;
+    padding: 0 16px calc(18px + env(safe-area-inset-bottom, 0px));
     opacity: 1 !important;
     pointer-events: auto !important;
   }

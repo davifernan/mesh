@@ -10,7 +10,7 @@
  * - Deafen removed (lives in UserArea per #38)
  * - Noise Suppression moved to Mic dropdown
  * - Stats + Stop-Watching moved to ··· overflow menu
- * - Chat button moved to NativeCallView header (see NativeCallView.tsx)
+ * - Chat button lives in the view header on desktop and in the bottom action row on mobile
  * - Hangup is standalone outside both pills
  * - Fullscreen button far right (desktop only)
  * - Mic dropdown extended: Noise Sup toggle + Speaker device list
@@ -29,12 +29,12 @@ import {
   ChartBar,
   Waveform,
   CaretDown,
-  ArrowsClockwise,
   MusicNote,
   Rocket,
   DotsThree,
   ArrowsOut,
   ArrowsIn,
+  ChatCircle,
 } from '@phosphor-icons/react';
 import { ScreenSize, useScreenSizeContext } from '../../../hooks/useScreenSize';
 import { useLocalParticipant } from '@livekit/components-react';
@@ -56,7 +56,6 @@ export function NativeCallControlBar() {
     hangUp,
     toggleAudio,
     toggleVideo,
-    flipCamera,
     isAudioEnabled,
     isVideoEnabled,
     startScreenShare,
@@ -67,6 +66,8 @@ export function NativeCallControlBar() {
     updateScreenShareSettings,
     watchedScreenShares,
     unwatchScreenShare,
+    isChatOpen,
+    toggleChat,
   } = useCallState();
 
   const { localParticipant } = useLocalParticipant();
@@ -272,7 +273,68 @@ export function NativeCallControlBar() {
         />
       )}
 
-      <div className={styles.bar}>
+      {isMobile && (
+        <div className={styles.mobileBar}>
+          <button
+            type="button"
+            className={`${styles.mobileBtn} ${!isVideoEnabled ? styles.btnMuted : ''}`}
+            onClick={() => void toggleVideo()}
+            title={isVideoEnabled ? 'Disable camera' : 'Enable camera'}
+            aria-label={isVideoEnabled ? 'Disable camera' : 'Enable camera'}
+            aria-pressed={!isVideoEnabled}
+          >
+            {isVideoEnabled ? <VideoCamera size={24} /> : <VideoCameraSlash size={24} />}
+          </button>
+
+          <button
+            type="button"
+            className={`${styles.mobileBtn} ${!isAudioEnabled ? styles.btnMuted : ''}`}
+            onClick={() => void toggleAudio()}
+            title={isAudioEnabled ? 'Mute microphone' : 'Unmute microphone'}
+            aria-label={isAudioEnabled ? 'Mute microphone' : 'Unmute microphone'}
+            aria-pressed={!isAudioEnabled}
+          >
+            {isAudioEnabled ? <Microphone size={24} /> : <MicrophoneSlash size={24} />}
+          </button>
+
+          <button
+            type="button"
+            className={`${styles.mobileBtn} ${isChatOpen ? styles.btnActive : ''}`}
+            onClick={() => void toggleChat()}
+            title={isChatOpen ? 'Hide chat' : 'Show chat'}
+            aria-label={isChatOpen ? 'Hide chat' : 'Show chat'}
+            aria-pressed={isChatOpen}
+          >
+            <ChatCircle size={24} />
+          </button>
+
+          <div className={styles.mobileBtnWrap} ref={activitiesRef}>
+            <button
+              type="button"
+              className={`${styles.mobileBtn} ${showActivities ? styles.btnActive : ''}`}
+              onClick={() => setShowActivities((v) => !v)}
+              title="Activities"
+              aria-label="Open activities picker"
+              aria-pressed={showActivities}
+            >
+              <Rocket size={24} />
+            </button>
+            {showActivities && <ActivityPicker onClose={() => setShowActivities(false)} />}
+          </div>
+
+          <button
+            type="button"
+            className={`${styles.mobileBtn} ${styles.mobileHangupBtn}`}
+            onClick={hangUp}
+            title="Leave call"
+            aria-label="Leave call"
+          >
+            <PhoneDisconnect size={26} weight="fill" />
+          </button>
+        </div>
+      )}
+
+      {!isMobile && <div className={styles.bar}>
         {/* ── Pill 1: A/V controls ── */}
         <div className={styles.pill}>
           {/* Mic */}
@@ -297,67 +359,45 @@ export function NativeCallControlBar() {
             {showMicMenu && MicDropdown}
           </div>
 
-          {/* Camera / Flip */}
-          {isMobile ? (
-            <>
-              <button
-                className={`${styles.btn} ${!isVideoEnabled ? styles.btnMuted : ''}`}
-                onClick={() => void toggleVideo()}
-                title={isVideoEnabled ? 'Disable camera' : 'Enable camera'}
-                aria-label={isVideoEnabled ? 'Disable camera' : 'Enable camera'}
-                aria-pressed={!isVideoEnabled}
-              >
-                {isVideoEnabled ? <VideoCamera size={20} /> : <VideoCameraSlash size={20} />}
-              </button>
-              <button
-                className={styles.btn}
-                onClick={() => void flipCamera()}
-                title="Flip camera"
-                aria-label="Flip camera"
-              >
-                <ArrowsClockwise size={20} />
-              </button>
-            </>
-          ) : (
-            <div className={styles.btnWrap} ref={camMenuRef}>
-              <button
-                className={`${styles.btn} ${!isVideoEnabled ? styles.btnMuted : ''}`}
-                onClick={() => void toggleVideo()}
-                title={isVideoEnabled ? 'Disable camera' : 'Enable camera'}
-                aria-label={isVideoEnabled ? 'Disable camera' : 'Enable camera'}
-                aria-pressed={!isVideoEnabled}
-              >
-                {isVideoEnabled ? <VideoCamera size={20} /> : <VideoCameraSlash size={20} />}
-              </button>
-              <button
-                className={styles.caretBtn}
-                onClick={openCamMenu}
-                title="Switch camera"
-                aria-label="Switch camera device"
-              >
-                <CaretDown size={12} />
-              </button>
-              {showCamMenu && (
-                <div className={styles.deviceMenu}>
-                  <div className={styles.menuSectionLabel}>CAMERA</div>
-                  {camDevices.length === 0 && (
-                    <div className={styles.deviceItem} style={{ color: 'var(--text-secondary)' }}>No cameras found</div>
-                  )}
-                  {camDevices.map((d) => (
-                    <div
-                      key={d.deviceId}
-                      className={`${styles.deviceItem}${userSettings.cameraDeviceId === d.deviceId ? ` ${styles.deviceItemSelected}` : ''}`}
-                      onClick={() => selectCamDevice(d.deviceId)}
-                      role="button" tabIndex={0}
-                      onKeyDown={(e) => e.key === 'Enter' && selectCamDevice(d.deviceId)}
-                    >
-                      {d.label || `Camera ${d.deviceId.slice(0, 8)}`}
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          )}
+          {/* Camera */}
+          <div className={styles.btnWrap} ref={camMenuRef}>
+            <button
+              className={`${styles.btn} ${!isVideoEnabled ? styles.btnMuted : ''}`}
+              onClick={() => void toggleVideo()}
+              title={isVideoEnabled ? 'Disable camera' : 'Enable camera'}
+              aria-label={isVideoEnabled ? 'Disable camera' : 'Enable camera'}
+              aria-pressed={!isVideoEnabled}
+            >
+              {isVideoEnabled ? <VideoCamera size={20} /> : <VideoCameraSlash size={20} />}
+            </button>
+            <button
+              className={styles.caretBtn}
+              onClick={openCamMenu}
+              title="Switch camera"
+              aria-label="Switch camera device"
+            >
+              <CaretDown size={12} />
+            </button>
+            {showCamMenu && (
+              <div className={styles.deviceMenu}>
+                <div className={styles.menuSectionLabel}>CAMERA</div>
+                {camDevices.length === 0 && (
+                  <div className={styles.deviceItem} style={{ color: 'var(--text-secondary)' }}>No cameras found</div>
+                )}
+                {camDevices.map((d) => (
+                  <div
+                    key={d.deviceId}
+                    className={`${styles.deviceItem}${userSettings.cameraDeviceId === d.deviceId ? ` ${styles.deviceItemSelected}` : ''}`}
+                    onClick={() => selectCamDevice(d.deviceId)}
+                    role="button" tabIndex={0}
+                    onKeyDown={(e) => e.key === 'Enter' && selectCamDevice(d.deviceId)}
+                  >
+                    {d.label || `Camera ${d.deviceId.slice(0, 8)}`}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
 
         {/* ── Pill 2: Action controls ── */}
@@ -464,17 +504,15 @@ export function NativeCallControlBar() {
         </button>
 
         {/* ── Fullscreen — far right, desktop only ── */}
-        {!isMobile && (
-          <button
-            className={styles.btnFullscreen}
-            onClick={toggleFullscreen}
-            title={isFullscreen ? 'Exit fullscreen' : 'Enter fullscreen'}
-            aria-label={isFullscreen ? 'Exit fullscreen' : 'Enter fullscreen'}
-          >
-            {isFullscreen ? <ArrowsIn size={18} /> : <ArrowsOut size={18} />}
-          </button>
-        )}
-      </div>
+        <button
+          className={styles.btnFullscreen}
+          onClick={toggleFullscreen}
+          title={isFullscreen ? 'Exit fullscreen' : 'Enter fullscreen'}
+          aria-label={isFullscreen ? 'Exit fullscreen' : 'Enter fullscreen'}
+        >
+          {isFullscreen ? <ArrowsIn size={18} /> : <ArrowsOut size={18} />}
+        </button>
+      </div>}
     </>
   );
 }

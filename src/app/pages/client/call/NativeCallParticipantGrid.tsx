@@ -1,5 +1,5 @@
-import React, { useMemo, useEffect, useLayoutEffect, useState, useRef, useCallback } from 'react';
-import { useParticipants, useTracks, type TrackReference } from '@livekit/components-react';
+import React, { useMemo, useLayoutEffect, useState, useRef } from 'react';
+import { useParticipants, type TrackReference } from '@livekit/components-react';
 import { Track } from 'livekit-client';
 import { CaretUp, CaretDown } from '@phosphor-icons/react';
 import { useAtom, useSetAtom } from 'jotai';
@@ -57,18 +57,20 @@ export function NativeCallParticipantGrid({ onPin, widgets }: NativeCallParticip
     return sorted;
   }, [allFilteredParticipants]);
 
-  const { remoteParticipantStates, livekitRoom, activeCallRoomId } = useCallState();
+  const { livekitRoom, activeCallRoomId } = useCallState();
   const mx = useMatrixClient();
   const activeRoom: MatrixRoom | null = activeCallRoomId ? (mx.getRoom(activeCallRoomId) ?? null) : null;
   const [layoutState, setLayoutState] = useAtom(voiceCallLayoutAtom);
   const pinParticipant = useSetAtom(pinParticipantAtom);
   const { layoutMode, pinnedParticipantId, isCarouselExpanded } = layoutState;
 
-  // Collect all active screenshare tracks — must be above column-recalc effects
-  const allSSTracks = useTracks([{ source: Track.Source.ScreenShare, withPlaceholder: false }]);
   const screenShareTracks = useMemo(
-    () => allSSTracks.filter((t): t is TrackReference => 'publication' in t && !!t.publication),
-    [allSSTracks],
+    () => allParticipants.flatMap((participant) => {
+      const publication = participant.getTrackPublication(Track.Source.ScreenShare);
+      if (!publication) return [];
+      return [{ participant, publication, source: Track.Source.ScreenShare } as TrackReference];
+    }),
+    [allParticipants],
   );
 
   const widgetCount = widgets?.length ?? 0;
@@ -169,25 +171,6 @@ export function NativeCallParticipantGrid({ onPin, widgets }: NativeCallParticip
     };
   }, [gridTileCount]);
 
-  // Auto-pin: when a remote participant starts screensharing, switch to focus mode
-  useEffect(() => {
-    let firstScreenSharerId: string | null = null;
-    for (const [identity, state] of remoteParticipantStates) {
-      if (state.isScreenSharing) {
-        firstScreenSharerId = identity;
-        break;
-      }
-    }
-    if (firstScreenSharerId && layoutMode === 'grid') {
-      pinParticipant(firstScreenSharerId);
-    } else if (!firstScreenSharerId && pinnedParticipantId !== null) {
-      const anyScreenShare = screenShareTracks.length > 0;
-      if (!anyScreenShare) {
-        pinParticipant(null);
-      }
-    }
-  }, [remoteParticipantStates, layoutMode, pinnedParticipantId, pinParticipant, screenShareTracks.length]);
-
   const handlePin = (participantId: string | null) => {
     pinParticipant(participantId);
     onPin?.(participantId);
@@ -223,7 +206,12 @@ export function NativeCallParticipantGrid({ onPin, widgets }: NativeCallParticip
               isPinned
             />
           ) : pinnedSSTrack ? (
-            <ScreenShareTile trackRef={pinnedSSTrack} livekitRoom={livekitRoom} matrixRoom={activeRoom} />
+            <ScreenShareTile
+              trackRef={pinnedSSTrack}
+              livekitRoom={livekitRoom}
+              matrixRoom={activeRoom}
+              onStopWatching={() => handlePin(null)}
+            />
           ) : pinnedParticipant ? (
             <NativeCallParticipantTile
               participant={pinnedParticipant}
@@ -337,6 +325,11 @@ export function NativeCallParticipantGrid({ onPin, widgets }: NativeCallParticip
               onWatch={() => {
                 if (t.participant?.identity) {
                   pinParticipant(t.participant.identity);
+                }
+              }}
+              onStopWatching={() => {
+                if (pinnedParticipantId === t.participant?.identity) {
+                  pinParticipant(null);
                 }
               }}
             />
