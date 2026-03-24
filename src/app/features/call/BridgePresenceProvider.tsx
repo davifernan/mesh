@@ -57,6 +57,16 @@ const EMPTY_MAP: ReadonlyMap<string, CallPresenceState> = new Map();
 
 type Props = { children: ReactNode };
 
+function buildPresenceSnapshotUrl(baseUrl: string, roomId: string): string {
+  return `${baseUrl}/room?roomId=${encodeURIComponent(roomId)}`;
+}
+
+function buildPresenceStreamUrl(baseUrl: string, roomId: string, ticket?: string): string {
+  const params = new URLSearchParams({ roomId });
+  if (ticket) params.set('ticket', ticket);
+  return `${baseUrl}/stream?${params.toString()}`;
+}
+
 export function BridgePresenceProvider({ children }: Props) {
   const { presenceUrl, presenceAuthSecret } = useClientConfig();
   const normalizedPresenceUrl = presenceUrl?.trim() ? presenceUrl : undefined;
@@ -153,10 +163,10 @@ export function BridgePresenceProvider({ children }: Props) {
       const secret = authSecretRef.current;
 
       // If auth is configured, fetch a single-use ticket before opening SSE
-      const openStream = (ticketParam: string) => {
+      const openStream = (ticket?: string) => {
         const en = pool.current.get(roomId);
         if (!en || en.subscriberCount === 0) return;
-        const url = `${baseUrl}/${encodeURIComponent(roomId)}/stream${ticketParam}`;
+        const url = buildPresenceStreamUrl(baseUrl, roomId, ticket);
         const es = new EventSource(url);
         en.es = es;
         wireEvents(es, roomId, connect);
@@ -174,7 +184,7 @@ export function BridgePresenceProvider({ children }: Props) {
           .then(async (res) => {
             if (!res.ok) throw new Error(`Ticket request failed: ${res.status}`);
             const data = (await res.json()) as { ticket: string };
-            openStream(`?ticket=${encodeURIComponent(data.ticket)}`);
+            openStream(data.ticket);
           })
           .catch(() => {
             // Ticket fetch failed — retry with backoff
@@ -186,7 +196,7 @@ export function BridgePresenceProvider({ children }: Props) {
           });
       } else {
         // No auth — connect directly (dev mode)
-        const url = `${baseUrl}/${encodeURIComponent(roomId)}/stream`;
+        const url = buildPresenceStreamUrl(baseUrl, roomId);
         const es = new EventSource(url);
         e.es = es;
         wireEvents(es, roomId, connect);
@@ -285,7 +295,7 @@ export function BridgePresenceProvider({ children }: Props) {
       headers.Authorization = `Bearer ${authSecretRef.current}`;
     }
 
-    fetch(`${presenceBaseRef.current}/${encodeURIComponent(roomId)}`, { signal: abort.signal, headers })
+    fetch(buildPresenceSnapshotUrl(presenceBaseRef.current, roomId), { signal: abort.signal, headers })
       .then(async (res) => {
         if (!res.ok) return;
         const data = (await res.json()) as Record<string, Partial<BridgePayload>>;

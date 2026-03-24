@@ -206,9 +206,35 @@ export function useNativeCall(roomId: string | null): NativeCallEngine {
   const e2eeWorkerRef = useRef<Worker | null>(null);
   const keyProviderRef = useRef<MatrixKeyProvider | null>(null);
   const isDeafenedRef = useRef(false);
+  const allowAttributeUpdatesRef = useRef(true);
   // True when the mic was muted automatically by deafen (so we can restore it on undeafen).
   // Stays false if the user manually muted before deafening — we don't touch their manual mute.
   const mutedByDeafenRef = useRef(false);
+
+  const setLocalParticipantAttributesSafely = useCallback(
+    async (attributes: Record<string, string>): Promise<void> => {
+      const room = roomRef.current;
+      if (!room || !allowAttributeUpdatesRef.current) return;
+
+      try {
+        await room.localParticipant.setAttributes(attributes);
+      } catch (err) {
+        const message = err instanceof Error ? err.message : String(err);
+        if (/permission to update own metadata/i.test(message)) {
+          if (allowAttributeUpdatesRef.current) {
+            allowAttributeUpdatesRef.current = false;
+            console.warn(
+              '[NativeCall] LiveKit rejected local participant attribute updates; disabling further attribute sync for this session.',
+            );
+          }
+          return;
+        }
+
+        console.warn('[NativeCall] Failed to update local participant attributes:', err);
+      }
+    },
+    [],
+  );
 
   // Holds the active SoundboardMixer for the current call session.
   // Created when the mic track is first obtained; torn down on cleanup/hangUp.
@@ -227,6 +253,7 @@ export function useNativeCall(roomId: string | null): NativeCallEngine {
     if (!roomId) return;
 
     let aborted = false;
+    allowAttributeUpdatesRef.current = true;
     const SPEAK_ACTIVATE_MS = 180;
     const SPEAK_DEACTIVATE_MS = 500;
     const activateTimers = new Map<string, ReturnType<typeof setTimeout>>();
@@ -682,7 +709,7 @@ export function useNativeCall(roomId: string | null): NativeCallEngine {
         // Announce Matrix user ID via LiveKit participant attributes.
         // The lk-jwt-service uses opaque identity hashes — without this,
         // neither remote participants nor the bridge can resolve who we are.
-        void room.localParticipant.setAttributes({ claimed_user_id: userId });
+        void setLocalParticipantAttributesSafely({ claimed_user_id: userId });
 
         if (aborted) {
           room.removeAllListeners();
@@ -1115,8 +1142,8 @@ export function useNativeCall(roomId: string | null): NativeCallEngine {
 
     // Propagate deafen state as a participant attribute so the presence bridge
     // receives a participant_attributes_changed webhook and can update the SSE stream.
-    void roomRef.current.localParticipant.setAttributes({ isDeafened: next ? '1' : '0' });
-  }, []);
+    void setLocalParticipantAttributesSafely({ isDeafened: next ? '1' : '0' });
+  }, [setLocalParticipantAttributesSafely]);
 
   const watchScreenShare = useCallback(
     async (identity: string) => {

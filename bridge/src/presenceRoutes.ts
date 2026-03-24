@@ -32,7 +32,7 @@
  *     stream cancel.
  */
 
-import type { Hono } from 'hono';
+import type { Context, Hono } from 'hono';
 import type { VoiceStateStore } from './store.js';
 import type { SSEManager } from './sseManager.js';
 import type { BridgeStats, SendFn } from './types.js';
@@ -47,10 +47,22 @@ export function registerPresenceRoutes(
   authSecret: string,
   reconciler?: Reconciler,
 ): void {
-  // ── GET /presence/:roomId ─────────────────────────────────────────────────
+  const getRequestedRoomId = (c: Context): string => {
+    return c.req.query('roomId') ?? c.req.param('roomId') ?? '';
+  };
 
-  app.get('/presence/:roomId', bearerAuthMiddleware(authSecret), async (c) => {
-    const roomId = c.req.param('roomId');
+  const requireRoomId = (c: Context): string | Response => {
+    const roomId = getRequestedRoomId(c);
+    if (!roomId) {
+      return c.json({ error: 'Missing roomId' }, 400);
+    }
+    return roomId;
+  };
+
+  const handleSnapshot = async (c: Context) => {
+    const roomId = requireRoomId(c);
+    if (roomId instanceof Response) return roomId;
+
     let snapshot = await store.getRoomSnapshot(roomId);
 
     // Lazy reconcile: if snapshot is empty and reconciler is available,
@@ -62,12 +74,12 @@ export function registerPresenceRoutes(
 
     if (snapshot.size === 0) return c.json({});
     return c.json(Object.fromEntries(snapshot));
-  });
+  };
 
-  // ── GET /presence/:roomId/stream ──────────────────────────────────────────
+  const handleStream = async (c: Context) => {
+    const roomId = requireRoomId(c);
+    if (roomId instanceof Response) return roomId;
 
-  app.get('/presence/:roomId/stream', sseTicketMiddleware(authSecret), async (c) => {
-    const roomId = c.req.param('roomId');
     const encoder = new TextEncoder();
 
     let localSend: SendFn | undefined;
@@ -169,5 +181,15 @@ export function registerPresenceRoutes(
         'X-Accel-Buffering': 'no', // disable nginx response buffering for SSE
       },
     });
-  });
+  };
+
+  // ── GET /presence/:roomId + /presence/room?roomId=... ────────────────────
+
+  app.get('/presence/:roomId', bearerAuthMiddleware(authSecret), handleSnapshot);
+  app.get('/presence/room', bearerAuthMiddleware(authSecret), handleSnapshot);
+
+  // ── GET /presence/:roomId/stream + /presence/stream?roomId=... ───────────
+
+  app.get('/presence/:roomId/stream', sseTicketMiddleware(authSecret), handleStream);
+  app.get('/presence/stream', sseTicketMiddleware(authSecret), handleStream);
 }

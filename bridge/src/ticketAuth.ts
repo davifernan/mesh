@@ -100,7 +100,8 @@ export function validateTicket(ticketId: string, roomId: string): boolean {
 
 /**
  * SSE ticket validation middleware for Hono.
- * Reads `?ticket=xxx` from query params and validates against the roomId route param.
+ * Reads `?ticket=xxx` from query params and validates against the roomId from
+ * either `?roomId=` or the route param.
  * If `secret` is empty (dev mode), the middleware is a no-op.
  */
 export function sseTicketMiddleware(secret: string) {
@@ -108,7 +109,7 @@ export function sseTicketMiddleware(secret: string) {
     if (!secret) return next(); // dev mode — no auth
 
     const ticketId = c.req.query('ticket') ?? '';
-    const roomId = c.req.param('roomId') ?? '';
+    const roomId = c.req.query('roomId') ?? c.req.param('roomId') ?? '';
 
     if (!ticketId || !validateTicket(ticketId, roomId)) {
       return c.json({ error: 'Invalid or expired ticket' }, 401);

@@ -1108,7 +1108,7 @@ describe('BridgePresenceProvider — REST Bootstrap', () => {
     vi.unstubAllGlobals();
   });
 
-  it('ruft /api/presence/:roomId beim ersten subscribeSSE auf', async () => {
+  it('ruft /api/presence/room?roomId=... beim ersten subscribeSSE auf', async () => {
     const fetchMock = vi.fn().mockResolvedValue({
       ok: true,
       json: async () => ({}),
@@ -1128,7 +1128,7 @@ describe('BridgePresenceProvider — REST Bootstrap', () => {
     await act(async () => { await Promise.resolve(); });
 
     const calledUrls = fetchMock.mock.calls.map((call: unknown[]) => call[0] as string);
-    expect(calledUrls.some((url) => url.includes('/api/presence/'))).toBe(true);
+    expect(calledUrls.some((url) => url.includes('/api/presence/room?roomId='))).toBe(true);
     expect(calledUrls.some((url) => url.includes('room1'))).toBe(true);
     // Nur einmal beim ersten Subscribe
     expect(fetchMock).toHaveBeenCalledTimes(1);
@@ -1137,7 +1137,7 @@ describe('BridgePresenceProvider — REST Bootstrap', () => {
     unmount();
   });
 
-  it('faellt bei presenceUrl="" weiter auf /api/presence zurueck', async () => {
+  it('faellt bei presenceUrl="" weiter auf /api/presence Query-URLs zurueck', async () => {
     const fetchMock = vi.fn().mockResolvedValue({
       ok: true,
       json: async () => ({}),
@@ -1154,8 +1154,37 @@ describe('BridgePresenceProvider — REST Bootstrap', () => {
     await act(async () => { await Promise.resolve(); });
 
     const calledUrls = fetchMock.mock.calls.map((call: unknown[]) => call[0] as string);
-    expect(calledUrls.some((url) => url.includes('/api/presence/'))).toBe(true);
-    expect(MockEventSource.instances[0]?.url).toContain('/api/presence/');
+    expect(calledUrls.some((url) => url.includes('/api/presence/room?roomId='))).toBe(true);
+    expect(MockEventSource.instances[0]?.url).toContain('/api/presence/stream?roomId=');
+
+    unmount();
+  });
+
+  it('uses query-param presence URLs for roomIds containing slashes', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({}),
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    const { act } = await import('react-dom/test-utils');
+    const { ctx, unmount } = await mountProvider();
+    const roomId = 'c2g123/Uutu456';
+
+    await act(async () => {
+      ctx.subscribeSSE(roomId);
+    });
+
+    await act(async () => { await Promise.resolve(); });
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      '/api/presence/room?roomId=c2g123%2FUutu456',
+      expect.objectContaining({ headers: {}, signal: expect.any(AbortSignal) }),
+    );
+    expect(MockEventSource.instances).toHaveLength(1);
+    expect(MockEventSource.instances[0]?.url).toBe(
+      '/api/presence/stream?roomId=c2g123%2FUutu456',
+    );
 
     unmount();
   });
