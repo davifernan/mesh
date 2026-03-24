@@ -1,5 +1,5 @@
 /**
- * BetterCord — Native Call Engine
+ * mesh — Native Call Engine
  *
  * useNativeCall(roomId) manages the full Matrix RTC + LiveKit + E2EE lifecycle
  * for a single voice/video call room.
@@ -14,9 +14,9 @@
  *
  * Presence model:
  *   The bridge SSE stream (BridgePresenceProvider) is the sole source of truth
- *   for non-participant observers. Matrix io.bettercord.call.presence state events
- *   are NOT written by this engine. Deafen state is propagated via the LiveKit
- *   participant attribute `isDeafened` so the bridge webhook can pick it up.
+ *   for non-participant observers. No call presence state events are written by
+ *   this engine. Deafen state is propagated via the LiveKit participant attribute
+ *   `isDeafened` so the bridge webhook can pick it up.
  */
 
 import { useEffect, useRef, useState, useCallback } from 'react';
@@ -718,7 +718,7 @@ export function useNativeCall(roomId: string | null): NativeCallEngine {
 
         // 9b. Wrap the published mic track in the soundboard mixer so that
         //     soundboard clips are blended into the outbound audio stream.
-        //     We unpublish the raw mic track, init the mixer, then republish
+        //     If the AudioContext resumes successfully, we swap the raw mic for
         //     a custom LocalAudioTrack carrying the mixed output.
         try {
           const micPub = room.localParticipant.getTrackPublication(Track.Source.Microphone);
@@ -731,19 +731,27 @@ export function useNativeCall(roomId: string | null): NativeCallEngine {
             const mixer = getSoundboardMixer(rawMst);
             mixerRef.current = mixer;
 
-            // Unpublish the raw mic track with stopOnUnpublish=false so the
-            // underlying MediaStreamTrack stays alive — the SoundboardMixer's
-            // AudioContext is already processing rawMst, and stopping the track
-            // here would silence the mixer output before republishing.
-            await room.localParticipant.unpublishTrack(rawMicTrack, false);
+            const mixerResumed = await mixer.resume();
 
-            // Publish the mixer's blended output track as the microphone source.
-            const mixedMst = mixer.getMixedTrack();
-            const mixedLocalTrack = new LocalAudioTrack(mixedMst, undefined, false);
-            await room.localParticipant.publishTrack(mixedLocalTrack, {
-              audioPreset: bitrateToAudioPreset(av.audioBitrate),
-              source: Track.Source.Microphone,
-            });
+            if (mixerResumed) {
+              // Unpublish the raw mic track with stopOnUnpublish=false so the
+              // underlying MediaStreamTrack stays alive — the SoundboardMixer's
+              // AudioContext is already processing rawMst, and stopping the track
+              // here would silence the mixer output before republishing.
+              await room.localParticipant.unpublishTrack(rawMicTrack, false);
+
+              // Publish the mixer's blended output track as the microphone source.
+              const mixedMst = mixer.getMixedTrack();
+              const mixedLocalTrack = new LocalAudioTrack(mixedMst, undefined, false);
+              await room.localParticipant.publishTrack(mixedLocalTrack, {
+                audioPreset: bitrateToAudioPreset(av.audioBitrate),
+                source: Track.Source.Microphone,
+              });
+            } else {
+              console.warn('[SoundboardMixer] AudioContext stayed suspended; keeping raw microphone track published');
+              destroySoundboardMixerSingleton();
+              mixerRef.current = null;
+            }
           }
         } catch (mixerErr) {
           // Mixer init is best-effort — if it fails, raw mic is already published

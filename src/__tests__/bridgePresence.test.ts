@@ -560,6 +560,14 @@ describe('BridgePresenceContext defaults', () => {
 async function mountProvider(): Promise<{
   ctx: BridgePresenceContextValue;
   unmount: () => void;
+}>;
+async function mountProvider(configOverride: Record<string, unknown>): Promise<{
+  ctx: BridgePresenceContextValue;
+  unmount: () => void;
+}>;
+async function mountProvider(configOverride?: Record<string, unknown>): Promise<{
+  ctx: BridgePresenceContextValue;
+  unmount: () => void;
 }> {
   // In React 18 lebt `act` in react-dom/test-utils, nicht als named export von 'react'
   const { act } = await import('react-dom/test-utils');
@@ -577,7 +585,7 @@ async function mountProvider(): Promise<{
 
   await act(async () => {
     root.render(
-      React.createElement(ClientConfigProvider, { value: TEST_CLIENT_CONFIG },
+      React.createElement(ClientConfigProvider, { value: { ...TEST_CLIENT_CONFIG, ...configOverride } },
         React.createElement(BridgePresenceProvider, null,
           React.createElement(Consumer)
         )
@@ -1126,6 +1134,29 @@ describe('BridgePresenceProvider — REST Bootstrap', () => {
     expect(fetchMock).toHaveBeenCalledTimes(1);
 
     cleanup();
+    unmount();
+  });
+
+  it('faellt bei presenceUrl="" weiter auf /api/presence zurueck', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({}),
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    const { act } = await import('react-dom/test-utils');
+    const { ctx, unmount } = await mountProvider({ presenceUrl: '' });
+
+    await act(async () => {
+      ctx.subscribeSSE('!room1:server');
+    });
+
+    await act(async () => { await Promise.resolve(); });
+
+    const calledUrls = fetchMock.mock.calls.map((call: unknown[]) => call[0] as string);
+    expect(calledUrls.some((url) => url.includes('/api/presence/'))).toBe(true);
+    expect(MockEventSource.instances[0]?.url).toContain('/api/presence/');
+
     unmount();
   });
 

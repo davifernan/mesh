@@ -181,6 +181,7 @@ function MicTestButton({ micDeviceId, speakerDeviceId }: MicTestProps) {
   const [volume, setVolume] = useState(0); // 0–100
   const streamRef = useRef<MediaStream | null>(null);
   const ctxRef = useRef<AudioContext | null>(null);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
   const analyserRef = useRef<AnalyserNode | null>(null);
   const rafRef = useRef<number>(0);
 
@@ -188,6 +189,11 @@ function MicTestButton({ micDeviceId, speakerDeviceId }: MicTestProps) {
     cancelAnimationFrame(rafRef.current);
     streamRef.current?.getTracks().forEach((t) => t.stop());
     streamRef.current = null;
+    if (audioRef.current) {
+      audioRef.current.pause();
+      audioRef.current.srcObject = null;
+      audioRef.current = null;
+    }
     ctxRef.current?.close().catch(() => {});
     ctxRef.current = null;
     analyserRef.current = null;
@@ -197,14 +203,15 @@ function MicTestButton({ micDeviceId, speakerDeviceId }: MicTestProps) {
 
   const start = useCallback(async () => {
     try {
+      const ctx = new AudioContext();
+      ctxRef.current = ctx;
+      await ctx.resume().catch(() => {});
+
       const constraints: MediaStreamConstraints = {
         audio: micDeviceId ? { deviceId: { exact: micDeviceId } } : true,
       };
       const stream = await navigator.mediaDevices.getUserMedia(constraints);
       streamRef.current = stream;
-
-      const ctx = new AudioContext();
-      ctxRef.current = ctx;
 
       const src = ctx.createMediaStreamSource(stream);
       const analyser = ctx.createAnalyser();
@@ -216,6 +223,7 @@ function MicTestButton({ micDeviceId, speakerDeviceId }: MicTestProps) {
       const dest = ctx.createMediaStreamDestination();
       analyser.connect(dest);
       const audio = new Audio();
+      audioRef.current = audio;
       audio.srcObject = dest.stream;
       if (speakerDeviceId && 'setSinkId' in audio) {
         await (audio as any).setSinkId(speakerDeviceId);
@@ -223,11 +231,16 @@ function MicTestButton({ micDeviceId, speakerDeviceId }: MicTestProps) {
       audio.play().catch(() => {});
 
       // Volume meter via RAF
-      const data = new Uint8Array(analyser.frequencyBinCount);
+      const data = new Uint8Array(analyser.fftSize);
       const tick = () => {
-        analyser.getByteFrequencyData(data);
-        const avg = data.reduce((s, v) => s + v, 0) / data.length;
-        setVolume(Math.round((avg / 255) * 100));
+        analyser.getByteTimeDomainData(data);
+        const rms = Math.sqrt(
+          data.reduce((sum, value) => {
+            const normalized = (value - 128) / 128;
+            return sum + normalized * normalized;
+          }, 0) / data.length
+        );
+        setVolume(Math.min(100, Math.round(rms * 200)));
         rafRef.current = requestAnimationFrame(tick);
       };
       rafRef.current = requestAnimationFrame(tick);

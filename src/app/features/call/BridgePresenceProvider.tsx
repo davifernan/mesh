@@ -59,9 +59,10 @@ type Props = { children: ReactNode };
 
 export function BridgePresenceProvider({ children }: Props) {
   const { presenceUrl, presenceAuthSecret } = useClientConfig();
+  const normalizedPresenceUrl = presenceUrl?.trim() ? presenceUrl : undefined;
   // Stable ref so URL changes don't invalidate callbacks
-  const presenceBaseRef = useRef<string>(presenceUrl ?? '/api/presence');
-  presenceBaseRef.current = presenceUrl ?? '/api/presence';
+  const presenceBaseRef = useRef<string>(normalizedPresenceUrl ?? '/api/presence');
+  presenceBaseRef.current = normalizedPresenceUrl ?? '/api/presence';
   const authSecretRef = useRef<string>(presenceAuthSecret ?? '');
   authSecretRef.current = presenceAuthSecret ?? '';
 

@@ -135,6 +135,13 @@ export class SoundboardMixer {
 
   // ── Public API ──────────────────────────────────────────────────────────────
 
+  async resume(): Promise<boolean> {
+    if (this.ctx.state === 'suspended') {
+      await this.ctx.resume().catch(() => {});
+    }
+    return this.ctx.state === 'running';
+  }
+
   /**
    * Play a soundboard clip and mix it into the outbound audio stream.
    *
@@ -156,7 +163,7 @@ export class SoundboardMixer {
     const resolvedUrl = this.resolveUrl(url, homeserverUrl);
 
     if (this.ctx.state === 'suspended') {
-      void this.ctx.resume();
+      void this.resume();
     }
 
     const clipGain = this.ctx.createGain();
