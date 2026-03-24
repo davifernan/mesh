@@ -33,19 +33,17 @@ import {
 export const ScreenSharePresets1080p = {
   h1080fps15: ScreenSharePresets.h1080fps15,
   h1080fps30: ScreenSharePresets.h1080fps30,
-  // 60fps: extra headroom for motion; 120fps: high-motion gaming content
-  h1080fps60: new VideoPreset(1920, 1080, 10_000_000, 60, 'high'),
-  h1080fps120: new VideoPreset(1920, 1080, 16_000_000, 120, 'high'),
+  // 60fps / 120fps: generous 50 Mbps cap so the encoder never starves
+  h1080fps60: new VideoPreset(1920, 1080, 50_000_000, 60, 'high'),
+  h1080fps120: new VideoPreset(1920, 1080, 50_000_000, 120, 'high'),
 } as const;
 
 /** 1440p / QHD screen share presets */
 export const ScreenSharePresets1440p = {
-  h1440fps15: new VideoPreset(2560, 1440, 2_500_000, 15, 'high'),
-  h1440fps30: new VideoPreset(2560, 1440, 5_000_000, 30, 'high'),
-  // 60fps: 1440p at 60fps is a common gaming target — needs real bitrate
-  h1440fps60: new VideoPreset(2560, 1440, 10_000_000, 60, 'high'),
-  // 120fps: premium gaming mode — most demanding 1440p profile
-  h1440fps120: new VideoPreset(2560, 1440, 16_000_000, 120, 'high'),
+  h1440fps15: new VideoPreset(2560, 1440, 50_000_000, 15, 'high'),
+  h1440fps30: new VideoPreset(2560, 1440, 50_000_000, 30, 'high'),
+  h1440fps60: new VideoPreset(2560, 1440, 50_000_000, 60, 'high'),
+  h1440fps120: new VideoPreset(2560, 1440, 50_000_000, 120, 'high'),
 } as const;
 
 /** 4K / UHD screen share presets.
@@ -54,12 +52,10 @@ export const ScreenSharePresets1440p = {
  * Motion content at 60/120fps needs even more headroom.
  */
 export const ScreenSharePresets4K = {
-  h2160fps15: new VideoPreset(3840, 2160, 6_000_000, 15, 'high'),
-  h2160fps30: new VideoPreset(3840, 2160, 10_000_000, 30, 'high'),
-  // 4k60: primary aggressive profile — 18 Mbps for legible text at full resolution
-  h2160fps60: new VideoPreset(3840, 2160, 18_000_000, 60, 'high'),
-  // 4k120: maximum quality — high-refresh gaming at 4k
-  h2160fps120: new VideoPreset(3840, 2160, 26_000_000, 120, 'high'),
+  h2160fps15: new VideoPreset(3840, 2160, 50_000_000, 15, 'high'),
+  h2160fps30: new VideoPreset(3840, 2160, 50_000_000, 30, 'high'),
+  h2160fps60: new VideoPreset(3840, 2160, 50_000_000, 60, 'high'),
+  h2160fps120: new VideoPreset(3840, 2160, 50_000_000, 120, 'high'),
 } as const;
 
 // ─── Mapping Functions ────────────────────────────────────────────────────────
@@ -241,10 +237,12 @@ export function buildSSCaptureOptions(
 ): ScreenShareCaptureOptions {
   const preset = resolutionToSSPreset(ssResolution, ssFps);
 
-  const videoConstraint: boolean | MediaTrackConstraints =
-    !preset && ssFps
-      ? { frameRate: { ideal: ssFps, max: ssFps } }
-      : true;
+  // Always pass explicit frameRate constraints so the browser doesn't fall back
+  // to its default (often 30fps). The preset provides resolution + bitrate caps;
+  // the capture constraint drives the actual capture rate.
+  const videoConstraint: boolean | MediaTrackConstraints = ssFps
+    ? { frameRate: { ideal: ssFps, max: ssFps } }
+    : true;
 
   // Chrome-only getDisplayMedia constraints — excluded on Firefox/Safari
   // to prevent TypeError on browsers that reject unknown constraint keys.
@@ -367,11 +365,7 @@ export function buildSSPublishOptions(
     !preset && ssResolution === 'source'
       ? {
           maxFramerate: ssFps,
-          maxBitrate:
-            ssFps <= 15 ? 2_500_000
-              : ssFps <= 30 ? 5_000_000
-              : ssFps <= 60 ? 10_000_000
-              : 16_000_000,
+          maxBitrate: 50_000_000,
         }
       : undefined;
 
