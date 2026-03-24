@@ -256,7 +256,7 @@ export function Room() {
   );
 
   const anyRightPanel = isDrawer || isWidgetsDrawer || isThreadsDrawer;
-  const showRoomHeader = !(isMobile && showCallPanel);
+  const showRoomHeader = !showCallPanel;
 
   return (
     <PowerLevelsContextProvider value={powerLevels}>

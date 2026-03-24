@@ -197,12 +197,11 @@
   position: absolute;
   bottom: 0.5rem;
   left: 0.5rem;
-  right: 0.5rem;
   display: flex;
   align-items: center;
   z-index: 10;
   pointer-events: none;
-  min-width: 0;
+  max-width: calc(100% - 1rem);
 }
 
 /* Solid opaque chip — readable on any tile background color */
@@ -214,7 +213,7 @@
   background: rgba(0, 0, 0, 0.68);
   border-radius: 4px;
   min-width: 0;
-  width: 100%;
+  width: fit-content;
   max-width: 100%;
 }
 
@@ -256,8 +255,8 @@
 
   .metadata {
     left: 0.375rem;
-    right: 0.375rem;
     bottom: 0.375rem;
+    max-width: calc(100% - 0.75rem);
   }
 
   .metaChip {

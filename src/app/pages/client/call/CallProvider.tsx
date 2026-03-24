@@ -23,6 +23,8 @@ interface CallContextState {
   viewedCallRoomId: string | null;
   setViewedCallRoomId: (roomId: string | null) => void;
   isCallViewOpen: boolean;
+  openCallView: () => void;
+  closeCallView: () => void;
   toggleCallView: () => void;
   isChatOpen: boolean;
   toggleChat: () => void;
@@ -266,6 +268,14 @@ export function CallProvider({ children }: CallProviderProps) {
     setIsChatOpenState((prev) => !prev);
   }, []);
 
+  const openCallView = useCallback(() => {
+    setIsCallViewOpenState(true);
+  }, []);
+
+  const closeCallView = useCallback(() => {
+    setIsCallViewOpenState(false);
+  }, []);
+
   const toggleCallView = useCallback(() => {
     setIsCallViewOpenState((prev) => !prev);
   }, []);
@@ -276,6 +286,8 @@ export function CallProvider({ children }: CallProviderProps) {
     viewedCallRoomId,
     setViewedCallRoomId,
     isCallViewOpen,
+    openCallView,
+    closeCallView,
     toggleCallView,
     isChatOpen,
     toggleChat,
@@ -317,6 +329,8 @@ export function CallProvider({ children }: CallProviderProps) {
     viewedCallRoomId,
     setViewedCallRoomId,
     isCallViewOpen,
+    openCallView,
+    closeCallView,
     toggleCallView,
     isChatOpen,
     toggleChat,

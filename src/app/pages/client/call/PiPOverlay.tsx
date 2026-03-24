@@ -283,7 +283,7 @@ function PiPContent({
 // ── PiPOverlay (outer — sets up RoomContext) ───────────────────────────────
 
 export function PiPOverlay() {
-  const { livekitRoom, activeCallRoomId, callStatus, hangUp } = useCallState();
+  const { livekitRoom, activeCallRoomId, callStatus, hangUp, openCallView } = useCallState();
   const mx = useMatrixClient();
   const [corner, setCorner] = useAtom(pipCornerAtom);
   const [pipWidth, setPipWidth] = useState(PIP_DEFAULT_WIDTH);
@@ -296,10 +296,8 @@ export function PiPOverlay() {
     : 'Voice Call';
 
   const handleReturnToCall = useCallback(() => {
-    // Navigate back — in mesh the router handles this via the active call room
-    // The user can re-click the voice channel in the sidebar to return
-    window.history.back();
-  }, []);
+    openCallView();
+  }, [openCallView]);
 
   if (!livekitRoom || callStatus !== 'connected') return null;
 

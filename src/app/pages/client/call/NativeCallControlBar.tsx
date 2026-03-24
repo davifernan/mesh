@@ -28,8 +28,6 @@ import {
   PhoneDisconnect,
   ChartBar,
   Waveform,
-  SpeakerHigh,
-  SpeakerSlash,
   CaretDown,
   ArrowsClockwise,
   MusicNote,
@@ -50,14 +48,6 @@ import { showStatsAtom } from './VoiceCallLayoutStore';
 import { ActivityPicker } from './ActivityPicker';
 import styles from './NativeCallControlBar.module.css';
 
-function formatDuration(s: number): string {
-  const h = Math.floor(s / 3600);
-  const m = Math.floor((s % 3600) / 60);
-  const sec = s % 60;
-  if (h > 0) return `${h}:${String(m).padStart(2, '0')}:${String(sec).padStart(2, '0')}`;
-  return `${m}:${String(sec).padStart(2, '0')}`;
-}
-
 export function NativeCallControlBar() {
   const screenSize = useScreenSizeContext();
   const isMobile = screenSize === ScreenSize.Mobile;
@@ -69,12 +59,9 @@ export function NativeCallControlBar() {
     flipCamera,
     isAudioEnabled,
     isVideoEnabled,
-    activeCallRoomId,
-    callStatus,
     startScreenShare,
     stopScreenShare,
     livekitRoom,
-    callJoinTime,
     isSoundboardOpen,
     setSoundboardOpen,
     updateScreenShareSettings,
@@ -113,16 +100,6 @@ export function NativeCallControlBar() {
       document.documentElement.requestFullscreen().catch(() => {});
     }
   }, []);
-
-  // ── Call duration timer ───────────────────────────────────────────────────
-  const [duration, setDuration] = useState(0);
-  useEffect(() => {
-    if (callStatus !== 'connected') return;
-    const id = setInterval(() => {
-      setDuration(callJoinTime ? Math.floor((Date.now() - callJoinTime.getTime()) / 1000) : 0);
-    }, 1000);
-    return () => clearInterval(id);
-  }, [callStatus, callJoinTime]);
 
   // ── Device picker state ───────────────────────────────────────────────────
   const [micDevices, setMicDevices] = useState<MediaDeviceInfo[]>([]);
@@ -227,10 +204,6 @@ export function NativeCallControlBar() {
     setShowQualityModal(false);
   }, [setUserSettings, startScreenShare, updateScreenShareSettings, isScreenShareEnabled, userSettings]);
 
-  const roomDisplayName = activeCallRoomId
-    ? (activeCallRoomId.replace(/^!/, '').split(':')[0] ?? activeCallRoomId)
-    : null;
-
   // ── Mic dropdown content (devices + noise sup + speakers) ─────────────────
   const MicDropdown = (
     <div className={styles.deviceMenu}>
@@ -300,18 +273,6 @@ export function NativeCallControlBar() {
       )}
 
       <div className={styles.bar}>
-        {/* Room name + duration */}
-        <div className={styles.leftSection}>
-          {roomDisplayName && (
-            <span className={styles.roomName} title={activeCallRoomId ?? undefined}>
-              {roomDisplayName}
-            </span>
-          )}
-          {callStatus === 'connected' && (
-            <span className={styles.durationText}>{formatDuration(duration)}</span>
-          )}
-        </div>
-
         {/* ── Pill 1: A/V controls ── */}
         <div className={styles.pill}>
           {/* Mic */}

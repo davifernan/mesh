@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { X, ChatCircle } from '@phosphor-icons/react';
-import { RoomContext, RoomAudioRenderer, useAudioPlayback } from '@livekit/components-react';
+import { RoomContext, useAudioPlayback } from '@livekit/components-react';
 import { useAtomValue, useSetAtom } from 'jotai';
 import { useCallState } from './CallProvider';
 import { useMatrixClient } from '../../../hooks/useMatrixClient';
@@ -66,7 +66,7 @@ function AudioUnblockButton() {
 }
 
 export function NativeCallView() {
-  const { livekitRoom, callStatus, callError, activeCallRoomId, toggleCallView, isChatOpen, toggleChat } = useCallState();
+  const { livekitRoom, callStatus, callError, activeCallRoomId, closeCallView, isChatOpen, toggleChat } = useCallState();
   const mx = useMatrixClient();
   const screenSize = useScreenSizeContext();
   const isMobileLike = screenSize !== ScreenSize.Desktop;
@@ -125,8 +125,8 @@ export function NativeCallView() {
         <button
           type="button"
           className={styles.backBtn}
-          onClick={toggleCallView}
-          aria-label="Minimize call"
+          onClick={closeCallView}
+          aria-label="Close call view"
         >
           <X size={18} weight="bold" />
         </button>

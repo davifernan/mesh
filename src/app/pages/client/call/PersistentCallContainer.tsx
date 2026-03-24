@@ -2,23 +2,19 @@ import React, { useEffect, useState, type ReactNode } from 'react';
 import { RoomContext, RoomAudioRenderer } from '@livekit/components-react';
 import { RoomEvent } from 'livekit-client';
 import { useCallState } from './CallProvider';
-import { PiPOverlay } from './PiPOverlay';
 
 interface PersistentCallContainerProps {
   children: ReactNode;
 }
 
-// Phase 0: Fixed overlay removed — NativeCallView is now rendered inline
-// inside Room.tsx's call panel so the sidebar always stays visible.
-//
-// Phase 6: PiP overlay — shown when the user navigates away from the call
-// room while still connected. Condition: activeCallRoomId !== null AND
-// callStatus === 'connected' AND isCallViewOpen === false.
+// NativeCallView is rendered inline inside Room.tsx's call panel so the sidebar
+// stays visible. The old PiP overlay remains intentionally disabled for now
+// because its minimize/restore flow is broken and should not appear when the
+// user closes the call view.
 export function PersistentCallContainer({ children }: PersistentCallContainerProps) {
-  const { activeCallRoomId, callStatus, isCallViewOpen, livekitRoom } = useCallState();
+  const { activeCallRoomId, callStatus, livekitRoom } = useCallState();
 
   const isConnected = activeCallRoomId !== null && callStatus === 'connected' && livekitRoom !== null;
-  const showPiP = isConnected && !isCallViewOpen;
 
   // #63 — Track audio-blocked state at this level so the unblock button is
   // visible even when the call view is minimized / closed (PiP mode).
@@ -43,9 +39,8 @@ export function PersistentCallContainer({ children }: PersistentCallContainerPro
           <RoomAudioRenderer />
         </RoomContext.Provider>
       )}
-      {showPiP && <PiPOverlay />}
       {/* #63 — AudioUnblockButton: always visible when audio is blocked,
-          even in PiP / minimized mode. Positioned fixed so it floats above UI. */}
+           even in PiP / minimized mode. Positioned fixed so it floats above UI. */}
       {isConnected && audioBlocked && (
         <button
           type="button"
