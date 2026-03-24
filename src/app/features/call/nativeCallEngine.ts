@@ -563,21 +563,10 @@ export function useNativeCall(roomId: string | null): NativeCallEngine {
           }
         });
 
-        // With autoSubscribe: true, the SDK subscribes all tracks. We selectively
-        // unsubscribe screenshare tracks that the user hasn't chosen to watch, and
-        // audio tracks when deafened.
-        room.on(RoomEvent.TrackSubscribed, (_track, pub, participant) => {
-          if (
-            (pub.source === Track.Source.ScreenShare ||
-             pub.source === Track.Source.ScreenShareAudio) &&
-            !watchedScreenSharesRef.current.has(participant.identity)
-          ) {
-            pub.setSubscribed(false);
-          }
-          if (pub.source === Track.Source.Microphone && isDeafenedRef.current) {
-            pub.setSubscribed(false);
-          }
-        });
+        // With autoSubscribe: true all tracks stay subscribed by default.
+        // Screenshare tracks are kept subscribed so remote participants see
+        // them immediately — no "watch" gate. Deafen is handled in
+        // TrackPublished + ParticipantConnected above.
         room.on(RoomEvent.TrackUnpublished, (_pub, participant) => {
           updateRemote(participant);
           // When a remote screenshare track disappears, remove them from watchedScreenShares
@@ -708,16 +697,7 @@ export function useNativeCall(roomId: string | null): NativeCallEngine {
               pub.setSubscribed(false);
             }
           }
-          // Unsubscribe screenshare tracks we aren't watching.
-          for (const pub of p.trackPublications.values()) {
-            if (
-              (pub.source === Track.Source.ScreenShare ||
-               pub.source === Track.Source.ScreenShareAudio) &&
-              !watchedScreenSharesRef.current.has(p.identity)
-            ) {
-              pub.setSubscribed(false);
-            }
-          }
+          // Screenshare tracks stay subscribed (autoSubscribe: true) — no gating.
         }
 
         // Announce Matrix user ID via LiveKit participant attributes.
