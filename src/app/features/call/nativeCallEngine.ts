@@ -352,7 +352,27 @@ export function useNativeCall(roomId: string | null): NativeCallEngine {
         }
 
         // 2. E2EE setup (only for encrypted rooms)
-        const isEncrypted = !!matrixRoom.currentState.getStateEvents('m.room.encryption', '');
+        //
+        // matrix-js-sdk may not have m.room.encryption in the local state cache
+        // (lazy-load, stale IndexedDB, filtered sync). Check local state first,
+        // then fall back to a direct server query so E2EE is never silently skipped.
+        let isEncrypted = !!matrixRoom.currentState.getStateEvents('m.room.encryption', '');
+        if (!isEncrypted) {
+          try {
+            const hsUrl = mx.getHomeserverUrl();
+            const token = mx.getAccessToken();
+            const encRes = await fetch(
+              `${hsUrl}/_matrix/client/v3/rooms/${encodeURIComponent(roomId)}/state/m.room.encryption/`,
+              { headers: { Authorization: `Bearer ${token}` } },
+            );
+            if (encRes.ok) {
+              const data = await encRes.json();
+              if (data?.algorithm) isEncrypted = true;
+            }
+          } catch {
+            // 404 = genuinely unencrypted, network error = assume unencrypted (safe default)
+          }
+        }
         let e2eeWorker: Worker | null = null;
         let keyProvider: MatrixKeyProvider | null = null;
         // #61 — proper typing instead of any
