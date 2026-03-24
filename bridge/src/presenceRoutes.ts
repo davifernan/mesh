@@ -183,13 +183,15 @@ export function registerPresenceRoutes(
     });
   };
 
-  // ── GET /presence/:roomId + /presence/room?roomId=... ────────────────────
+  // ── Query-param routes (slash-safe) — MUST be registered BEFORE wildcard ──
+  // Hono matches routes in registration order. /presence/:roomId would swallow
+  // "room" or "stream" as a roomId, so the specific fixed-path routes go first.
 
-  app.get('/presence/:roomId', bearerAuthMiddleware(authSecret), handleSnapshot);
   app.get('/presence/room', bearerAuthMiddleware(authSecret), handleSnapshot);
+  app.get('/presence/stream', sseTicketMiddleware(authSecret), handleStream);
 
-  // ── GET /presence/:roomId/stream + /presence/stream?roomId=... ───────────
+  // ── Legacy path-param routes (kept for backwards compat) ─────────────────
 
   app.get('/presence/:roomId/stream', sseTicketMiddleware(authSecret), handleStream);
-  app.get('/presence/stream', sseTicketMiddleware(authSecret), handleStream);
+  app.get('/presence/:roomId', bearerAuthMiddleware(authSecret), handleSnapshot);
 }
