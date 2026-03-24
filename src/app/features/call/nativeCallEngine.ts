@@ -743,48 +743,17 @@ export function useNativeCall(roomId: string | null): NativeCallEngine {
           }
         }
 
-        // 9b. Wrap the published mic track in the soundboard mixer so that
-        //     soundboard clips are blended into the outbound audio stream.
-        //     If the AudioContext resumes successfully, we swap the raw mic for
-        //     a custom LocalAudioTrack carrying the mixed output.
-        try {
-          const micPub = room.localParticipant.getTrackPublication(Track.Source.Microphone);
-          const rawMicTrack = micPub?.track;
-          if (rawMicTrack instanceof LocalAudioTrack) {
-            const rawMst = rawMicTrack.mediaStreamTrack;
-
-            // Create (or reclaim) the singleton mixer and feed it the raw mic track.
-            destroySoundboardMixerSingleton(); // discard any stale instance from a prior call
-            const mixer = getSoundboardMixer(rawMst);
-            mixerRef.current = mixer;
-
-            const mixerResumed = await mixer.resume();
-
-            if (mixerResumed) {
-              // Unpublish the raw mic track with stopOnUnpublish=false so the
-              // underlying MediaStreamTrack stays alive — the SoundboardMixer's
-              // AudioContext is already processing rawMst, and stopping the track
-              // here would silence the mixer output before republishing.
-              await room.localParticipant.unpublishTrack(rawMicTrack, false);
-
-              // Publish the mixer's blended output track as the microphone source.
-              const mixedMst = mixer.getMixedTrack();
-              const mixedLocalTrack = new LocalAudioTrack(mixedMst, undefined, false);
-              await room.localParticipant.publishTrack(mixedLocalTrack, {
-                audioPreset: bitrateToAudioPreset(av.audioBitrate),
-                source: Track.Source.Microphone,
-              });
-            } else {
-              console.warn('[SoundboardMixer] AudioContext stayed suspended; keeping raw microphone track published');
-              destroySoundboardMixerSingleton();
-              mixerRef.current = null;
-            }
-          }
-        } catch (mixerErr) {
-          // Mixer init is best-effort — if it fails, raw mic is already published
-          // (or was unpublished; LiveKit will log the state). Log and continue.
-          console.error('[SoundboardMixer] Failed to initialize mixer track:', mixerErr);
-        }
+        // 9b. Soundboard mixer setup — DEFERRED.
+        //
+        // The mixer is no longer created at join time. Swapping the raw mic
+        // for a Web-Audio-mixed track at connect caused silent audio when the
+        // AudioContext or destination track entered an unexpected state.
+        //
+        // Instead, the mixer is created on-demand the first time a soundboard
+        // clip is played (see getSoundboardMixer / playSoundboardClip).
+        // Until then the raw mic track stays published — zero risk of silence.
+        destroySoundboardMixerSingleton(); // discard any stale instance from a prior call
+        mixerRef.current = null;
 
         if (!aborted) {
           setLivekitRoom(room);
