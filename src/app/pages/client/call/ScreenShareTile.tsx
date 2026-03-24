@@ -362,18 +362,29 @@ export function ScreenShareTile({
   }, [trackRef.publication, trackRef.participant?.isLocal]);
 
   const showWatchOverlay = !isLocalShare && !isWatching;
-  const canRenderVideo = !showWatchOverlay && !!trackRef.publication?.track;
+  const hasTrack = !!trackRef.publication?.track;
+  const canRenderVideo = hasTrack; // always render video when track is available
 
   return (
     <div className={styles.screenTile} ref={tileRef}>
-      {/* Video — only rendered when watching or it's our own share */}
+      {/* Video — always rendered when track is available.
+          Before "Watch" click: blurred preview behind overlay.
+          After "Watch" click: full quality, no overlay. */}
       {canRenderVideo && (
-        <VideoTrack trackRef={trackRef} style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
+        <VideoTrack
+          trackRef={trackRef}
+          style={{
+            width: '100%',
+            height: '100%',
+            objectFit: 'contain',
+            ...(showWatchOverlay ? { filter: 'blur(12px) brightness(0.5)', pointerEvents: 'none' as const } : {}),
+          }}
+        />
       )}
 
-      {/* ── Not-watching overlay ─────────────────────────────────────────── */}
+      {/* ── Not-watching overlay (click to watch) ───────────────────────── */}
       {showWatchOverlay && (
-        <div className={styles.screenWatchOverlay}>
+        <div className={styles.screenWatchOverlay} style={hasTrack ? { background: 'transparent' } : undefined}>
           <div className={styles.screenWatchInfo}>
             <Monitor size={20} weight="bold" style={{ opacity: 0.6 }} />
             <span>{screenLabel}</span>
