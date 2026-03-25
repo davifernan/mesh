@@ -5,7 +5,7 @@
 //   setLocalStorageItem,
 // } from './utils/atomWithLocalStorage';
 
-import { encryptToken, decryptToken, clearEncryptionKey } from './tokenCrypto';
+import { encryptToken, decryptToken, clearEncryptionKey, hasEncryptionKey } from './tokenCrypto';
 
 export type Session = {
   baseUrl: string;
@@ -171,9 +171,19 @@ function readTokenSync(): string | null {
   if (session) return session;
 
   // For encrypted-local: the encrypted blob exists but we can't decrypt synchronously.
-  // Return a sentinel so callers know a session exists.
+  // However, the decryption key lives in sessionStorage — if the browser was restarted,
+  // sessionStorage is cleared and the key is gone. In that case the encrypted token is
+  // useless (can never be decrypted) and the session is stale.
   const encrypted = localStorage.getItem('mesh_access_token_enc');
-  if (encrypted) return '__encrypted__';
+  if (encrypted) {
+    if (!hasEncryptionKey()) {
+      // Key lost (browser restart). Clean up the stale session data so the router
+      // correctly redirects to /login instead of hanging on "Heating up".
+      removeFallbackSession();
+      return null;
+    }
+    return '__encrypted__';
+  }
 
   return null;
 }

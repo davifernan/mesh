@@ -209,7 +209,12 @@ export function ClientRoot({ children }: ClientRootProps) {
     useCallback(async () => {
       const session = await getSessionAsync();
       if (!session) {
-        throw new Error('No session Found!');
+        // Session is unrecoverable (e.g. encryption key lost after browser restart).
+        // Clean up stale data and redirect to login instead of hanging on "Heating up".
+        clearLoginData();
+        // clearLoginData() triggers a page reload → this error is only a safety-net
+        // in case the reload is delayed.
+        throw new Error('Session expired. Redirecting to login…');
       }
       return initClient(session);
     }, [])

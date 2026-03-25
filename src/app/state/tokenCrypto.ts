@@ -34,14 +34,40 @@ interface ElectronAPIWithSafeStorage {
 
 // ── Web Crypto key management ───────────────────────────────────────────────
 
+/**
+ * Load the existing encryption key from sessionStorage.
+ * Returns null if no key is stored (e.g. after browser restart cleared sessionStorage).
+ * Used by decryptToken() — we must NOT generate a new key when decrypting,
+ * because a fresh key cannot decrypt ciphertext from the old key.
+ */
+async function getExistingKey(): Promise<CryptoKey | null> {
+  try {
+    const stored = sessionStorage.getItem(KEY_STORAGE_KEY);
+    if (!stored) return null;
+    const jwk = JSON.parse(stored) as JsonWebKey;
+    return await crypto.subtle.importKey('jwk', jwk, ALGO, true, ['encrypt', 'decrypt']);
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Check synchronously whether the encryption key exists in sessionStorage.
+ * Used by readTokenSync() to detect stale encrypted tokens without async overhead.
+ */
+export function hasEncryptionKey(): boolean {
+  return sessionStorage.getItem(KEY_STORAGE_KEY) !== null;
+}
+
+/**
+ * Load existing key or generate a new one.
+ * Used by encryptToken() — generating a new key is fine when encrypting a fresh token.
+ */
 async function getOrCreateKey(): Promise<CryptoKey | null> {
   try {
     // Try to load existing key from sessionStorage
-    const stored = sessionStorage.getItem(KEY_STORAGE_KEY);
-    if (stored) {
-      const jwk = JSON.parse(stored) as JsonWebKey;
-      return await crypto.subtle.importKey('jwk', jwk, ALGO, true, ['encrypt', 'decrypt']);
-    }
+    const existing = await getExistingKey();
+    if (existing) return existing;
 
     // Generate new key
     const key = await crypto.subtle.generateKey(
@@ -112,8 +138,10 @@ export async function decryptToken(encrypted: string): Promise<string | null> {
     }
   }
 
-  // Web Crypto path
-  const key = await getOrCreateKey();
+  // Web Crypto path — use getExistingKey() (NOT getOrCreateKey).
+  // If the key is gone (browser restart cleared sessionStorage), return null immediately
+  // instead of generating a new key that can't decrypt the old ciphertext.
+  const key = await getExistingKey();
   if (!key) return null;
 
   try {
