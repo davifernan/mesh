@@ -227,6 +227,10 @@ export function useNativeCall(roomId: string | null): NativeCallEngine {
   }, []);
 
   const roomRef = useRef<Room | null>(null);
+  // Stable ref for the Matrix room ID — used inside useCallback closures that
+  // have an empty dependency array and would otherwise capture a stale value.
+  const roomIdRef = useRef(roomId);
+  roomIdRef.current = roomId;
   const rtcSessionRef = useRef<any>(null);
   const e2eeWorkerRef = useRef<Worker | null>(null);
   const keyProviderRef = useRef<MatrixKeyProvider | null>(null);
@@ -280,7 +284,7 @@ export function useNativeCall(roomId: string | null): NativeCallEngine {
               // Send the Matrix room ID so the bridge can maintain an alias
               // mapping — SSE subscribers may query by Matrix room ID instead
               // of the LiveKit room name.
-              matrixRoomId: roomId,
+              matrixRoomId: roomIdRef.current,
             }),
           }).catch(() => {
             // Best-effort — bridge may be unreachable in dev
