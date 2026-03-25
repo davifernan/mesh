@@ -53,7 +53,8 @@
   z-index: 10;
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: flex-start;
+  gap: 0.625rem;
   padding: 0.75rem 1rem;
   background: var(--voice-header-gradient);
   opacity: var(--voice-hud-opacity);
@@ -66,6 +67,8 @@
 }
 
 .channelName {
+  flex: 1 1 auto;
+  min-width: 0;
   font-size: 0.9375rem;
   font-weight: 600;
   color: var(--text-primary);
@@ -95,10 +98,12 @@
   display: flex;
   align-items: center;
   gap: 0.5rem;
+  margin-left: auto;
   padding: 0.25rem 0.75rem;
   border-radius: 6px;
   font-size: 0.75rem;
   font-weight: 600;
+  pointer-events: var(--voice-hud-pointer-events);
 }
 
 .connectionStatus[data-status='connected'] {
@@ -142,7 +147,7 @@
   transition: color 120ms, background-color 120ms;
   flex-shrink: 0;
   pointer-events: var(--voice-hud-pointer-events);
-  margin-left: auto;
+  margin-left: 0;
 }
 .headerChatBtn:hover {
   color: var(--text-primary);

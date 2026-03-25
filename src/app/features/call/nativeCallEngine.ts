@@ -20,7 +20,7 @@
  */
 
 import { useEffect, useRef, useState, useCallback } from 'react';
-import { Room, RoomEvent, Track, VideoQuality, LocalAudioTrack, LocalVideoTrack, type E2EEManagerOptions } from 'livekit-client';
+import { Room, RoomEvent, Track, VideoQuality, LocalAudioTrack, LocalVideoTrack, type E2EEManagerOptions, type RemoteParticipant } from 'livekit-client';
 import {
   getSoundboardMixer,
   getSoundboardMixerIfActive,
@@ -169,6 +169,17 @@ export function useNativeCall(roomId: string | null): NativeCallEngine {
   const watchedScreenShares = useAtomValue(watchedScreenSharesAtom);
   const watchedScreenSharesRef = useRef(watchedScreenShares);
   watchedScreenSharesRef.current = watchedScreenShares;
+
+  const syncScreenShareAudioSubscription = useCallback(
+    (participant: RemoteParticipant, shouldHearAudio: boolean) => {
+      for (const pub of participant.trackPublications.values()) {
+        if (pub.source === Track.Source.ScreenShareAudio) {
+          pub.setSubscribed(shouldHearAudio);
+        }
+      }
+    },
+    [],
+  );
 
   // Refs so the connect() closure always sees fresh values without re-running
   const effectiveAVRef = useRef(effectiveAV);
@@ -579,6 +590,9 @@ export function useNativeCall(roomId: string | null): NativeCallEngine {
           if (_pub.source === Track.Source.Microphone && isDeafenedRef.current) {
             _pub.setSubscribed(false);
           }
+          if (_pub.source === Track.Source.ScreenShareAudio) {
+            _pub.setSubscribed(watchedScreenSharesRef.current.has(participant.identity));
+          }
         });
 
         room.on(RoomEvent.TrackUnpublished, (_pub, participant) => {
@@ -606,6 +620,10 @@ export function useNativeCall(roomId: string | null): NativeCallEngine {
               }
             }
           }
+          syncScreenShareAudioSubscription(
+            participant,
+            watchedScreenSharesRef.current.has(participant.identity),
+          );
           } catch (err) {
             console.error('[NativeCall] ParticipantConnected handler error:', err);
           }
@@ -691,6 +709,9 @@ export function useNativeCall(roomId: string | null): NativeCallEngine {
                 }
               }
             }
+            for (const p of room.remoteParticipants.values()) {
+              syncScreenShareAudioSubscription(p, watchedScreenSharesRef.current.has(p.identity));
+            }
           }
         });
 
@@ -714,6 +735,7 @@ export function useNativeCall(roomId: string | null): NativeCallEngine {
               }
             }
           }
+          syncScreenShareAudioSubscription(p, watchedScreenSharesRef.current.has(p.identity));
         }
 
         // Announce Matrix user ID via LiveKit participant attributes.
@@ -1136,6 +1158,9 @@ export function useNativeCall(roomId: string | null): NativeCallEngine {
           if (pub.source === Track.Source.ScreenShare && 'setVideoQuality' in pub) {
             try { (pub as any).setVideoQuality(VideoQuality.HIGH); } catch { /* best-effort */ }
           }
+          if (pub.source === Track.Source.ScreenShareAudio) {
+            pub.setSubscribed(true);
+          }
         }
       }
       // Track is already subscribed via autoSubscribe: true — just update UI state.
@@ -1150,6 +1175,11 @@ export function useNativeCall(roomId: string | null): NativeCallEngine {
 
   const unwatchScreenShare = useCallback(
     async (identity: string) => {
+      const room = roomRef.current;
+      const participant = room?.remoteParticipants.get(identity);
+      if (participant) {
+        syncScreenShareAudioSubscription(participant, false);
+      }
       // Track stays subscribed (blurred preview remains visible).
       // Only the UI watch-state changes — overlay re-appears.
       setWatchedScreenShares((prev) => {
@@ -1158,7 +1188,7 @@ export function useNativeCall(roomId: string | null): NativeCallEngine {
         return next as ReadonlySet<string>;
       });
     },
-    [setWatchedScreenShares],
+    [setWatchedScreenShares, syncScreenShareAudioSubscription],
   );
 
   const updateActiveScreenShareSettings = useCallback(
