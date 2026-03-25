@@ -106,6 +106,26 @@ export class SSEManager {
     }
   }
 
+  /**
+   * Send a presence update to subscribers of a SPECIFIC key only (no alias expansion).
+   * Used for snapshot replays after a new alias is created — avoids duplicating
+   * events to subscribers on the primary key who already have the data.
+   */
+  broadcastDirect(
+    roomId: string,
+    userId: string,
+    presence: ParticipantPresence,
+    type: 'update' | 'left',
+  ): void {
+    const set = this.subscribers.get(roomId);
+    if (!set?.size) return;
+    const { type: _presenceType, ...rest } = presence;
+    const payload = JSON.stringify({ userId, type, ...rest });
+    for (const send of set) {
+      try { send(payload); } catch { /* closed */ }
+    }
+  }
+
   /** Number of rooms with at least one active SSE subscriber. */
   get activeRooms(): number {
     return this.subscribers.size;

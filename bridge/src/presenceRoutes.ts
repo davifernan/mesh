@@ -224,8 +224,9 @@ export function registerPresenceRoutes(
     // Maintain alias mapping: matrixRoomId → livekitRoomName (and reverse)
     // so SSE/REST subscribers using the Matrix room ID get transparently
     // routed to the correct store entry, and SSE broadcasts reach both.
+    const isNewAlias = matrixRoomId && matrixRoomId !== roomId && !roomAliasMap.has(matrixRoomId);
     if (matrixRoomId && matrixRoomId !== roomId) {
-      if (!roomAliasMap.has(matrixRoomId)) {
+      if (isNewAlias) {
         console.log(`[alias] ${matrixRoomId} → ${roomId}`);
       }
       roomAliasMap.set(matrixRoomId, roomId);
@@ -249,6 +250,21 @@ export function registerPresenceRoutes(
       });
       if (result?.changed) {
         sse.broadcast(roomId, userId, result.next, 'update');
+      }
+    }
+
+    // When a new alias mapping was just created, replay the full room snapshot
+    // to subscribers on the matrixRoomId ONLY. These subscribers connected before
+    // the alias existed, so they missed all prior broadcasts (join, track events).
+    // Uses broadcastDirect to avoid duplicating to LiveKit-key subscribers.
+    // The seq-aware dedup on the client side handles any duplicates correctly.
+    if (isNewAlias && matrixRoomId) {
+      const snapshot = await store.getRoomSnapshot(roomId);
+      for (const [uid, presence] of snapshot) {
+        sse.broadcastDirect(matrixRoomId, uid, { ...presence, type: 'update' }, 'update');
+      }
+      if (snapshot.size > 0) {
+        console.log(`[alias-replay] replayed ${snapshot.size} entries to ${matrixRoomId} subscribers`);
       }
     }
 
