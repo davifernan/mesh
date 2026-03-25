@@ -1,7 +1,7 @@
 /* ── Grid wrapper / viewport ─────────────────────────────────────────────── */
 .gridWrapper {
   width: 100%;
-  height: 100%;
+  flex: 1 1 0;
   min-height: 0;
   display: flex;
   align-items: center;
@@ -24,10 +24,10 @@
   --voice-grid-columns: 1;
   --voice-grid-gap: 12px;
   --voice-grid-side-padding: 12px;
-  /* Top padding clears the absolutely-positioned header (~48px);
-     bottom padding clears the floating control bar pill (~72px). */
+  /* Top padding: small breathing room (header is now in-flow above the grid).
+     Bottom padding: clears the floating control bar pill (~72px). */
   --voice-grid-vertical-padding: 14px;
-  --voice-grid-top-padding: 52px;
+  --voice-grid-top-padding: 8px;
   --voice-grid-bottom-padding: 72px;
   --voice-grid-single-tile-width: min(
     calc(100cqw - (2 * var(--voice-grid-side-padding))),
@@ -119,14 +119,14 @@
 
 @container voice-grid (max-height: 519px) {
   .grid {
-    --voice-grid-top-padding: 48px;
+    --voice-grid-top-padding: 6px;
     --voice-grid-bottom-padding: 64px;
   }
 }
 
 @container voice-grid (max-height: 359px) {
   .grid {
-    --voice-grid-top-padding: 44px;
+    --voice-grid-top-padding: 4px;
     --voice-grid-bottom-padding: 56px;
   }
 }
