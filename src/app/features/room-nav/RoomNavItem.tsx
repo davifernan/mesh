@@ -374,6 +374,13 @@ export function RoomNavItem({
   const voiceStateService = useVoiceStateService(sseRoomId, hasActiveCall);
   const bridgePresenceMap = voiceStateService.bridgeSnapshot;
 
+  // Temporary debug logging for bridge sync diagnosis
+  if (room.isCallRoom() && hasActiveCall) {
+    console.debug(
+      `[BridgeSync] room=${room.roomId} sseRoomId=${sseRoomId} isActiveCall=${isActiveCall} hasActiveCall=${hasActiveCall} bridgeMapSize=${bridgePresenceMap.size} members=${callMemberships.join(',')} bridgeKeys=[${Array.from(bridgePresenceMap.keys()).join(',')}]`
+    );
+  }
+
   const hasSpeakingMember =
     room.isCallRoom() &&
     isActiveCall &&
