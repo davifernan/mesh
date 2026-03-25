@@ -277,6 +277,10 @@ export function useNativeCall(roomId: string | null): NativeCallEngine {
               identity,
               userId: matrixUserId,
               attributes: filteredAttrs,
+              // Send the Matrix room ID so the bridge can maintain an alias
+              // mapping — SSE subscribers may query by Matrix room ID instead
+              // of the LiveKit room name.
+              matrixRoomId: roomId,
             }),
           }).catch(() => {
             // Best-effort — bridge may be unreachable in dev

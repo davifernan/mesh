@@ -15,10 +15,26 @@ export class SSEManager {
   /** roomId → Set of active send functions */
   private readonly subscribers = new Map<string, Set<SendFn>>();
 
+  /**
+   * Bidirectional alias map: livekitRoomName ↔ matrixRoomId.
+   * When broadcasting on a LiveKit room name, also broadcast to
+   * subscribers listening on the Matrix room ID (and vice versa).
+   */
+  private readonly aliases = new Map<string, string>();
+
   private readonly stats: BridgeStats;
 
   constructor(stats: BridgeStats) {
     this.stats = stats;
+  }
+
+  /**
+   * Register a bidirectional alias between a Matrix room ID and a LiveKit
+   * room name. Broadcasts to either key will reach subscribers on both.
+   */
+  setAlias(matrixRoomId: string, livekitRoomName: string): void {
+    this.aliases.set(matrixRoomId, livekitRoomName);
+    this.aliases.set(livekitRoomName, matrixRoomId);
   }
 
   /**
@@ -45,23 +61,33 @@ export class SSEManager {
     this.stats.sseConnectionsActive = Math.max(0, this.stats.sseConnectionsActive - 1);
   }
 
-  /** Broadcast a presence update to all subscribers of a room. */
+  /** Broadcast a presence update to all subscribers of a room (+ aliases). */
   broadcast(
     roomId: string,
     userId: string,
     presence: ParticipantPresence,
     type: 'update' | 'left',
   ): void {
-    const set = this.subscribers.get(roomId);
-    if (!set?.size) return;
     // Destructure to avoid duplicate `type` key when spreading presence (which also has `type`)
     const { type: _presenceType, ...rest } = presence;
     const payload = JSON.stringify({ userId, type, ...rest });
-    for (const send of set) {
-      try {
-        send(payload);
-      } catch {
-        // Subscriber already closed — will be cleaned up on abort
+
+    // Send to subscribers on the primary key
+    const primary = this.subscribers.get(roomId);
+    if (primary?.size) {
+      for (const send of primary) {
+        try { send(payload); } catch { /* closed */ }
+      }
+    }
+
+    // Also send to subscribers on the alias key (e.g. Matrix room ID ↔ LiveKit name)
+    const aliasKey = this.aliases.get(roomId);
+    if (aliasKey) {
+      const aliased = this.subscribers.get(aliasKey);
+      if (aliased?.size) {
+        for (const send of aliased) {
+          try { send(payload); } catch { /* closed */ }
+        }
       }
     }
   }

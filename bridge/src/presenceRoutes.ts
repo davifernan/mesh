@@ -39,6 +39,14 @@ import type { BridgeStats, SendFn } from './types.js';
 import type { Reconciler } from './reconciler.js';
 import { bearerAuthMiddleware, sseTicketMiddleware } from './ticketAuth.js';
 
+/**
+ * Bidirectional alias map: matrixRoomId ↔ livekitRoomName.
+ * Populated by POST /presence/attributes when a client sends both IDs.
+ * Used by SSE/REST lookups so subscribers using the Matrix room ID are
+ * transparently routed to the correct LiveKit-keyed store entry.
+ */
+const roomAliasMap = new Map<string, string>();
+
 export function registerPresenceRoutes(
   app: Hono,
   store: VoiceStateStore,
@@ -47,8 +55,14 @@ export function registerPresenceRoutes(
   authSecret: string,
   reconciler?: Reconciler,
 ): void {
+  /**
+   * Resolve a requested roomId: if the caller used a Matrix room ID and we
+   * have a known alias to the LiveKit room name, return the LiveKit name
+   * (which is what the store is keyed by). Otherwise return as-is.
+   */
   const getRequestedRoomId = (c: Context): string => {
-    return c.req.query('roomId') ?? c.req.param('roomId') ?? '';
+    const raw = c.req.query('roomId') ?? c.req.param('roomId') ?? '';
+    return roomAliasMap.get(raw) ?? raw;
   };
 
   const requireRoomId = (c: Context): string | Response => {
@@ -194,6 +208,7 @@ export function registerPresenceRoutes(
       identity?: string;
       userId?: string;
       attributes?: Record<string, string>;
+      matrixRoomId?: string;
     };
     try {
       body = await c.req.json();
@@ -201,9 +216,20 @@ export function registerPresenceRoutes(
       return c.json({ error: 'Invalid JSON' }, 400);
     }
 
-    const { roomId, identity, userId, attributes } = body;
+    const { roomId, identity, userId, attributes, matrixRoomId } = body;
     if (!roomId || !identity || !userId || !attributes) {
       return c.json({ error: 'Missing required fields: roomId, identity, userId, attributes' }, 400);
+    }
+
+    // Maintain alias mapping: matrixRoomId → livekitRoomName (and reverse)
+    // so SSE/REST subscribers using the Matrix room ID get transparently
+    // routed to the correct store entry, and SSE broadcasts reach both.
+    if (matrixRoomId && matrixRoomId !== roomId) {
+      if (!roomAliasMap.has(matrixRoomId)) {
+        console.log(`[alias] ${matrixRoomId} → ${roomId}`);
+      }
+      roomAliasMap.set(matrixRoomId, roomId);
+      sse.setAlias(matrixRoomId, roomId);
     }
 
     // Rekey: if the userId is a real Matrix ID and differs from the identity,
