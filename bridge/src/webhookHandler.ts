@@ -123,11 +123,13 @@ export function createWebhookHandler(
       }
 
       case 'track_muted':
+        await tryRekeyIfNeeded(store, sse, roomId, identity, userId);
         await applyTrackMute(store, sse, roomId, identity, userId, source, true);
         await syncDeafenFromAttrs(store, sse, roomId, identity, userId, pAttrs);
         break;
 
       case 'track_unmuted':
+        await tryRekeyIfNeeded(store, sse, roomId, identity, userId);
         await applyTrackMute(store, sse, roomId, identity, userId, source, false);
         await syncDeafenFromAttrs(store, sse, roomId, identity, userId, pAttrs);
         break;
@@ -135,12 +137,14 @@ export function createWebhookHandler(
       case 'track_published':
         // stopMicTrackOnMute:false means LiveKit re-/unpublishes the mic track instead of
         // sending track_muted/track_unmuted — handle MICROPHONE here too.
+        await tryRekeyIfNeeded(store, sse, roomId, identity, userId);
         await applyTrackPublish(store, sse, roomId, identity, userId, source, track?.muted ?? false);
         await syncDeafenFromAttrs(store, sse, roomId, identity, userId, pAttrs);
         break;
 
       case 'track_unpublished':
         // Mirror of track_published: MICROPHONE unpublish = muted.
+        await tryRekeyIfNeeded(store, sse, roomId, identity, userId);
         await applyTrackPublish(store, sse, roomId, identity, userId, source, true);
         await syncDeafenFromAttrs(store, sse, roomId, identity, userId, pAttrs);
         break;
@@ -177,6 +181,30 @@ export function createWebhookHandler(
 }
 
 // ── Private helpers ───────────────────────────────────────────────────────────
+
+/**
+ * If the resolved userId differs from the raw identity (i.e. we resolved a
+ * real Matrix user ID from attributes/metadata), re-key the store entry so
+ * subsequent SSE broadcasts use the Matrix user ID that the frontend expects.
+ *
+ * This is the same logic as in the participant_attributes_changed handler,
+ * but applied opportunistically on every track event — critical for LiveKit
+ * versions that do not emit participant_attributes_changed webhooks (≤ 1.9.x).
+ */
+async function tryRekeyIfNeeded(
+  store: VoiceStateStore,
+  sse: SSEManager,
+  roomId: string,
+  identity: string,
+  userId: string,
+): Promise<void> {
+  if (userId === identity || !userId.startsWith('@')) return;
+  const rekeyResult = await store.rekeyPresence(roomId, identity, identity, userId);
+  if (rekeyResult.presence) {
+    sse.broadcast(roomId, userId, { ...rekeyResult.presence, type: 'update' }, 'update');
+    console.log(`[rekey] ${identity} → ${userId} in ${roomId}`);
+  }
+}
 
 async function applyPatch(
   store: VoiceStateStore,
