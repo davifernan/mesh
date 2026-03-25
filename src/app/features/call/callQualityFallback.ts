@@ -2,21 +2,22 @@
  * mesh — Audio-Wins-Over-Video Quality Fallback
  *
  * When LiveKit reports Poor/Lost connection quality for the local participant,
- * we automatically throttle screenshare and camera video bitrates to protect
- * the microphone audio stream. Audio is NEVER touched — priority 1 always.
+ * we automatically throttle camera video bitrate to protect the microphone
+ * audio stream. Audio is NEVER touched — priority 1 always.
  *
  * Implementation notes:
  * - Uses RoomEvent.ConnectionQualityChanged (fires for local participant too)
  * - Throttling is applied via RTCRtpSender.setParameters() — no re-publish needed
  * - Restores original encoding parameters when quality recovers to Good/Excellent
- * - Screenshare fallback: 500 kbps @ 15fps (still usable for slides / text)
+ * - Screen share is intentionally left alone. Readability matters more than
+ *   aggressively preserving a blurred, heavily downclocked stream.
  * - Camera fallback: 150 kbps (recognisable face, minimal bandwidth)
  * - 2-step debounce: Poor must persist for POOR_GRACE_MS before throttling;
  *   Good must persist for RECOVER_GRACE_MS before restoring (avoids flapping).
  */
 
 import { useEffect, useRef, MutableRefObject } from 'react';
-import { Room, RoomEvent, Track, LocalVideoTrack, ConnectionQuality, type LocalTrackPublication } from 'livekit-client';
+import { Room, RoomEvent, Track, LocalVideoTrack, ConnectionQuality } from 'livekit-client';
 import type { CallStatus } from './nativeCallEngine';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -26,12 +27,6 @@ const POOR_GRACE_MS = 3_000;
 
 /** Milliseconds of sustained Good/Excellent quality before restoring full bitrate. */
 const RECOVER_GRACE_MS = 6_000;
-
-/** Screenshare fallback bitrate (bps) when network/CPU is stressed. */
-const SS_FALLBACK_BITRATE = 500_000;
-
-/** Screenshare fallback max framerate during stress. */
-const SS_FALLBACK_FPS = 15;
 
 /** Camera fallback bitrate (bps) during stress. */
 const CAM_FALLBACK_BITRATE = 150_000;
@@ -81,9 +76,6 @@ export function useAudioWinsOverVideo(
   /** True while we are currently in throttled (fallback) mode. */
   const isThrottledRef = useRef(false);
 
-  /** Snapshot of screenshare sender encoding BEFORE throttling, for restoration. */
-  const ssOriginalEncodingRef = useRef<RTCRtpEncodingParameters | undefined>(undefined);
-
   /** Snapshot of camera sender encoding BEFORE throttling. */
   const camOriginalEncodingRef = useRef<RTCRtpEncodingParameters | undefined>(undefined);
 
@@ -107,16 +99,9 @@ export function useAudioWinsOverVideo(
 
       const lp = r.localParticipant;
 
-      // Snapshot + throttle screenshare sender
-      const ssPub = lp.getTrackPublication(Track.Source.ScreenShare);
-      const ssTrack = ssPub?.track as LocalVideoTrack | undefined;
-      const ssSender = ssTrack?.sender;
-      if (ssSender) {
-        ssOriginalEncodingRef.current = snapshotEncoding(ssSender);
-        await throttleSender(ssSender, SS_FALLBACK_BITRATE, SS_FALLBACK_FPS).catch(() => {});
-      }
-
-      // Snapshot + throttle camera sender
+      // Snapshot + throttle camera sender only.
+      // Screen share stays untouched: collapsing it to 500 kbps / 15 fps makes
+      // text and motion look broken exactly when users need the stream most.
       const camPub = lp.getTrackPublication(Track.Source.Camera);
       const camTrack = camPub?.track as LocalVideoTrack | undefined;
       const camSender = camTrack?.sender;
@@ -125,9 +110,9 @@ export function useAudioWinsOverVideo(
         await throttleSender(camSender, CAM_FALLBACK_BITRATE).catch(() => {});
       }
 
-      if (ssSender || camSender) {
+      if (camSender) {
         isThrottledRef.current = true;
-        console.warn('[QualityFallback] Poor connection — video throttled, audio protected');
+        console.warn('[QualityFallback] Poor connection — camera throttled, audio protected');
       }
     }
 
@@ -138,17 +123,6 @@ export function useAudioWinsOverVideo(
       const lp = r.localParticipant;
 
       try {
-        // Restore screenshare sender
-        const ssPub = lp.getTrackPublication(Track.Source.ScreenShare);
-        const ssTrack = ssPub?.track as LocalVideoTrack | undefined;
-        const ssSender = ssTrack?.sender;
-        const ssOrig = ssOriginalEncodingRef.current;
-        if (ssSender && ssOrig?.maxBitrate !== undefined) {
-          await throttleSender(ssSender, ssOrig.maxBitrate, ssOrig.maxFramerate ?? undefined).catch(
-            () => {},
-          );
-        }
-
         // Restore camera sender
         const camPub = lp.getTrackPublication(Track.Source.Camera);
         const camTrack = camPub?.track as LocalVideoTrack | undefined;
@@ -160,12 +134,7 @@ export function useAudioWinsOverVideo(
           );
         }
       } finally {
-        // Always reset state-machine flags regardless of whether snapshots existed.
-        // If a screenshare started *during* the throttle phase, ssOriginalEncodingRef
-        // has no snapshot — the restore if-block above is skipped, but we must still
-        // clear isThrottledRef so the next applyFallback is not permanently blocked.
         isThrottledRef.current = false;
-        ssOriginalEncodingRef.current = undefined;
         camOriginalEncodingRef.current = undefined;
       }
       console.info('[QualityFallback] Quality recovered — video encoding restored');
@@ -193,29 +162,11 @@ export function useAudioWinsOverVideo(
 
     room.on(RoomEvent.ConnectionQualityChanged, onQualityChanged);
 
-    // Issue #70: If a screenshare starts WHILE throttling is active, immediately
-    // apply the screenshare fallback to the newly published track so it respects
-    // the current quality window (instead of starting at full bitrate then going uncapped).
-    const onLocalTrackPublished = (pub: LocalTrackPublication) => {
-      if (pub.source !== Track.Source.ScreenShare) return;
-      if (!isThrottledRef.current) return;
-      const ssTrack = pub.track as LocalVideoTrack | undefined;
-      const ssSender = ssTrack?.sender;
-      if (ssSender) {
-        ssOriginalEncodingRef.current = snapshotEncoding(ssSender);
-        void throttleSender(ssSender, SS_FALLBACK_BITRATE, SS_FALLBACK_FPS).catch(() => {});
-        console.warn('[QualityFallback] Screenshare started during throttle — applying SS fallback immediately');
-      }
-    };
-    room.on(RoomEvent.LocalTrackPublished, onLocalTrackPublished);
-
     return () => {
       clearGraceTimer();
       room.off(RoomEvent.ConnectionQualityChanged, onQualityChanged);
-      room.off(RoomEvent.LocalTrackPublished, onLocalTrackPublished);
       // Reset state so the next room connection starts clean
       isThrottledRef.current = false;
-      ssOriginalEncodingRef.current = undefined;
       camOriginalEncodingRef.current = undefined;
     };
   }, [livekitRoom, status, roomRef]);

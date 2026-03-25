@@ -22,6 +22,71 @@ import {
 import { useCallState } from './CallProvider';
 import styles from './NativeCallParticipantGrid.module.css';
 
+type InboundVideoSample = {
+  id: string;
+  width: number;
+  height: number;
+  fps?: number;
+  bytesReceived: number;
+  framesDecoded?: number;
+  timestamp: number;
+};
+
+export function getBestInboundVideoSample(
+  report: RTCStatsReport,
+  previousSample?: InboundVideoSample | null,
+): InboundVideoSample | null {
+  let bestSample: InboundVideoSample | null = null;
+
+  report.forEach((stat) => {
+    const s = stat as RTCStats & {
+      mediaType?: string;
+      kind?: string;
+      frameWidth?: number;
+      frameHeight?: number;
+      framesPerSecond?: number;
+      framesDecoded?: number;
+      bytesReceived?: number;
+      timestamp: number;
+    };
+    const isVideo = s.kind === 'video' || s.mediaType === 'video';
+    if (s.type !== 'inbound-rtp' || !isVideo) return;
+    if (!s.frameWidth || !s.frameHeight) return;
+
+    let fps = s.framesPerSecond;
+    if (
+      fps === undefined &&
+      previousSample?.id === s.id &&
+      typeof s.framesDecoded === 'number' &&
+      typeof previousSample.framesDecoded === 'number'
+    ) {
+      const elapsedSeconds = (s.timestamp - previousSample.timestamp) / 1000;
+      if (elapsedSeconds > 0) {
+        const derivedFps = (s.framesDecoded - previousSample.framesDecoded) / elapsedSeconds;
+        if (Number.isFinite(derivedFps) && derivedFps > 0) {
+          fps = derivedFps;
+        }
+      }
+    }
+
+    const candidate: InboundVideoSample = {
+      id: s.id,
+      width: s.frameWidth,
+      height: s.frameHeight,
+      fps,
+      bytesReceived: s.bytesReceived ?? 0,
+      framesDecoded: s.framesDecoded,
+      timestamp: s.timestamp,
+    };
+
+    if (!bestSample || candidate.bytesReceived >= bestSample.bytesReceived) {
+      bestSample = candidate;
+    }
+  });
+
+  return bestSample;
+}
+
 /**
  * Issue #49: Tracks how many participants are watching a specific screen share track.
  *
@@ -36,7 +101,7 @@ export function useScreenShareViewerCount(trackRef: TrackReference): number {
   // Use stable identity values as deps instead of the full trackRef object —
   // trackRef is a new object reference on every render which would cause the effect
   // to re-run constantly, accumulating duplicate listeners. (#56)
-  const pubSid = trackRef.publication?.sid;
+  const pubSid = trackRef.publication?.trackSid;
   const participantSid = trackRef.participant?.sid;
   const isLocal = trackRef.participant?.isLocal ?? false;
 
@@ -103,6 +168,12 @@ export function ScreenShareTile({
     height: number;
     fps?: number;
   } | null>(null);
+  const [remoteInboundQuality, setRemoteInboundQuality] = useState<{
+    width: number;
+    height: number;
+    fps?: number;
+  } | null>(null);
+  const previousInboundSampleRef = useRef<InboundVideoSample | null>(null);
 
   // Watch-state from CallProvider context
   const { watchedScreenShares, watchScreenShare, unwatchScreenShare } = useCallState();
@@ -336,6 +407,51 @@ export function ScreenShareTile({
     return () => window.clearInterval(interval);
   }, [livekitRoom, trackRef.participant?.isLocal, trackRef.publication?.track?.mediaStreamTrack?.id]);
 
+  useEffect(() => {
+    if (trackRef.participant?.isLocal) {
+      previousInboundSampleRef.current = null;
+      setRemoteInboundQuality(null);
+      return;
+    }
+
+    const remoteTrack = trackRef.publication?.track as
+      | { getRTCStatsReport?: () => Promise<RTCStatsReport | undefined> }
+      | undefined;
+    if (!remoteTrack?.getRTCStatsReport) {
+      previousInboundSampleRef.current = null;
+      setRemoteInboundQuality(null);
+      return;
+    }
+
+    let isDisposed = false;
+
+    const updateInboundStats = () => {
+      void remoteTrack.getRTCStatsReport?.().then((report) => {
+        if (isDisposed || !report) return;
+        const bestSample = getBestInboundVideoSample(report, previousInboundSampleRef.current);
+        previousInboundSampleRef.current = bestSample;
+        if (!bestSample) {
+          setRemoteInboundQuality(null);
+          return;
+        }
+        setRemoteInboundQuality({
+          width: bestSample.width,
+          height: bestSample.height,
+          fps: bestSample.fps,
+        });
+      }).catch(() => {});
+    };
+
+    updateInboundStats();
+    const interval = window.setInterval(updateInboundStats, 2000);
+
+    return () => {
+      isDisposed = true;
+      previousInboundSampleRef.current = null;
+      window.clearInterval(interval);
+    };
+  }, [trackRef.participant?.isLocal, trackRef.publication?.trackSid, trackRef.publication?.track]);
+
   const dims = trackRef.publication?.dimensions;
   const mediaSettings = trackRef.publication?.track?.mediaStreamTrack?.getSettings();
   const trackFps = mediaSettings?.frameRate;
@@ -348,18 +464,17 @@ export function ScreenShareTile({
     return `${width}x${height}${fps ? ` · ${Math.round(fps)}fps` : ''}`;
   }, [dims?.height, dims?.width, mediaSettings?.height, mediaSettings?.width, outboundQuality, trackFps]);
 
-  // Quality label for the viewer side (remote tracks only — sender has outboundQuality above)
+  // Quality label for the viewer side. Use actual inbound RTP stats instead of
+  // LiveKit publication dimensions, which describe publisher metadata rather
+  // than the stream quality the viewer is currently receiving.
   const remoteQualityLabel = useMemo(() => {
     if (trackRef.participant?.isLocal) return null;
-    const remoteDims = trackRef.publication?.dimensions;
-    const remoteSettings = trackRef.publication?.track?.mediaStreamTrack?.getSettings() as
-      (MediaTrackSettings & { frameRate?: number }) | undefined;
-    const w = remoteDims?.width;
-    const h = remoteDims?.height;
-    const fps = remoteSettings?.frameRate;
+    const w = remoteInboundQuality?.width;
+    const h = remoteInboundQuality?.height;
+    const fps = remoteInboundQuality?.fps;
     if (!w || !h) return null;
     return `${w}×${h}${fps ? ` · ${Math.round(fps)}fps` : ''}`;
-  }, [trackRef.publication, trackRef.participant?.isLocal]);
+  }, [remoteInboundQuality, trackRef.participant?.isLocal]);
 
   const showWatchOverlay = !isLocalShare && !isWatching;
   const hasTrack = !!trackRef.publication?.track;
@@ -437,7 +552,7 @@ export function ScreenShareTile({
         </div>
       )}
 
-      {/* ── Quality pill — sender outbound stats OR viewer remote dims ───── */}
+      {/* ── Quality pill — sender outbound stats OR viewer inbound stats ──── */}
       {canRenderVideo && (qualityLabel || remoteQualityLabel) && (
         <div className={trackRef.participant?.isLocal ? styles.screenQualityPill : styles.screenQualityPillViewer}>
           {trackRef.participant?.isLocal ? qualityLabel : remoteQualityLabel}
