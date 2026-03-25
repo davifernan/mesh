@@ -329,8 +329,10 @@ export function RoomNavItem({
   }
   const callMemberships = useCallMembers(mx, room.roomId);
 
-  // hasActiveCall: true whenever ANY member is in the call — drives timer visibility for everyone
-  const hasActiveCall = room.isCallRoom() && callMemberships.length > 0;
+  // hasActiveCall: true whenever ANY member is in the call — drives timer visibility,
+  // bridge SSE subscription, and badge rendering for everyone (including non-participants).
+  // Not gated by isCallRoom() so that bridge presence works in regular rooms with calls too.
+  const hasActiveCall = callMemberships.length > 0;
 
   // Server-tracked start timestamp written by the first joiner (org.mesh.call.info).
   // Same value for ALL clients, survives page reloads, resets when last member leaves.
@@ -375,9 +377,9 @@ export function RoomNavItem({
   const bridgePresenceMap = voiceStateService.bridgeSnapshot;
 
   // Temporary debug logging for bridge sync diagnosis
-  if (room.isCallRoom() && hasActiveCall) {
+  if (hasActiveCall) {
     console.debug(
-      `[BridgeSync] room=${room.roomId} sseRoomId=${sseRoomId} isActiveCall=${isActiveCall} hasActiveCall=${hasActiveCall} bridgeMapSize=${bridgePresenceMap.size} members=${callMemberships.join(',')} bridgeKeys=[${Array.from(bridgePresenceMap.keys()).join(',')}]`
+      `[BridgeSync] room=${room.roomId} sseRoomId=${sseRoomId} isCallRoom=${room.isCallRoom()} isActiveCall=${isActiveCall} hasActiveCall=${hasActiveCall} bridgeMapSize=${bridgePresenceMap.size} members=${callMemberships.join(',')} bridgeKeys=[${Array.from(bridgePresenceMap.keys()).join(',')}]`
     );
   }
 
