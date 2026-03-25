@@ -77,6 +77,14 @@ import { useVoiceStateService } from '../../hooks/useVoiceStateService';
 import { useStateEvent } from '../../hooks/useStateEvent';
 import { StateEvent } from '../../../types/matrix/room';
 
+/**
+ * Module-level cache: matrixRoomId → livekitRoomAlias.
+ * Populated when the local user joins a call (livekitRoom.name becomes available).
+ * Survives component unmount so non-participants can subscribe to the correct
+ * bridge SSE stream even after the local user has left the call.
+ */
+const bridgeRoomIdCache = new Map<string, string>();
+
 type RoomNavItemMenuProps = {
   room: Room;
   requestClose: () => void;
@@ -353,11 +361,16 @@ export function RoomNavItem({
   // for every call room can exhaust browser/proxy connection limits in dev.
   //
   // The bridge stores state under the LiveKit room alias (from the JWT), NOT
-  // the Matrix room ID. When we are in the call, livekitRoom.name IS that alias;
-  // use it so the SSE subscription key matches what the bridge broadcasts on.
-  // Fall back to the Matrix room ID when not in the call (non-participants).
-  const sseRoomId =
-    isActiveCall && livekitRoom?.name ? livekitRoom.name : room.roomId;
+   // The bridge stores presence under the LiveKit room name (from the JWT).
+  // When we are in the call ourselves, livekitRoom.name gives us that key
+  // and we cache it so non-participants can subscribe to the correct SSE
+  // stream even after leaving. When nobody in this client has ever joined
+  // the room, we fall back to the Matrix room ID — which works when the
+  // JWT service uses the Matrix room ID as the LiveKit room name (common).
+  if (isActiveCall && livekitRoom?.name) {
+    bridgeRoomIdCache.set(room.roomId, livekitRoom.name);
+  }
+  const sseRoomId = bridgeRoomIdCache.get(room.roomId) ?? room.roomId;
   const voiceStateService = useVoiceStateService(sseRoomId, hasActiveCall);
   const bridgePresenceMap = voiceStateService.bridgeSnapshot;
 

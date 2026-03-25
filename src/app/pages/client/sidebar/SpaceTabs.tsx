@@ -558,7 +558,7 @@ function SpaceTab({
                 <UnreadBadge highlight={unread.highlight > 0} count={unread.total} />
               </SidebarItemBadge>
             )}
-            {!unread && hasVoiceActivity && (
+            {hasVoiceActivity && (
               <SidebarItemBadge hasCount={false} position="BottomLeft" title="Voice activity">
                 <span
                   style={{

@@ -60,6 +60,13 @@ import E2EEWorker from 'livekit-client/e2ee-worker?worker&inline';
 
 export type CallStatus = 'idle' | 'connecting' | 'connected' | 'error';
 
+export type RemoteParticipantState = {
+  audioEnabled: boolean;
+  videoEnabled: boolean;
+  isScreenSharing: boolean;
+  isDeafened: boolean;
+};
+
 export interface NativeCallEngine {
   status: CallStatus;
   isReconnecting: boolean;
@@ -70,7 +77,7 @@ export interface NativeCallEngine {
   isDeafened: boolean;
   isFrontCamera: boolean;
   speakingUsers: Set<string>;
-  remoteParticipantStates: Map<string, { audioEnabled: boolean; videoEnabled: boolean; isScreenSharing: boolean }>;
+  remoteParticipantStates: Map<string, RemoteParticipantState>;
   error: Error | null;
   callJoinTime: Date | null;
   soundboardActivity: SoundboardActivity | null;
@@ -200,7 +207,7 @@ export function useNativeCall(roomId: string | null): NativeCallEngine {
   // Reactive state so tiles can conditionally mirror only the front camera
   const [isFrontCamera, setIsFrontCamera] = useState(true);
   const [speakingUsers, setSpeakingUsers] = useState<Set<string>>(new Set());
-  const [remoteParticipantStates, setRemoteParticipantStates] = useState<Map<string, { audioEnabled: boolean; videoEnabled: boolean; isScreenSharing: boolean }>>(new Map());
+  const [remoteParticipantStates, setRemoteParticipantStates] = useState<Map<string, RemoteParticipantState>>(new Map());
   const [error, setError] = useState<Error | null>(null);
   const [callJoinTime, setCallJoinTime] = useState<Date | null>(null);
   // #80 — soundboard data channel: last clip played by any participant
@@ -219,7 +226,10 @@ export function useNativeCall(roomId: string | null): NativeCallEngine {
   const e2eeWorkerRef = useRef<Worker | null>(null);
   const keyProviderRef = useRef<MatrixKeyProvider | null>(null);
   const isDeafenedRef = useRef(false);
-  const allowAttributeUpdatesRef = useRef(true);
+  // Tracks consecutive permission failures per attribute key.
+  // Only the specific key that failed is suppressed; other keys continue to work.
+  const attributePermFailuresRef = useRef(new Map<string, number>());
+  const ATTRIBUTE_PERM_FAIL_LIMIT = 3;
   // True when the mic was muted automatically by deafen (so we can restore it on undeafen).
   // Stays false if the user manually muted before deafening — we don't touch their manual mute.
   const mutedByDeafenRef = useRef(false);
@@ -227,19 +237,37 @@ export function useNativeCall(roomId: string | null): NativeCallEngine {
   const setLocalParticipantAttributesSafely = useCallback(
     async (attributes: Record<string, string>): Promise<void> => {
       const room = roomRef.current;
-      if (!room || !allowAttributeUpdatesRef.current) return;
+      if (!room) return;
+
+      // Filter out keys that have hit the permission failure limit
+      const filteredAttrs: Record<string, string> = {};
+      for (const [key, value] of Object.entries(attributes)) {
+        const failures = attributePermFailuresRef.current.get(key) ?? 0;
+        if (failures < ATTRIBUTE_PERM_FAIL_LIMIT) {
+          filteredAttrs[key] = value;
+        }
+      }
+      if (Object.keys(filteredAttrs).length === 0) return;
 
       try {
-        await room.localParticipant.setAttributes(attributes);
+        await room.localParticipant.setAttributes(filteredAttrs);
+        // Reset failure counters on success
+        for (const key of Object.keys(filteredAttrs)) {
+          attributePermFailuresRef.current.delete(key);
+        }
       } catch (err) {
         const message = err instanceof Error ? err.message : String(err);
         if (/permission to update own metadata/i.test(message)) {
-          if (allowAttributeUpdatesRef.current) {
-            allowAttributeUpdatesRef.current = false;
-            console.warn(
-              '[NativeCall] LiveKit rejected local participant attribute updates; disabling further attribute sync for this session.',
-            );
+          // Increment failure count for all attempted keys
+          for (const key of Object.keys(filteredAttrs)) {
+            const prev = attributePermFailuresRef.current.get(key) ?? 0;
+            attributePermFailuresRef.current.set(key, prev + 1);
           }
+          console.warn(
+            '[NativeCall] LiveKit rejected attribute update for keys:',
+            Object.keys(filteredAttrs).join(', '),
+            `(failures: ${[...attributePermFailuresRef.current.entries()].map(([k, v]) => `${k}=${v}`).join(', ')})`,
+          );
           return;
         }
 
@@ -266,7 +294,7 @@ export function useNativeCall(roomId: string | null): NativeCallEngine {
     if (!roomId) return;
 
     let aborted = false;
-    allowAttributeUpdatesRef.current = true;
+    attributePermFailuresRef.current.clear();
     const SPEAK_ACTIVATE_MS = 180;
     const SPEAK_DEACTIVATE_MS = 500;
     const activateTimers = new Map<string, ReturnType<typeof setTimeout>>();
@@ -512,6 +540,7 @@ export function useNativeCall(roomId: string | null): NativeCallEngine {
                 audioEnabled: participant.isMicrophoneEnabled,
                 videoEnabled: participant.isCameraEnabled,
                 isScreenSharing: participant.isScreenShareEnabled,
+                isDeafened: participant.attributes?.isDeafened === '1',
               });
             }
             return next;

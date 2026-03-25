@@ -9,13 +9,35 @@ const CALL_MEMBER_TYPES = [
   'org.matrix.msc4143.call.member',
 ];
 
-/** Returns true if the room has at least one active call member state event. */
+/**
+ * Returns true if the room has at least one active (non-expired) call member.
+ *
+ * MSC4143 call.member content contains m.calls[].m.devices[].expires_ts.
+ * If ALL devices in ALL calls are expired, the member is no longer active.
+ * Empty content = explicitly left.
+ */
 export function roomHasCallActivity(room: Room): boolean {
+  const now = Date.now();
   for (const type of CALL_MEMBER_TYPES) {
     const events: MatrixEvent[] = room.currentState.getStateEvents(type) ?? [];
     for (const ev of events) {
       const content = ev.getContent();
-      if (content && Object.keys(content).length > 0) {
+      if (!content || Object.keys(content).length === 0) continue;
+
+      // Try structured expiry check (MSC4143 format)
+      const calls = Array.isArray(content['m.calls']) ? content['m.calls'] as any[] : null;
+      if (calls) {
+        const hasActiveDevice = calls.some((call: any) => {
+          const devices = Array.isArray(call['m.devices']) ? call['m.devices'] as any[] : [];
+          return devices.some((device: any) => {
+            const expiresTs = typeof device.expires_ts === 'number' ? device.expires_ts : 0;
+            // No expires_ts (0) = legacy format, treat as active
+            return expiresTs === 0 || expiresTs > now;
+          });
+        });
+        if (hasActiveDevice) return true;
+      } else {
+        // Legacy format without m.calls — non-empty content = active
         return true;
       }
     }

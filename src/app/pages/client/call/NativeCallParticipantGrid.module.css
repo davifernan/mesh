@@ -24,10 +24,14 @@
   --voice-grid-columns: 1;
   --voice-grid-gap: 12px;
   --voice-grid-side-padding: 12px;
+  /* Top padding clears the absolutely-positioned header (~48px);
+     bottom padding clears the floating control bar pill (~72px). */
   --voice-grid-vertical-padding: 14px;
+  --voice-grid-top-padding: 52px;
+  --voice-grid-bottom-padding: 72px;
   --voice-grid-single-tile-width: min(
     calc(100cqw - (2 * var(--voice-grid-side-padding))),
-    calc((100cqh - (2 * var(--voice-grid-vertical-padding))) * 16 / 9)
+    calc((100cqh - var(--voice-grid-top-padding) - var(--voice-grid-bottom-padding)) * 16 / 9)
   );
   display: flex;
   flex-wrap: wrap;
@@ -38,7 +42,8 @@
   height: 100%;
   gap: var(--voice-grid-gap);
   padding-inline: var(--voice-grid-side-padding);
-  padding-block: var(--voice-grid-vertical-padding);
+  padding-top: var(--voice-grid-top-padding);
+  padding-bottom: var(--voice-grid-bottom-padding);
   box-sizing: border-box;
   background: var(--voice-surface-0);
 }
@@ -114,13 +119,15 @@
 
 @container voice-grid (max-height: 519px) {
   .grid {
-    --voice-grid-vertical-padding: 10px;
+    --voice-grid-top-padding: 48px;
+    --voice-grid-bottom-padding: 64px;
   }
 }
 
 @container voice-grid (max-height: 359px) {
   .grid {
-    --voice-grid-vertical-padding: 8px;
+    --voice-grid-top-padding: 44px;
+    --voice-grid-bottom-padding: 56px;
   }
 }
 

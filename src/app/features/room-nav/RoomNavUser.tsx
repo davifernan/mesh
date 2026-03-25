@@ -53,7 +53,7 @@ type AttachableVideoTrack = {
 export type ResolvePresenceArgs = {
   isLocalUser: boolean;
   isActiveCall: boolean;
-  pState?: { audioEnabled: boolean; videoEnabled: boolean; isScreenSharing: boolean };
+  pState?: { audioEnabled: boolean; videoEnabled: boolean; isScreenSharing: boolean; isDeafened?: boolean };
   remoteBridge?: CallPresenceState;
   /** Nur relevant wenn isLocalUser && isActiveCall */
   isAudioEnabled: boolean;
@@ -105,7 +105,9 @@ export function resolvePresence({
     ? pState.videoEnabled
     : remoteBridge?.isCameraOn ?? false;
 
-  const isDeafened = remoteBridge?.isDeafened ?? false;
+  const isDeafened = pState !== undefined
+    ? pState.isDeafened ?? remoteBridge?.isDeafened ?? false
+    : remoteBridge?.isDeafened ?? false;
 
   const isScreenSharing = pState !== undefined
     ? pState.isScreenSharing

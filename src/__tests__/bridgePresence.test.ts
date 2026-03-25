@@ -1867,3 +1867,84 @@ describe('bridge webhook — deafen sync via track events (fallback)', () => {
     expect(entry?.isDeafened).toBe(true);
   });
 });
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Gruppe 6: resolvePresence — pState.isDeafened fallback (Fix #2)
+//
+// Tests that isDeafened is read from pState when available, falling back to
+// remoteBridge, and finally to false.
+// ─────────────────────────────────────────────────────────────────────────────
+
+describe('resolvePresence — pState.isDeafened fallback', () => {
+  const baseArgs: ResolvePresenceArgs = {
+    isLocalUser: false,
+    isActiveCall: true,
+    pState: undefined,
+    remoteBridge: undefined,
+    isAudioEnabled: true,
+    isVideoEnabled: false,
+    isCallDeafened: false,
+    isScreenShareEnabled: false,
+  };
+
+  it('reads isDeafened from pState when present (true)', () => {
+    const result = resolvePresence({
+      ...baseArgs,
+      pState: { audioEnabled: true, videoEnabled: false, isScreenSharing: false, isDeafened: true },
+    });
+    expect(result.isDeafened).toBe(true);
+  });
+
+  it('reads isDeafened from pState when present (false)', () => {
+    const result = resolvePresence({
+      ...baseArgs,
+      pState: { audioEnabled: true, videoEnabled: false, isScreenSharing: false, isDeafened: false },
+    });
+    expect(result.isDeafened).toBe(false);
+  });
+
+  it('pState.isDeafened=true takes priority over bridge isDeafened=false', () => {
+    const result = resolvePresence({
+      ...baseArgs,
+      pState: { audioEnabled: true, videoEnabled: false, isScreenSharing: false, isDeafened: true },
+      remoteBridge: { isMicMuted: false, isCameraOn: false, isScreenSharing: false, isDeafened: false },
+    });
+    expect(result.isDeafened).toBe(true);
+  });
+
+  it('pState.isDeafened=false takes priority over bridge isDeafened=true', () => {
+    const result = resolvePresence({
+      ...baseArgs,
+      pState: { audioEnabled: true, videoEnabled: false, isScreenSharing: false, isDeafened: false },
+      remoteBridge: { isMicMuted: false, isCameraOn: false, isScreenSharing: false, isDeafened: true },
+    });
+    expect(result.isDeafened).toBe(false);
+  });
+
+  it('falls back to bridge isDeafened when pState has no isDeafened', () => {
+    const result = resolvePresence({
+      ...baseArgs,
+      pState: { audioEnabled: true, videoEnabled: false, isScreenSharing: false },
+      remoteBridge: { isMicMuted: false, isCameraOn: false, isScreenSharing: false, isDeafened: true },
+    });
+    expect(result.isDeafened).toBe(true);
+  });
+
+  it('falls back to bridge when pState is undefined', () => {
+    const result = resolvePresence({
+      ...baseArgs,
+      pState: undefined,
+      remoteBridge: { isMicMuted: false, isCameraOn: false, isScreenSharing: false, isDeafened: true },
+    });
+    expect(result.isDeafened).toBe(true);
+  });
+
+  it('returns false when both pState and bridge are absent', () => {
+    const result = resolvePresence({
+      ...baseArgs,
+      pState: undefined,
+      remoteBridge: undefined,
+    });
+    expect(result.isDeafened).toBe(false);
+  });
+});
