@@ -57,7 +57,7 @@ export function NativeCallParticipantGrid({ onPin, widgets }: NativeCallParticip
     return sorted;
   }, [allFilteredParticipants]);
 
-  const { livekitRoom, activeCallRoomId } = useCallState();
+  const { livekitRoom, activeCallRoomId, watchedScreenShares } = useCallState();
   const mx = useMatrixClient();
   const activeRoom: MatrixRoom | null = activeCallRoomId ? (mx.getRoom(activeCallRoomId) ?? null) : null;
   const [layoutState, setLayoutState] = useAtom(voiceCallLayoutAtom);
@@ -180,8 +180,17 @@ export function NativeCallParticipantGrid({ onPin, widgets }: NativeCallParticip
     setLayoutState((prev) => ({ ...prev, isCarouselExpanded: !prev.isCarouselExpanded }));
   };
 
+  const pinnedScreenShareTrack =
+    pinnedParticipantId !== null
+      ? screenShareTracks.find((t) => t.participant.identity === pinnedParticipantId)
+      : undefined;
+  const shouldShowFocusMode =
+    layoutMode === 'focus' &&
+    pinnedParticipantId !== null &&
+    (!pinnedScreenShareTrack || watchedScreenShares.has(pinnedParticipantId));
+
   // ── FOCUS MODE ──────────────────────────────────────────────────────────────
-  if (layoutMode === 'focus' && pinnedParticipantId !== null) {
+  if (shouldShowFocusMode && pinnedParticipantId !== null) {
     const isWidgetPin = pinnedParticipantId.startsWith(WIDGET_PIN_PREFIX);
     const pinnedWidgetId = isWidgetPin ? pinnedParticipantId.slice(WIDGET_PIN_PREFIX.length) : null;
     const pinnedWidget = pinnedWidgetId
@@ -191,9 +200,7 @@ export function NativeCallParticipantGrid({ onPin, widgets }: NativeCallParticip
       ? participants.find((p) => p.identity === pinnedParticipantId)
       : undefined;
     const otherParticipants = participants.filter((p) => p.identity !== pinnedParticipantId);
-    const pinnedSSTrack = !isWidgetPin
-      ? screenShareTracks.find((t) => t.participant.identity === pinnedParticipantId)
-      : undefined;
+    const pinnedSSTrack = !isWidgetPin ? pinnedScreenShareTrack : undefined;
 
     return (
       <div className={styles.focusLayout}>

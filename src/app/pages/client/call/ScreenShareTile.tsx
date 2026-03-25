@@ -476,9 +476,13 @@ export function ScreenShareTile({
     return `${w}×${h}${fps ? ` · ${Math.round(fps)}fps` : ''}`;
   }, [remoteInboundQuality, trackRef.participant?.isLocal]);
 
-  const showWatchOverlay = !isLocalShare && !isWatching;
+  const previewQualityLabel = isLocalShare ? qualityLabel : remoteQualityLabel;
+  const showWatchOverlay = !isWatching;
   const hasTrack = !!trackRef.publication?.track;
   const canRenderVideo = hasTrack; // always render video when track is available
+  const showExpandedControls = canRenderVideo && isWatching;
+  const showFloatingQualityPill = canRenderVideo && isWatching && (qualityLabel || remoteQualityLabel);
+  const stopWatchingLabel = isLocalShare ? 'Close Preview' : 'Stop Watching';
 
   return (
     <div className={styles.screenTile} ref={tileRef}>
@@ -492,7 +496,9 @@ export function ScreenShareTile({
             width: '100%',
             height: '100%',
             objectFit: 'contain',
-            ...(showWatchOverlay ? { filter: 'blur(12px) brightness(0.5)', pointerEvents: 'none' as const } : {}),
+            ...(showWatchOverlay
+              ? { filter: 'blur(14px) brightness(0.45)', pointerEvents: 'none' as const }
+              : {}),
           }}
         />
       )}
@@ -503,8 +509,8 @@ export function ScreenShareTile({
           <div className={styles.screenWatchInfo}>
             <Monitor size={20} weight="bold" style={{ opacity: 0.6 }} />
             <span>{screenLabel}</span>
-            {remoteQualityLabel && (
-              <span className={styles.screenQualityChip}>{remoteQualityLabel}</span>
+            {previewQualityLabel && (
+              <span className={styles.screenQualityChip}>{previewQualityLabel}</span>
             )}
           </div>
           <button
@@ -523,7 +529,7 @@ export function ScreenShareTile({
       )}
 
       {/* ── Controls (fullscreen / popout) — only when video is visible ─── */}
-      {canRenderVideo && (
+      {showExpandedControls && (
         <div className={styles.screenActions}>
           <button
             type="button"
@@ -553,14 +559,14 @@ export function ScreenShareTile({
       )}
 
       {/* ── Quality pill — sender outbound stats OR viewer inbound stats ──── */}
-      {canRenderVideo && (qualityLabel || remoteQualityLabel) && (
+      {showFloatingQualityPill && (
         <div className={trackRef.participant?.isLocal ? styles.screenQualityPill : styles.screenQualityPillViewer}>
           {trackRef.participant?.isLocal ? qualityLabel : remoteQualityLabel}
         </div>
       )}
 
-      {/* ── Stop watching button — remote only, shown when subscribed ────── */}
-      {isWatching && !trackRef.participant?.isLocal && (
+      {/* ── Stop watching button — shown while actively watching ─────────── */}
+      {isWatching && (
         <button
           type="button"
           className={styles.screenStopWatchBtn}
@@ -570,7 +576,7 @@ export function ScreenShareTile({
             onStopWatching?.();
           }}
         >
-          Stop Watching
+          {stopWatchingLabel}
         </button>
       )}
 

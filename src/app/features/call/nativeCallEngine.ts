@@ -1164,11 +1164,17 @@ export function useNativeCall(roomId: string | null): NativeCallEngine {
         }
       }
       // Track is already subscribed via autoSubscribe: true — just update UI state.
+      let startedWatching = false;
       setWatchedScreenShares((prev) => {
+        if (prev.has(identity)) return prev;
         const next = new Set(prev);
         next.add(identity);
+        startedWatching = true;
         return next as ReadonlySet<string>;
       });
+      if (startedWatching) {
+        playCallSound(CallSoundType.ViewerJoin, { enabled: callSoundsEnabledRef.current });
+      }
     },
     [setWatchedScreenShares],
   );
@@ -1182,11 +1188,17 @@ export function useNativeCall(roomId: string | null): NativeCallEngine {
       }
       // Track stays subscribed (blurred preview remains visible).
       // Only the UI watch-state changes — overlay re-appears.
+      let stoppedWatching = false;
       setWatchedScreenShares((prev) => {
+        if (!prev.has(identity)) return prev;
         const next = new Set(prev);
         next.delete(identity);
+        stoppedWatching = true;
         return next as ReadonlySet<string>;
       });
+      if (stoppedWatching) {
+        playCallSound(CallSoundType.ViewerLeave, { enabled: callSoundsEnabledRef.current });
+      }
     },
     [setWatchedScreenShares, syncScreenShareAudioSubscription],
   );
