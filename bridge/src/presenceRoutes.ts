@@ -183,10 +183,58 @@ export function registerPresenceRoutes(
     });
   };
 
+  // ── Client-side attribute notification ──────────────────────────────────────
+  // Replaces the missing participant_attributes_changed webhook on older LiveKit
+  // versions (≤1.9.x). The client POSTs here after a successful setAttributes()
+  // call — the bridge performs the same rekey + deafen-sync that the webhook
+  // handler would do.
+  const handleAttributeNotification = async (c: Context) => {
+    let body: {
+      roomId?: string;
+      identity?: string;
+      userId?: string;
+      attributes?: Record<string, string>;
+    };
+    try {
+      body = await c.req.json();
+    } catch {
+      return c.json({ error: 'Invalid JSON' }, 400);
+    }
+
+    const { roomId, identity, userId, attributes } = body;
+    if (!roomId || !identity || !userId || !attributes) {
+      return c.json({ error: 'Missing required fields: roomId, identity, userId, attributes' }, 400);
+    }
+
+    // Rekey: if the userId is a real Matrix ID and differs from the identity,
+    // re-key the store entry so SSE broadcasts use the correct key.
+    if (userId !== identity && userId.startsWith('@')) {
+      const rekeyResult = await store.rekeyPresence(roomId, identity, identity, userId);
+      if (rekeyResult.presence) {
+        sse.broadcast(roomId, userId, { ...rekeyResult.presence, type: 'update' }, 'update');
+        console.log(`[rekey] ${identity} → ${userId} in ${roomId} (via client notification)`);
+      }
+    }
+
+    // Sync deafen state if present in attributes
+    if ('isDeafened' in attributes) {
+      const result = await store.setPresence(roomId, identity, userId, {
+        isDeafened: attributes.isDeafened === '1',
+      });
+      if (result?.changed) {
+        sse.broadcast(roomId, userId, result.next, 'update');
+      }
+    }
+
+    console.debug(`[attrs] ${userId} attributes=${JSON.stringify(attributes)} in ${roomId} (via client notification)`);
+    return c.json({ ok: true });
+  };
+
   // ── Query-param routes (slash-safe) — MUST be registered BEFORE wildcard ──
   // Hono matches routes in registration order. /presence/:roomId would swallow
   // "room" or "stream" as a roomId, so the specific fixed-path routes go first.
 
+  app.post('/presence/attributes', handleAttributeNotification);
   app.get('/presence/room', bearerAuthMiddleware(authSecret), handleSnapshot);
   app.get('/presence/stream', sseTicketMiddleware(authSecret), handleStream);
 

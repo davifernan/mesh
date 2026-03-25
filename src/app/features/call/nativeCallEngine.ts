@@ -158,6 +158,11 @@ export function useNativeCall(roomId: string | null): NativeCallEngine {
   const configServiceUrlRef = useRef(configServiceUrl);
   configServiceUrlRef.current = configServiceUrl;
 
+  // Presence bridge URL for client-side attribute notifications
+  const presenceBaseUrl = clientConfig.presenceUrl?.trim() || '/api/presence';
+  const presenceBaseUrlRef = useRef(presenceBaseUrl);
+  presenceBaseUrlRef.current = presenceBaseUrl;
+
   // ── Atoms ──────────────────────────────────────────────────────────────────
   const effectiveAV = useAtomValue(effectiveAVSettingsAtom);
   const userSettings = useAtomValue(settingsAtom);
@@ -254,6 +259,28 @@ export function useNativeCall(roomId: string | null): NativeCallEngine {
         // Reset failure counters on success
         for (const key of Object.keys(filteredAttrs)) {
           attributePermFailuresRef.current.delete(key);
+        }
+
+        // Notify the presence bridge directly — works around LiveKit ≤1.9.x
+        // which does not emit participant_attributes_changed webhooks.
+        // Fire-and-forget: failures are non-critical (bridge will still get
+        // the data via track events or reconcile).
+        const baseUrl = presenceBaseUrlRef.current;
+        const identity = room.localParticipant.identity;
+        const matrixUserId = mx.getUserId();
+        if (identity && matrixUserId && room.name) {
+          fetch(`${baseUrl}/attributes`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              roomId: room.name,
+              identity,
+              userId: matrixUserId,
+              attributes: filteredAttrs,
+            }),
+          }).catch(() => {
+            // Best-effort — bridge may be unreachable in dev
+          });
         }
       } catch (err) {
         const message = err instanceof Error ? err.message : String(err);

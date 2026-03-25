@@ -146,11 +146,12 @@ console.log(`[bridge] Authoritative mode: ${BRIDGE_VOICE_STATE_AUTHORITATIVE ? '
 console.log(`[bridge] CORS origins:      ${BRIDGE_ALLOWED_ORIGINS.length > 0 ? BRIDGE_ALLOWED_ORIGINS.join(', ') : '* (all — set BRIDGE_ALLOWED_ORIGINS for production)'}`);
 console.log(`[bridge] Auth:             ${BRIDGE_AUTH_SECRET ? 'shared-secret (BRIDGE_AUTH_SECRET set)' : 'disabled (dev mode — set BRIDGE_AUTH_SECRET for production)'}`);
 console.log(`[bridge] Endpoints:`);
-console.log(`[bridge]   POST /webhook              — LiveKit webhook receiver`);
-console.log(`[bridge]   POST /presence/ticket        — obtain SSE ticket (Bearer auth)`);
-console.log(`[bridge]   GET  /presence/:roomId     — full room snapshot (Bearer auth)`);
-console.log(`[bridge]   GET  /presence/:roomId/stream — SSE stream (ticket auth)`);
-console.log(`[bridge]   GET  /health               — health + stats`);
+console.log(`[bridge]   POST /webhook                  — LiveKit webhook receiver`);
+console.log(`[bridge]   POST /presence/ticket          — obtain SSE ticket (Bearer auth)`);
+console.log(`[bridge]   POST /presence/attributes      — client attribute notification (no auth)`);
+console.log(`[bridge]   GET  /presence/:roomId         — full room snapshot (Bearer auth)`);
+console.log(`[bridge]   GET  /presence/:roomId/stream  — SSE stream (ticket auth)`);
+console.log(`[bridge]   GET  /health                   — health + stats`);
 console.log(`[bridge] ─────────────────────────────────────────────`);
 
 // ── Startup reconcile ─────────────────────────────────────────────────────────
