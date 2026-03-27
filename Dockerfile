@@ -11,7 +11,7 @@ RUN npm run build
 
 
 ## App
-FROM nginx:1.29.5-alpine
+FROM nginx:1.29.6-alpine
 
 # envsubst (from gettext) is used by docker-entrypoint.sh to inject ENV vars into config.json
 RUN apk add --no-cache gettext
