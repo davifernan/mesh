@@ -629,6 +629,15 @@ export function RoomTimeline({ room, eventId, roomInputRef, editor, threadId, ed
   const [timeline, setTimeline] = useState<Timeline>(() =>
     eventId ? getEmptyTimeline() : getInitialTimeline(room, threadId)
   );
+
+  useEffect(() => {
+    if (!room.hasEncryptionStateEvent() || timeline.linkedTimelines.length === 0) return;
+
+    timeline.linkedTimelines.forEach((linkedTimeline) => {
+      void decryptAllTimelineEvent(mx, linkedTimeline);
+    });
+  }, [mx, room, timeline.linkedTimelines]);
+
   const eventsLength = getTimelinesEventsCount(timeline.linkedTimelines);
   // Thread mode: the "live" end is always the last timeline in our synthetic linked list.
   // This keeps liveTimelineLinked=true without depending on SDK Thread objects.
@@ -1729,10 +1738,11 @@ export function RoomTimeline({ room, eventId, roomInputRef, editor, threadId, ed
       prevEvent.getType() === mEvent.getType() &&
       minuteDifference(prevEvent.getTs(), mEvent.getTs()) < 2;
 
+    const renderEventType = mEvent.isEncrypted() ? mEvent.getWireType() : mEvent.getType();
     const eventJSX = reactionOrEditEvent(mEvent)
       ? null
       : renderMatrixEvent(
-          mEvent.getType(),
+          renderEventType,
           typeof mEvent.getStateKey() === 'string',
           mEventId,
           mEvent,
