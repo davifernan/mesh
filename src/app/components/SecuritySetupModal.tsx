@@ -56,8 +56,9 @@ function ModalShell({ title, onDismiss, children, mobile }: ModalShellProps) {
   const dialogStyle: React.CSSProperties = mobile
     ? {
         width: '100%',
+        maxWidth: '100%',
+        margin: 0,
         borderRadius: `${config.radii.R400} ${config.radii.R400} 0 0`,
-        // Remove bottom border-radius via inline override
       }
     : { width: '100%', maxWidth: '420px' };
 
@@ -108,7 +109,7 @@ function ModalShell({ title, onDismiss, children, mobile }: ModalShellProps) {
               pointerEvents: 'none',
             }}
           >
-            <div style={{ width: '100%', pointerEvents: 'auto' }}>{inner}</div>
+            <div style={{ width: '100%', maxWidth: '100%', margin: 0, padding: 0, pointerEvents: 'auto' }}>{inner}</div>
           </div>
         </FocusTrap>
       ) : (
