@@ -60,6 +60,7 @@ import { AuthRouteThemeManager, UnAuthRouteThemeManager } from './ThemeManager';
 import { ReceiveSelfDeviceVerification } from '../components/DeviceVerification';
 import { CallPopoutPage } from './call-popout/CallPopoutPage'; // #81
 import { AutoRestoreBackupOnVerification } from '../components/BackupRestore';
+import { SecuritySetupModal } from '../components/SecuritySetupModal';
 import { RoomSettingsRenderer } from '../features/room-settings';
 import { ClientRoomsNotificationPreferences } from './client/ClientRoomsNotificationPreferences';
 import { SpaceSettingsRenderer } from '../features/space-settings';
@@ -176,6 +177,7 @@ export const createRouter = (clientConfig: ClientConfig, screenSize: ScreenSize,
                       <SpaceSettingsRenderer />
                       <ReceiveSelfDeviceVerification />
                       <AutoRestoreBackupOnVerification />
+                      <SecuritySetupModal />
                       </MobileDrawerProvider>
                     </ClientNonUIFeatures>
                   </ClientBindAtoms>
