@@ -1,5 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import {
+  Dialog,
+  Header,
   Box,
   Text,
   Icon,
@@ -41,91 +43,81 @@ function useSecuritySetupDismissed(): [boolean, () => void] {
   return [dismissed, dismiss];
 }
 
-type ToastCardProps = {
-  title: string;
-  body: string;
-  onDismiss: () => void;
-  children?: React.ReactNode;
-};
-function ToastCard({ title, body, onDismiss, children }: ToastCardProps) {
-  return (
-    <div
-      style={{
-        position: 'fixed',
-        bottom: '80px',
-        right: '16px',
-        zIndex: 1000,
-        maxWidth: '340px',
-        width: '100%',
-        borderRadius: '12px',
-        padding: config.space.S400,
-        backgroundColor: 'var(--bg-surface-low)',
-        boxShadow: '0 4px 24px rgba(0,0,0,0.35)',
-        border: '1px solid var(--border-interactive)',
-      }}
-    >
-      <Box direction="Column" gap="300">
-        <Box alignItems="Center" justifyContent="SpaceBetween" gap="200">
-          <Box alignItems="Center" gap="200">
-            <Icon
-              size="200"
-              src={Icons.Shield}
-              style={{ color: color.Warning.Main }}
-            />
-            <Text size="H5" style={{ fontWeight: 600 }}>
-              {title}
-            </Text>
-          </Box>
-          <IconButton
-            size="300"
-            radii="300"
-            onClick={onDismiss}
-            aria-label="Dismiss security notification"
-          >
-            <Icon src={Icons.Cross} />
-          </IconButton>
-        </Box>
-        <Text size="T300" style={{ color: 'var(--text-secondary)' }}>
-          {body}
-        </Text>
-        {children}
-      </Box>
-    </div>
-  );
-}
+// ─── Case 1: No backup ────────────────────────────────────────────────────────
 
-type EnableBackupToastProps = {
+type EnableBackupModalProps = {
   onDismiss: () => void;
 };
-function EnableBackupToast({ onDismiss }: EnableBackupToastProps) {
+function EnableBackupModal({ onDismiss }: EnableBackupModalProps) {
   const [setupOpen, setSetupOpen] = useState(false);
-
-  const handleEnable = () => {
-    setSetupOpen(true);
-  };
-
-  const handleSetupClose = () => {
-    setSetupOpen(false);
-    onDismiss();
-  };
 
   return (
     <>
-      <ToastCard
-        title="Secure your messages"
-        body="Enable verification to back up your encryption keys. Without this, you cannot read messages on new devices."
-        onDismiss={onDismiss}
-      >
-        <Button
-          variant="Primary"
-          fill="Solid"
-          size="300"
-          radii="300"
-          onClick={handleEnable}
-        >
-          <Text size="B300">Enable</Text>
-        </Button>
-      </ToastCard>
+      {!setupOpen && (
+        <Overlay open backdrop={<OverlayBackdrop />}>
+          <OverlayCenter>
+            <FocusTrap
+              focusTrapOptions={{
+                initialFocus: false,
+                clickOutsideDeactivates: false,
+                escapeDeactivates: false,
+              }}
+            >
+              <Dialog
+                role="dialog"
+                aria-modal="true"
+                aria-labelledby="security-setup-title"
+                style={{ width: '100%', maxWidth: '420px' }}
+              >
+                <Header
+                  style={{
+                    padding: `0 ${config.space.S200} 0 ${config.space.S400}`,
+                    borderBottomWidth: config.borderWidth.B300,
+                  }}
+                  variant="Surface"
+                  size="500"
+                >
+                  <Box grow="Yes" alignItems="Center" gap="200">
+                    <Icon size="200" src={Icons.Shield} style={{ color: color.Warning.Main }} />
+                    <Text size="H4" as="h2" id="security-setup-title">
+                      Secure your messages
+                    </Text>
+                  </Box>
+                  <IconButton size="300" radii="300" onClick={onDismiss} aria-label="Dismiss">
+                    <Icon src={Icons.Cross} />
+                  </IconButton>
+                </Header>
+                <Box style={{ padding: config.space.S400 }} direction="Column" gap="400">
+                  <Text size="T300">
+                    Set up encryption backup so you can read your messages on other devices.
+                    You&apos;ll receive a Recovery Key — keep it safe.
+                  </Text>
+                  <Box direction="Column" gap="200">
+                    <Button
+                      variant="Primary"
+                      fill="Solid"
+                      radii="300"
+                      onClick={() => setSetupOpen(true)}
+                      style={{ width: '100%' }}
+                    >
+                      <Text size="B400">Enable</Text>
+                    </Button>
+                    <Button
+                      variant="Secondary"
+                      fill="None"
+                      radii="300"
+                      onClick={onDismiss}
+                      style={{ width: '100%' }}
+                    >
+                      <Text size="B400">Later</Text>
+                    </Button>
+                  </Box>
+                </Box>
+              </Dialog>
+            </FocusTrap>
+          </OverlayCenter>
+        </Overlay>
+      )}
 
       {setupOpen && (
         <Overlay open backdrop={<OverlayBackdrop />}>
@@ -137,7 +129,7 @@ function EnableBackupToast({ onDismiss }: EnableBackupToastProps) {
                 escapeDeactivates: false,
               }}
             >
-              <DeviceVerificationSetup onCancel={handleSetupClose} />
+              <DeviceVerificationSetup onCancel={onDismiss} />
             </FocusTrap>
           </OverlayCenter>
         </Overlay>
@@ -146,58 +138,78 @@ function EnableBackupToast({ onDismiss }: EnableBackupToastProps) {
   );
 }
 
-type VerifyDeviceToastProps = {
+// ─── Case 2: Backup exists but unverified ─────────────────────────────────────
+
+type VerifyDeviceModalProps = {
   secretStorageKeyId: string;
   secretStorageKeyContent: import('../../types/matrix/accountData').SecretStorageKeyContent;
   onDismiss: () => void;
 };
-function VerifyDeviceToast({
+function VerifyDeviceModal({
   secretStorageKeyId,
   secretStorageKeyContent,
   onDismiss,
-}: VerifyDeviceToastProps) {
-  const [verifyExpanded, setVerifyExpanded] = useState(false);
-
-  const handleVerifyClick = () => {
-    setVerifyExpanded(true);
-  };
-
+}: VerifyDeviceModalProps) {
   return (
-    <ToastCard
-      title="Verify this device"
-      body="Enter your recovery key to access encrypted messages from other sessions."
-      onDismiss={onDismiss}
-    >
-      {!verifyExpanded ? (
-        <Button
-          variant="Primary"
-          fill="Solid"
-          size="300"
-          radii="300"
-          onClick={handleVerifyClick}
+    <Overlay open backdrop={<OverlayBackdrop />}>
+      <OverlayCenter>
+        <FocusTrap
+          focusTrapOptions={{
+            initialFocus: false,
+            clickOutsideDeactivates: false,
+            escapeDeactivates: false,
+          }}
         >
-          <Text size="B300">Verify</Text>
-        </Button>
-      ) : (
-        <Box direction="Column" gap="200">
-          <ManualVerificationTile
-            secretStorageKeyId={secretStorageKeyId}
-            secretStorageKeyContent={secretStorageKeyContent}
-          />
-          <Button
-            variant="Secondary"
-            fill="Soft"
-            size="300"
-            radii="300"
-            onClick={onDismiss}
+          <Dialog
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="security-setup-title"
+            style={{ width: '100%', maxWidth: '420px' }}
           >
-            <Text size="B300">Done</Text>
-          </Button>
-        </Box>
-      )}
-    </ToastCard>
+            <Header
+              style={{
+                padding: `0 ${config.space.S200} 0 ${config.space.S400}`,
+                borderBottomWidth: config.borderWidth.B300,
+              }}
+              variant="Surface"
+              size="500"
+            >
+              <Box grow="Yes" alignItems="Center" gap="200">
+                <Icon size="200" src={Icons.Shield} style={{ color: color.Warning.Main }} />
+                <Text size="H4" as="h2" id="security-setup-title">
+                  Verify this device
+                </Text>
+              </Box>
+              <IconButton size="300" radii="300" onClick={onDismiss} aria-label="Dismiss">
+                <Icon src={Icons.Cross} />
+              </IconButton>
+            </Header>
+            <Box style={{ padding: config.space.S400 }} direction="Column" gap="400">
+              <Text size="T300">
+                Enter your Recovery Key or passphrase to access your encrypted messages.
+              </Text>
+              <ManualVerificationTile
+                secretStorageKeyId={secretStorageKeyId}
+                secretStorageKeyContent={secretStorageKeyContent}
+              />
+              <Button
+                variant="Secondary"
+                fill="None"
+                radii="300"
+                onClick={onDismiss}
+                style={{ width: '100%' }}
+              >
+                <Text size="B400">Later</Text>
+              </Button>
+            </Box>
+          </Dialog>
+        </FocusTrap>
+      </OverlayCenter>
+    </Overlay>
   );
 }
+
+// ─── Orchestrator ─────────────────────────────────────────────────────────────
 
 function SecuritySetupModalInner() {
   const mx = useMatrixClient();
@@ -239,7 +251,7 @@ function SecuritySetupModalInner() {
 
   // Case 1: No backup at all
   if (!crossSigningActive) {
-    return <EnableBackupToast onDismiss={dismiss} />;
+    return <EnableBackupModal onDismiss={dismiss} />;
   }
 
   // Case 2: Backup exists but device unverified
@@ -250,7 +262,7 @@ function SecuritySetupModalInner() {
     defaultSecretStorageKeyContent
   ) {
     return (
-      <VerifyDeviceToast
+      <VerifyDeviceModal
         secretStorageKeyId={defaultSecretStorageKeyId}
         secretStorageKeyContent={defaultSecretStorageKeyContent}
         onDismiss={dismiss}
