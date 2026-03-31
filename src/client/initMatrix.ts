@@ -93,6 +93,14 @@ export const initClient = async (session: Session): Promise<MatrixClient> => {
     dbName: dbNames.sync,
   });
 
+  // Forward the store-degraded event to the window so ClientRoot can show a
+  // reload prompt. This fires when IndexedDB closes unexpectedly (browser GC,
+  // storage pressure, version change) and the SDK falls back to MemoryStore.
+  indexedDBStore.on('degraded', () => {
+    console.warn('[initMatrix] IndexedDBStore degraded to MemoryStore — dispatching reload prompt');
+    window.dispatchEvent(new CustomEvent('mesh:store-degraded'));
+  });
+
   const legacyCryptoStore = new IndexedDBCryptoStore(global.indexedDB, dbNames.crypto);
 
   const mx = createClient({

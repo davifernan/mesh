@@ -235,8 +235,43 @@ const useLogoutListener = (mx?: MatrixClient) => {
 type ClientRootProps = {
   children: ReactNode;
 };
+function StoreDegradedBanner({ mx }: { mx?: MatrixClient }) {
+  return (
+    <div
+      style={{
+        position: 'fixed',
+        bottom: config.space.S400,
+        left: '50%',
+        transform: 'translateX(-50%)',
+        zIndex: 99999,
+        backgroundColor: 'var(--background-header-primary)',
+        border: '1px solid var(--bg-warning)',
+        borderRadius: '0.5rem',
+        padding: `${config.space.S200} ${config.space.S400}`,
+        boxShadow: '0 8px 24px rgba(0,0,0,0.4)',
+        display: 'flex',
+        alignItems: 'center',
+        gap: config.space.S300,
+        maxWidth: '28rem',
+      }}
+    >
+      <Text size="T300" style={{ flex: 1 }}>
+        Storage error — some data may be unavailable. Please reload.
+      </Text>
+      <Button
+        size="300"
+        variant="Primary"
+        onClick={() => (mx ? clearCacheAndReload(mx) : window.location.reload())}
+      >
+        <Text as="span" size="B300">Reload</Text>
+      </Button>
+    </div>
+  );
+}
+
 export function ClientRoot({ children }: ClientRootProps) {
   const [loading, setLoading] = useState(true);
+  const [storeDegraded, setStoreDegraded] = useState(false);
   const { baseUrl } = getFallbackSession() ?? {};
 
   // Fetch spec versions in parallel with initClient — children use empty fallback until resolved
@@ -281,6 +316,12 @@ export function ClientRoot({ children }: ClientRootProps) {
   useLogoutListener(mx);
 
   useEffect(() => {
+    const handler = () => setStoreDegraded(true);
+    window.addEventListener('mesh:store-degraded', handler);
+    return () => window.removeEventListener('mesh:store-degraded', handler);
+  }, []);
+
+  useEffect(() => {
     if (loadState.status === AsyncStatus.Idle) {
       loadMatrix();
     }
@@ -303,6 +344,7 @@ export function ClientRoot({ children }: ClientRootProps) {
 
   return (
     <SpecVersionsProvider value={specVersionsData}>
+      {storeDegraded && <StoreDegradedBanner mx={mx} />}
       {mx && <SyncStatus mx={mx} />}
       {loading && <ClientRootOptions mx={mx} />}
       {(loadState.status === AsyncStatus.Error || startState.status === AsyncStatus.Error) && (
