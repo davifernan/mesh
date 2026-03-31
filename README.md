@@ -126,6 +126,17 @@ Supported platforms:
 - Windows (x64)
 - Linux (AppImage, deb, rpm)
 
+### Installation warnings
+
+**macOS:** Because mesh is not signed with an Apple Developer certificate, macOS will block it on first launch with *"mesh cannot be opened because it is from an unidentified developer"*. To run it anyway:
+> System Settings → Privacy & Security → scroll down → click **"Open Anyway"**
+
+Or via Terminal: `xattr -cr /Applications/mesh.app`
+
+**Windows:** Windows SmartScreen may show *"Windows protected your PC"* because the app is not yet code-signed. Click **"More info" → "Run anyway"** to install.
+
+Both warnings are expected for open-source apps without paid signing certificates. The source code is fully auditable [right here](https://github.com/davifernan/mesh).
+
 ---
 
 ## Development
