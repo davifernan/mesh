@@ -1,0 +1,15 @@
+{
+  "name": "mesh-docs",
+  "version": "1.0.0",
+  "description": "mesh documentation site",
+  "type": "module",
+  "scripts": {
+    "dev": "vitepress dev",
+    "build": "vitepress build",
+    "preview": "vitepress preview"
+  },
+  "license": "AGPL-3.0-only",
+  "devDependencies": {
+    "vitepress": "^1.6.4"
+  }
+}
