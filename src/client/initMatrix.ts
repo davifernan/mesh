@@ -95,10 +95,37 @@ export const initClient = async (session: Session): Promise<MatrixClient> => {
     verificationMethods: ['m.sas.v1'],
   });
 
-  await Promise.all([
-    indexedDBStore.startup(),
-    mx.initRustCrypto(dbNames.rustCrypto ? { cryptoDatabasePrefix: dbNames.rustCrypto } : {}),
-  ]);
+  const initRustCrypto = () =>
+    mx.initRustCrypto(dbNames.rustCrypto ? { cryptoDatabasePrefix: dbNames.rustCrypto } : {});
+
+  try {
+    await Promise.all([indexedDBStore.startup(), initRustCrypto()]);
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    if (msg.includes("account in the store doesn't match")) {
+      // The rust crypto store was created with a different device ID (e.g. after
+      // re-login without clearing storage). Delete all IndexedDB databases that
+      // belong to this user's rust crypto store and retry with a fresh one.
+      console.warn('[initMatrix] Crypto store device mismatch — wiping rust crypto store and retrying');
+      const allDbs = await window.indexedDB.databases().catch(() => [] as IDBDatabaseInfo[]);
+      const prefix = dbNames.rustCrypto ?? 'matrix-js-sdk';
+      await Promise.all(
+        allDbs
+          .filter((db) => db.name?.startsWith(prefix))
+          .map(
+            (db) =>
+              new Promise<void>((resolve) => {
+                const req = window.indexedDB.deleteDatabase(db.name!);
+                req.onsuccess = () => resolve();
+                req.onerror = () => resolve(); // best-effort
+              })
+          )
+      );
+      await initRustCrypto();
+    } else {
+      throw err;
+    }
+  }
 
   mx.setMaxListeners(50);
 

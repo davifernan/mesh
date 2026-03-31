@@ -60,7 +60,52 @@ async function prefetchServerConfigs(mx: MatrixClient): Promise<ServerConfigs> {
   return { capabilities, mediaConfig, authMetadata };
 }
 
-function ClientRootLoading() {
+const LOADING_TIMEOUT_MS = 30_000;
+
+type ClientRootLoadingProps = {
+  mx?: MatrixClient;
+  onRetry: () => void;
+  onClearCache: () => void;
+  onLogout: () => void;
+};
+
+function ClientRootLoading({ mx, onRetry, onClearCache, onLogout }: ClientRootLoadingProps) {
+  const [timedOut, setTimedOut] = useState(false);
+
+  useEffect(() => {
+    const id = setTimeout(() => setTimedOut(true), LOADING_TIMEOUT_MS);
+    return () => clearTimeout(id);
+  }, []);
+
+  if (timedOut) {
+    return (
+      <SplashScreen>
+        <Box direction="Column" grow="Yes" alignItems="Center" justifyContent="Center" gap="400">
+          <Dialog>
+            <Box direction="Column" gap="400" style={{ padding: config.space.S400 }}>
+              <Box direction="Column" gap="100">
+                <Text size="H5">Taking longer than expected</Text>
+                <Text size="T300" style={{ opacity: 0.7 }}>
+                  Could not connect to your homeserver. Check your internet connection or try
+                  clearing the cache.
+                </Text>
+              </Box>
+              <Button variant="Primary" onClick={onRetry}>
+                <Text as="span" size="B400">Retry</Text>
+              </Button>
+              <Button variant="Secondary" fill="Soft" onClick={onClearCache}>
+                <Text as="span" size="B400">Clear Cache &amp; Reload</Text>
+              </Button>
+              <Button variant="Critical" fill="None" onClick={onLogout}>
+                <Text as="span" size="B400">Logout</Text>
+              </Button>
+            </Box>
+          </Dialog>
+        </Box>
+      </SplashScreen>
+    );
+  }
+
   return (
     <SplashScreen>
       <Box direction="Column" grow="Yes" alignItems="Center" justifyContent="Center" gap="400">
@@ -290,9 +335,17 @@ export function ClientRoot({ children }: ClientRootProps) {
           </Box>
         </SplashScreen>
       )}
-      {loading || !mx ? (
-        <ClientRootLoading />
-      ) : (
+      {(loading || !mx) &&
+        loadState.status !== AsyncStatus.Error &&
+        startState.status !== AsyncStatus.Error && (
+          <ClientRootLoading
+            mx={mx}
+            onRetry={mx ? () => startMatrix(mx) : loadMatrix}
+            onClearCache={mx ? () => clearCacheAndReload(mx) : clearLoginData}
+            onLogout={mx ? () => logoutClient(mx) : clearLoginData}
+          />
+        )}
+      {!loading && mx && (
         <MatrixClientProvider value={mx}>
           <CapabilitiesProvider value={serverConfigs.capabilities ?? {}}>
             <MediaConfigProvider value={serverConfigs.mediaConfig ?? {}}>
