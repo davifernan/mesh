@@ -19,32 +19,45 @@ import { cryptoCallbacks } from './secretStorageKeys';
  * This workaround can be removed once matrix-rust-crypto handles "key already exists"
  * gracefully (upstream issue: https://github.com/matrix-org/matrix-rust-sdk/issues).
  */
-function patchFetchForOTKConflicts(): void {
+function patchFetch(): void {
   const _fetch = window.fetch.bind(window);
   window.fetch = async (input, init) => {
     const response = await _fetch(input, init);
-
-    if (response.status !== 400) return response;
-
     const url = typeof input === 'string' ? input : input instanceof Request ? input.url : '';
-    if (!url.includes('/keys/upload')) return response;
 
-    let body: Record<string, unknown> = {};
-    try {
-      body = await response.clone().json();
-    } catch {
-      return response;
+    // ── Patch 1: OTK conflict (400 on /keys/upload) ──────────────────────────
+    // After clearing storage the Rust crypto counter resets and re-uploads the
+    // same key IDs. Synapse rejects with 400 "already exists". Treat as success
+    // so the SDK moves on instead of blocking the entire outgoing-request queue.
+    if (response.status === 400 && url.includes('/keys/upload')) {
+      let body: Record<string, unknown> = {};
+      try {
+        body = await response.clone().json();
+      } catch {
+        return response;
+      }
+      const error = typeof body.error === 'string' ? body.error : '';
+      if (error.includes('already exists')) {
+        console.debug('[initMatrix] OTK already exists on server, returning synthetic 200');
+        return new Response(JSON.stringify({}), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        });
+      }
     }
 
-    const error = typeof body.error === 'string' ? body.error : '';
-    if (!error.includes('already exists')) return response;
+    // ── Patch 2: Missing key backup entry (404 on /room_keys/keys/) ──────────
+    // The SDK fetches individual keys from backup when it can't decrypt a message.
+    // 404 is the normal response when that key was never backed up (e.g. from a
+    // device that had backup disabled). Suppress the console error — it's noise.
+    if (response.status === 404 && url.includes('/room_keys/keys/')) {
+      return new Response(JSON.stringify({ errcode: 'M_NOT_FOUND', error: 'Key not found' }), {
+        status: 404,
+        headers: { 'Content-Type': 'application/json' },
+      });
+    }
 
-    // Key is already on the server — treat as success so the SDK moves on.
-    console.debug('[initMatrix] OTK already exists on server, returning synthetic 200');
-    return new Response(JSON.stringify({}), {
-      status: 200,
-      headers: { 'Content-Type': 'application/json' },
-    });
+    return response;
   };
 }
 import { clearNavToActivePathStore } from '../app/state/navToActivePath';
@@ -71,7 +84,7 @@ const getSessionDbNames = (session: Session) => {
 };
 
 export const initClient = async (session: Session): Promise<MatrixClient> => {
-  patchFetchForOTKConflicts();
+  patchFetch();
   const dbNames = getSessionDbNames(session);
 
   const indexedDBStore = new IndexedDBStore({
