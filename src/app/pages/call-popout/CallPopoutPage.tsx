@@ -3,13 +3,13 @@
  *
  * Minimal page for the /popout route, opened via window.open() in Electron.
  * Electron's setWindowOpenHandler (desktop/src/main/Window.tsx) allows new
- * BrowserWindows when frameName starts with 'bettercord_' and pathname === '/popout'.
+ * BrowserWindows when frameName starts with 'mesh_' and pathname === '/popout'.
  *
  * The page reads ?room=<roomId> from the URL, and renders NativeCallView
  * inside its own CallProvider — no sidebar, no shell.
  *
  * Usage (from NativeCallControlBar — Electron only):
- *   window.open(`${origin}/popout?room=${roomId}`, `bettercord_call_${roomId}`, 'width=960,height=640');
+ *   window.open(`${origin}/popout?room=${roomId}`, `mesh_call_${roomId}`, 'width=960,height=640');
  */
 
 import React, { useEffect } from 'react';
