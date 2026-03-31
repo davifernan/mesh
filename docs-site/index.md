@@ -13,7 +13,10 @@ hero:
       text: Get Started
       link: /guide/getting-started
     - theme: alt
-      text: View on GitHub
+      text: Docs
+      link: /guide/what-is-mesh
+    - theme: alt
+      text: GitHub
       link: https://github.com/davifernan/mesh
 
 features:

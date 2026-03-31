@@ -21,9 +21,7 @@ export default defineConfig({
     siteTitle: 'mesh',
 
     nav: [
-      { text: 'Guide', link: '/guide/getting-started' },
-      { text: 'Features', link: '/features/microapps' },
-      { text: 'Contributing', link: '/contributing/' },
+      { text: 'Docs', link: '/guide/what-is-mesh' },
       { text: 'Changelog', link: '/changelog' },
       {
         text: 'v0.2.0',
@@ -34,43 +32,53 @@ export default defineConfig({
       }
     ],
 
-    sidebar: {
-      '/guide/': [
-        {
-          text: 'Getting Started',
-          items: [
-            { text: 'What is mesh?', link: '/guide/what-is-mesh' },
-            { text: 'Self-Hosting', link: '/guide/getting-started' },
-            { text: 'Configuration', link: '/guide/configuration' },
-            { text: 'Desktop App', link: '/guide/desktop' },
-          ]
-        },
-        {
-          text: 'Advanced',
-          items: [
-            { text: 'Architecture', link: '/guide/architecture' },
-            { text: 'Troubleshooting', link: '/guide/troubleshooting' },
-          ]
-        }
-      ],
-      '/features/': [
-        {
-          text: 'Features',
-          items: [
-            { text: 'Activities (Microapps)', link: '/features/microapps' },
-            { text: 'Roadmap', link: '/features/roadmap' },
-          ]
-        }
-      ],
-      '/contributing/': [
-        {
-          text: 'Contributing',
-          items: [
-            { text: 'Development Setup', link: '/contributing/' },
-          ]
-        }
-      ]
-    },
+    sidebar: [
+      {
+        text: 'Introduction',
+        items: [
+          { text: 'What is mesh?', link: '/guide/what-is-mesh' },
+        ]
+      },
+      {
+        text: 'Self-Hosting',
+        collapsed: false,
+        items: [
+          { text: 'Getting Started', link: '/guide/getting-started' },
+          { text: 'Configuration', link: '/guide/configuration' },
+          { text: 'Troubleshooting', link: '/guide/troubleshooting' },
+        ]
+      },
+      {
+        text: 'Desktop App',
+        collapsed: false,
+        items: [
+          { text: 'Installation', link: '/guide/desktop' },
+        ]
+      },
+      {
+        text: 'Features',
+        collapsed: false,
+        items: [
+          { text: 'Activities (Microapps)', link: '/features/microapps' },
+          { text: 'Roadmap', link: '/features/roadmap' },
+        ]
+      },
+      {
+        text: 'Advanced',
+        collapsed: true,
+        items: [
+          { text: 'Architecture', link: '/guide/architecture' },
+        ]
+      },
+      {
+        text: 'Contributing',
+        collapsed: true,
+        items: [
+          { text: 'Development Setup', link: '/contributing/' },
+          { text: 'Changelog', link: '/changelog' },
+        ]
+      },
+    ],
 
     socialLinks: [
       { icon: 'github', link: 'https://github.com/davifernan/mesh' }
