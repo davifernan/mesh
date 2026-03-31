@@ -80,7 +80,7 @@ export const AuthLogoMark = style({
   flexShrink: 0,
   marginBottom: '0.25rem',
   display: 'block',
-  // SVG already has its own rounded background — no duplicate needed
+  filter: 'drop-shadow(0 8px 24px rgba(0,0,0,0.35))',
 });
 
 export const AuthBrandName = style({
