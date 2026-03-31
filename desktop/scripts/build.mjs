@@ -1,20 +1,20 @@
 /*
- * Copyright (C) 2026 Fluxer Contributors
+ * Copyright (C) 2026 mesh Contributors
  *
- * This file is part of Fluxer.
+ * This file is part of mesh.
  *
- * Fluxer is free software: you can redistribute it and/or modify
+ * mesh is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
  *
- * Fluxer is distributed in the hope that it will be useful,
+ * mesh is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
  * GNU Affero General Public License for more details.
  *
  * You should have received a copy of the GNU Affero General Public License
- * along with Fluxer. If not, see <https://www.gnu.org/licenses/>.
+ * along with mesh. If not, see <https://www.gnu.org/licenses/>.
  */
 
 import * as fs from 'node:fs';
@@ -27,11 +27,9 @@ const DIST_DIR = path.join(ROOT_DIR, 'dist');
 
 const isProduction = process.env.NODE_ENV === 'production';
 
-if (!process.env.BETTERCORD_APP_URL) {
-	throw new Error(
-		'[BetterCord] BETTERCORD_APP_URL is not set. Set it before running the build script.',
-	);
-}
+// MESH_APP_URL is optional — when not set, the app serves the bundled web app
+// via the custom app:// protocol (extraResources/webapp/ in the electron-builder config).
+// Set it only for remote-hosted or dev builds: MESH_APP_URL=http://localhost:8080 npm run dev
 
 const electronExternals = [
 	'electron',
@@ -87,8 +85,8 @@ async function buildMain() {
 		plugins: [pathAliasPlugin],
 		define: {
 			'process.env.NODE_ENV': JSON.stringify(isProduction ? 'production' : 'development'),
-			'process.env.BETTERCORD_APP_URL': JSON.stringify(process.env.BETTERCORD_APP_URL),
-			'process.env.BETTERCORD_CANARY_URL': JSON.stringify(process.env.BETTERCORD_CANARY_URL ?? process.env.BETTERCORD_APP_URL),
+			'process.env.MESH_APP_URL': JSON.stringify(process.env.MESH_APP_URL ?? null),
+			'process.env.MESH_CANARY_URL': JSON.stringify(process.env.MESH_CANARY_URL ?? process.env.MESH_APP_URL ?? null),
 		},
 	});
 
