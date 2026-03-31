@@ -66,12 +66,11 @@ module.exports = {
 		category: 'public.app-category.social-networking',
 		icon: `build_resources/${iconDir}/_compiled/AppIcon.icns`,
 		darkModeSupport: true,
-		hardenedRuntime: true,
+		// hardenedRuntime requires a valid Apple Developer signing certificate + notarization.
+		// Without both, macOS produces an invalid signature that blocks the app even after
+		// removing the quarantine attribute (xattr -cr). Disabled until we have a cert.
+		hardenedRuntime: false,
 		gatekeeperAssess: false,
-		entitlements: isCanary
-			? 'build_resources/entitlements.mac.canary.plist'
-			: 'build_resources/entitlements.mac.stable.plist',
-		entitlementsInherit: 'build_resources/entitlements.mac.inherit.plist',
 		target: [
 			{
 				target: 'dmg',
