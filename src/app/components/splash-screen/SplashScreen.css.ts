@@ -38,8 +38,8 @@ export const Logo = style({
   zIndex: 1,
   width: '4.5rem',
   height: '4.5rem',
-  borderRadius: '30%',
   userSelect: 'none',
+  display: 'block',
 });
 
 // Legacy export — keep for any imports that reference it
