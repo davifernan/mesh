@@ -39,14 +39,6 @@ export const Logo = style({
   width: '4.5rem',
   height: '4.5rem',
   borderRadius: '30%',
-  backgroundColor: 'var(--brand-primary)',
-  display: 'flex',
-  alignItems: 'center',
-  justifyContent: 'center',
-  fontSize: '1.4rem',
-  fontWeight: 700,
-  color: '#ffffff',
-  letterSpacing: '-0.02em',
   userSelect: 'none',
 });
 

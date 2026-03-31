@@ -11,7 +11,7 @@ export function SplashScreen({ children }: SplashScreenProps) {
       {children}
       <div className={css.SplashCenter}>
         <div className={css.PulseRing} />
-        <div className={css.Logo}>BC</div>
+        <img className={css.Logo} src="/res/svg/mesh-icon.svg" alt="mesh" />
       </div>
     </div>
   );
