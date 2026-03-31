@@ -77,18 +77,10 @@ export const AuthLogoContent = style({
 export const AuthLogoMark = style({
   width: '7rem',
   height: '7rem',
-  borderRadius: '30%',
-  backgroundColor: 'var(--brand-primary)',
-  display: 'flex',
-  alignItems: 'center',
-  justifyContent: 'center',
-  fontSize: '1.75rem',
-  fontWeight: '700',
-  color: '#ffffff',
-  letterSpacing: '-0.02em',
   flexShrink: 0,
   marginBottom: '0.25rem',
-  boxShadow: '0 8px 24px rgba(0,0,0,0.3)',
+  display: 'block',
+  // SVG already has its own rounded background — no duplicate needed
 });
 
 export const AuthBrandName = style({

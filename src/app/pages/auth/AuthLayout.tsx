@@ -126,7 +126,7 @@ export function AuthLayout() {
           {/* LEFT: mesh logo side (33%) */}
           <div className={css.AuthLogoSide}>
             <div className={css.AuthLogoContent}>
-              <div className={css.AuthLogoMark}>BC</div>
+              <img src="/res/svg/mesh-icon.svg" alt="mesh" className={css.AuthLogoMark} />
               <h2 className={css.AuthBrandName}>mesh</h2>
               <p className={css.AuthTagline}>Privacy-first communities on Matrix</p>
             </div>
