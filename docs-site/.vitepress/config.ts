@@ -5,8 +5,11 @@ export default defineConfig({
   description: 'Self-hosted Discord alternative built on Matrix. Native LiveKit voice/video, E2EE, spaces, channels — own your data.',
   lang: 'en-US',
 
+
   head: [
     ['link', { rel: 'icon', type: 'image/svg+xml', href: '/logo.svg' }],
+    ['link', { rel: 'icon', type: 'image/png', sizes: '32x32', href: '/favicon-32.png' }],
+    ['link', { rel: 'apple-touch-icon', sizes: '180x180', href: '/apple-touch-icon.png' }],
     ['meta', { name: 'theme-color', content: '#5865f2' }],
     ['meta', { property: 'og:type', content: 'website' }],
     ['meta', { property: 'og:site_name', content: 'mesh docs' }],
