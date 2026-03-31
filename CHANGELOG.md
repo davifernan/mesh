@@ -9,6 +9,12 @@ Versioning: [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+---
+
+## [0.2.0] — 2026-03-31 — Public release
+
+First public open-source release.
+
 ### Added
 - Native LiveKit voice/video calls — no Element Call iframe, no matrix-widget-api dependency
 - Matrix RTC (MSC4143) membership management with delayed-event keepalive
@@ -29,10 +35,12 @@ Versioning: [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 - PWA support — installable on any platform
 - Encrypted token storage (AES in localStorage) and OS keychain support in Electron
 - Push-to-talk (PTT) with configurable hold key and global shortcut via Electron
+- Post-login E2EE setup prompt (SecuritySetupModal) for cross-signing / backup
 
 ### Changed
 - Forked from [Cinny](https://github.com/cinnyapp/cinny) v4 — full Discord-style layout redesign
 - Replaced Element Call iframe with native LiveKit integration
+- Service worker no longer registers in development (prevents stale-cache issues)
 
 ---
 
@@ -40,4 +48,5 @@ Versioning: [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 Internal pre-release. Not publicly tagged.
 
-[Unreleased]: https://github.com/davifernan/mesh/compare/HEAD...HEAD
+[Unreleased]: https://github.com/davifernan/mesh/compare/v0.2.0...HEAD
+[0.2.0]: https://github.com/davifernan/mesh/compare/v0.1.0...v0.2.0
