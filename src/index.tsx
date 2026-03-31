@@ -21,28 +21,35 @@ import { getSessionAsync } from './app/state/sessions';
 
 document.body.classList.add(configClass, varsClass);
 
-// Register Service Worker
+// Service worker in dev frequently causes stale-cache / white-screen issues on
+// localhost after branch switches or Vite restarts. Keep SW for production only
+// and proactively unregister any old localhost registrations in development.
 if ('serviceWorker' in navigator) {
-  const swUrl =
-    import.meta.env.MODE === 'production'
-      ? `${trimTrailingSlash(import.meta.env.BASE_URL)}/sw.js`
-      : `/dev-sw.js?dev-sw`;
-
   const sendSessionToSW = async () => {
     const session = await getSessionAsync();
     pushSessionToSW(session?.baseUrl, session?.accessToken);
   };
 
-  navigator.serviceWorker.register(swUrl).then(() => void sendSessionToSW());
-  navigator.serviceWorker.ready.then(() => void sendSessionToSW());
+  if (import.meta.env.DEV) {
+    void navigator.serviceWorker.getRegistrations().then((registrations) => {
+      registrations.forEach((registration) => {
+        void registration.unregister();
+      });
+    });
+  } else {
+    const swUrl = `${trimTrailingSlash(import.meta.env.BASE_URL)}/sw.js`;
 
-  navigator.serviceWorker.addEventListener('message', (ev) => {
-    const { type } = ev.data ?? {};
+    navigator.serviceWorker.register(swUrl).then(() => void sendSessionToSW());
+    navigator.serviceWorker.ready.then(() => void sendSessionToSW());
 
-    if (type === 'requestSession') {
-      void sendSessionToSW();
-    }
-  });
+    navigator.serviceWorker.addEventListener('message', (ev) => {
+      const { type } = ev.data ?? {};
+
+      if (type === 'requestSession') {
+        void sendSessionToSW();
+      }
+    });
+  }
 }
 
 const mountApp = () => {

@@ -181,7 +181,7 @@ mesh is free software licensed under [AGPL-3.0](LICENSE).
 
 It builds on the work of:
 - [Cinny](https://github.com/cinnyapp/cinny) — original Matrix client UI (AGPL-3.0)
-- [Fluxer](https://github.com/FluxerApp/Fluxer) — Discord-style UI patterns (AGPL-3.0)
+- [Fluxer](https://github.com/FluxerApp/Fluxer) — Discord-style UI patterns and sound effects (AGPL-3.0)
 - [Element Call](https://github.com/element-hq/element-call) — MatrixRTC reference implementation (AGPL-3.0)
 - [LiveKit](https://livekit.io) — WebRTC SFU infrastructure (Apache-2.0)
 
