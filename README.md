@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="https://raw.githubusercontent.com/davifernan/mesh/main/public/res/svg/mesh-icon.svg" width="96" height="96" alt="mesh logo" />
+</p>
+
 # mesh
 
 > **Private. Decentral. Yours.**
