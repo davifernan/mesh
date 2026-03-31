@@ -111,10 +111,6 @@ module.exports = {
 				target: 'nsis',
 				arch: ['x64', 'arm64'],
 			},
-			{
-				target: 'squirrel',
-				arch: ['x64'],
-			},
 		],
 	},
 
@@ -125,12 +121,6 @@ module.exports = {
 		deleteAppDataOnUninstall: false,
 		createDesktopShortcut: true,
 		createStartMenuShortcut: true,
-	},
-
-	squirrelWindows: {
-		// Set MESH_APP_URL at build time so the icon URL points to your deployment.
-		iconUrl: `${process.env.MESH_APP_URL}/icons/icon.ico`,
-		name: packageName,
 	},
 
 	linux: {
