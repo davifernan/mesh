@@ -111,6 +111,10 @@ module.exports = {
 				target: 'nsis',
 				arch: ['x64', 'arm64'],
 			},
+			{
+				target: 'squirrel',
+				arch: ['x64'],
+			},
 		],
 	},
 
@@ -121,6 +125,11 @@ module.exports = {
 		deleteAppDataOnUninstall: false,
 		createDesktopShortcut: true,
 		createStartMenuShortcut: true,
+	},
+
+	squirrelWindows: {
+		iconUrl: 'https://raw.githubusercontent.com/davifernan/mesh/main/desktop/build_resources/icons-stable/icon.ico',
+		name: packageName,
 	},
 
 	linux: {
