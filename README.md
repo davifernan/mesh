@@ -2,13 +2,43 @@
   <img src="https://raw.githubusercontent.com/davifernan/mesh/main/public/res/svg/mesh-icon.svg" width="96" height="96" alt="mesh logo" />
 </p>
 
-# mesh
+<h1 align="center">mesh</h1>
 
-> **Private. Decentral. Yours.**
+<p align="center">
+  <strong>Private. Decentral. Yours.</strong>
+</p>
 
-mesh is a self-hosted Matrix client with a Discord-style interface, native LiveKit voice/video, end-to-end encryption, and screenshare — built to be hosted by anyone, owned by everyone.
+<p align="center">
+  <a href="LICENSE"><img src="https://img.shields.io/badge/license-AGPL--3.0-blue.svg" alt="License: AGPL-3.0" /></a>
+  <a href="https://github.com/davifernan/mesh/releases"><img src="https://img.shields.io/github/v/release/davifernan/mesh?label=release" alt="Latest release" /></a>
+  <a href="https://github.com/davifernan/mesh/issues"><img src="https://img.shields.io/github/issues/davifernan/mesh" alt="Open issues" /></a>
+</p>
 
-**Host it. Own it.**
+<p align="center">
+  mesh is a self-hosted Matrix client with a Discord-style interface, native LiveKit voice/video, end-to-end encryption, and screenshare — built to be hosted by anyone, owned by everyone.
+</p>
+
+<p align="center">
+  <a href="https://hostmesh.diy"><strong>Website</strong></a> · <a href="DEPLOY.md"><strong>Deploy Guide</strong></a> · <a href="https://github.com/davifernan/mesh/releases"><strong>Releases</strong></a> · <a href="https://github.com/davifernan/mesh/issues"><strong>Issues</strong></a>
+</p>
+
+---
+
+## Screenshots
+
+<p align="center">
+  <img src="public/screenshots/Callview_Stream.png" width="100%" alt="mesh — voice call with screenshare at 4K/120fps" />
+</p>
+
+<p align="center">
+  <img src="public/screenshots/Chatview.png" width="48%" alt="mesh — chat view" />
+  &nbsp;
+  <img src="public/screenshots/CallView_Mobile.png" width="22%" alt="mesh — mobile call view" />
+</p>
+
+<p align="center">
+  <img src="public/screenshots/Indicators.png" width="40%" alt="mesh — voice channel presence indicators (LIVE, muted, screenshare)" />
+</p>
 
 ---
 
@@ -128,10 +158,16 @@ Supported platforms:
 
 ### Installation warnings
 
-**macOS:** Because mesh is not signed with an Apple Developer certificate, macOS will block it on first launch with *"mesh cannot be opened because it is from an unidentified developer"*. To run it anyway:
-> System Settings → Privacy & Security → scroll down → click **"Open Anyway"**
+**macOS:** mesh is not signed or notarized with an Apple Developer certificate. On macOS 13+, "Open Anyway" alone is not enough — macOS will still block it. The fix is to remove the quarantine attribute via Terminal:
 
-Or via Terminal: `xattr -cr /Applications/mesh.app`
+```bash
+xattr -cr /Applications/mesh.app
+```
+
+Then open it normally. If you downloaded the `.dmg` and haven't moved it yet, run this first:
+```bash
+xattr -cr ~/Downloads/mesh-*.dmg
+```
 
 **Windows:** Windows SmartScreen may show *"Windows protected your PC"* because the app is not yet code-signed. Click **"More info" → "Run anyway"** to install.
 
@@ -187,6 +223,24 @@ mesh aims for strong privacy, but there are inherent limitations you should be a
 - **Presence bridge:** The optional presence bridge tracks call state (mute/camera/screenshare) server-side for sidebar badges. This metadata is visible to the bridge operator.
 
 For maximum privacy, use encrypted rooms and self-host both your Matrix homeserver and LiveKit instance.
+
+---
+
+## Contributing
+
+Contributions are very welcome — this project was started by one person and the community is what will make it genuinely good.
+
+**Good ways to contribute:**
+
+- **Bug reports** — Open an issue with steps to reproduce. Include your browser/OS and any console errors.
+- **Feature requests** — Open an issue describing what you'd want and why. No need to implement it yourself.
+- **Pull requests** — Fork the repo, make your changes on a branch, and open a PR. Small focused PRs are easier to review than large ones.
+- **Testing** — Self-host it, try to break it, and report what you find.
+- **Documentation** — Improvements to the deploy guide, env variable docs, or architecture notes are always appreciated.
+
+**Before opening a PR for a larger change**, it's worth opening an issue first to discuss the approach — saves everyone time.
+
+There's no formal CLA or contributor agreement. Standard GitHub fork-and-PR flow is fine.
 
 ---
 
