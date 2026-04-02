@@ -17,9 +17,12 @@ import {
   SearchTab,
 } from './sidebar';
 import { CreateTab } from './sidebar/CreateTab';
+import { ScreenSize, useScreenSizeContext } from '../../hooks/useScreenSize';
 
 export function SidebarNav() {
   const scrollRef = useRef<HTMLDivElement>(null);
+  const screenSize = useScreenSizeContext();
+  const isMobile = screenSize === ScreenSize.Mobile;
 
   // Initialise roving tabIndex: all sidebar buttons get tabindex=-1 except the first.
   // This makes the sidebar a single tab stop; arrow keys move within it.
@@ -81,29 +84,47 @@ export function SidebarNav() {
                 alignItems: 'center',
               }}
             >
-              <SidebarStack>
-                <HomeTab />
-                <DirectTab />
-              </SidebarStack>
+              {/* On mobile: only show space icons (Discord-style persistent strip).
+                  Home / DMs / Inbox / Settings live in the bottom nav on mobile. */}
+              {!isMobile && (
+                <SidebarStack>
+                  <HomeTab />
+                  <DirectTab />
+                </SidebarStack>
+              )}
               <SpaceTabs scrollRef={scrollRef} />
-              <SidebarStackSeparator />
-              <SidebarStack>
-                <ExploreTab />
-                <CreateTab />
-              </SidebarStack>
+              {!isMobile && (
+                <>
+                  <SidebarStackSeparator />
+                  <SidebarStack>
+                    <ExploreTab />
+                    <CreateTab />
+                  </SidebarStack>
+                </>
+              )}
             </div>
           </div>
         }
         sticky={
-          <>
-            <SidebarStackSeparator />
-            <SidebarStack>
-              <SearchTab />
-              <UnverifiedTab />
-              <InboxTab />
+          isMobile ? (
+            // On mobile: SettingsTab + UnverifiedTab are modal controllers with no visible
+            // button UI — they must stay in the tree so their atom listeners stay alive.
+            // The actual gear/verify buttons live in MobileBottomNav on mobile.
+            <>
               <SettingsTab />
-            </SidebarStack>
-          </>
+              <UnverifiedTab />
+            </>
+          ) : (
+            <>
+              <SidebarStackSeparator />
+              <SidebarStack>
+                <SearchTab />
+                <UnverifiedTab />
+                <InboxTab />
+                <SettingsTab />
+              </SidebarStack>
+            </>
+          )
         }
       />
     </Sidebar>

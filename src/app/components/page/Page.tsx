@@ -12,11 +12,18 @@ type PageRootProps = {
 
 export function PageRoot({ nav, children }: PageRootProps) {
   const screenSize = useScreenSizeContext();
+  const isMobile = screenSize === ScreenSize.Mobile;
 
   return (
-    <Box grow="Yes" className={ContainerColor({ variant: 'Background' })}>
+    <Box
+      grow="Yes"
+      className={ContainerColor({ variant: 'Background' })}
+      // On mobile: relative+hidden so MobileSlide can position absolute on top of the
+      // channel list (MobileFriendlyPageNav) without disrupting the flex layout.
+      style={isMobile ? { position: 'relative', overflow: 'hidden' } : undefined}
+    >
       {nav}
-      {screenSize !== ScreenSize.Mobile && (
+      {!isMobile && (
         <Line variant="Background" size="300" direction="Vertical" />
       )}
       {children}

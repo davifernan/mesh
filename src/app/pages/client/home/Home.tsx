@@ -72,6 +72,8 @@ import { useOrphanSpaces } from '../../../state/hooks/roomList';
 import { allRoomsAtom } from '../../../state/room-list/roomList';
 import { roomToParentsAtom } from '../../../state/room/roomToParents';
 import { useSidebarItems } from '../../../hooks/useSidebarItems';
+import { useSpaceVoiceActivity } from '../../../hooks/useSpaceVoiceActivity';
+import { useSpaceLiveActivity } from '../../../hooks/useSpaceLiveActivity';
 import { ScreenSize, useScreenSizeContext } from '../../../hooks/useScreenSize';
 import { HomeSpaceCard } from './HomeSpaceCard';
 import { ActiveCallsSection } from './ActiveCallsSection';
@@ -203,8 +205,16 @@ function HomeSpacesSection() {
   const orphanSpaces = useOrphanSpaces(mx, allRoomsAtom, roomToParents);
   const [sidebarItems] = useSidebarItems(orphanSpaces);
 
-  // Flatten: skip folder objects, just show top-level space IDs
-  const spaceIds = sidebarItems.filter((item): item is string => typeof item === 'string');
+  // Flatten all spaces including those inside sidebar folders
+  const spaceIds = sidebarItems.flatMap((item) =>
+    typeof item === 'string' ? [item] : item.content
+  );
+
+  // Populate voice/live activity atoms on mobile.
+  // SpaceTabs runs off-screen in the DOM, but calling these hooks here ensures
+  // the atoms are always fresh for the HomeSpaceCard badges on mobile.
+  useSpaceVoiceActivity(spaceIds);
+  useSpaceLiveActivity(spaceIds);
 
   const handleSpaceClick = (roomId: string) => {
     navigate(getSpacePath(getCanonicalAliasOrRoomId(mx, roomId)));

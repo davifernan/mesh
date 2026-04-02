@@ -53,7 +53,7 @@ import { WelcomePage } from './client/WelcomePage';
 import { SidebarNav } from './client/SidebarNav';
 import { PageRoot } from '../components/page';
 import { ScreenSize } from '../hooks/useScreenSize';
-import { MobileFriendlyPageNav } from './MobileFriendly';
+import { MobileFriendlyPageNav, MobileSlide } from './MobileFriendly';
 import { ClientInitStorageAtom } from './client/ClientInitStorageAtom';
 import { ClientNonUIFeatures } from './client/ClientNonUIFeatures';
 import { AuthRouteThemeManager, UnAuthRouteThemeManager } from './ThemeManager';
@@ -211,7 +211,9 @@ export const createRouter = (clientConfig: ClientConfig, screenSize: ScreenSize,
             path={_ROOM_PATH}
             element={
               <HomeRouteRoomProvider>
-                <Room />
+                <MobileSlide>
+                  <Room />
+                </MobileSlide>
               </HomeRouteRoomProvider>
             }
           />
@@ -236,7 +238,9 @@ export const createRouter = (clientConfig: ClientConfig, screenSize: ScreenSize,
             path={_ROOM_PATH}
             element={
               <DirectRouteRoomProvider>
-                <Room />
+                <MobileSlide>
+                  <Room />
+                </MobileSlide>
               </DirectRouteRoomProvider>
             }
           />
@@ -276,7 +280,9 @@ export const createRouter = (clientConfig: ClientConfig, screenSize: ScreenSize,
             path={_ROOM_PATH}
             element={
               <SpaceRouteRoomProvider>
-                <Room />
+                <MobileSlide>
+                  <Room />
+                </MobileSlide>
               </SpaceRouteRoomProvider>
             }
           />

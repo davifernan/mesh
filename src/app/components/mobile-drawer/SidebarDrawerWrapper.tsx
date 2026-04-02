@@ -1,35 +1,15 @@
 import React from 'react';
-import { useMobileDrawer } from './MobileDrawerContext';
-import * as css from './MobileDrawer.css';
 
 type SidebarDrawerWrapperProps = {
   children: React.ReactNode;
 };
 
 /**
- * Wraps the sidebar icon strip in a mobile slide-in drawer.
- * On desktop (> 750px): the wrapper div has no effect — sidebar renders normally.
- * On mobile (≤ 750px): sidebar is fixed-positioned, off-screen by default,
- * slides in when isOpen is true.
- *
- * Also renders the semi-transparent overlay that closes the drawer on click.
+ * Previously wrapped the sidebar in a mobile slide-in drawer.
+ * Now the sidebar is always rendered inline as a narrow icon strip on both
+ * desktop and mobile (Discord-style persistent left column).
+ * This component is kept as a thin pass-through so Router.tsx doesn't need changes.
  */
 export function SidebarDrawerWrapper({ children }: SidebarDrawerWrapperProps) {
-  const { isOpen, close } = useMobileDrawer();
-
-  return (
-    <>
-      {/* Overlay — only visible on mobile when drawer is open */}
-      <div
-        className={css.mobileOverlay}
-        data-open={String(isOpen)}
-        onClick={close}
-        aria-hidden="true"
-      />
-      {/* Drawer wrapper */}
-      <div id="mobile-sidebar-drawer" className={css.mobileDrawer} data-open={String(isOpen)}>
-        {children}
-      </div>
-    </>
-  );
+  return <>{children}</>;
 }

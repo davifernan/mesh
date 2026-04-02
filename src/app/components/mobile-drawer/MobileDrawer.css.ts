@@ -1,56 +1,16 @@
 import { style } from '@vanilla-extract/css';
 
-// Mobile breakpoint matches MOBILE_BREAKPOINT = 750 from useScreenSize.ts
-const MOBILE_MAX = '750px';
-
 /**
- * Applied to the sidebar wrapper element.
- * On desktop: no effect (sidebar is always visible in flow).
- * On mobile: fixed positioned, slides in from the left.
- * Toggle via data-open attribute.
+ * The sidebar is ALWAYS rendered inline — on both desktop and mobile.
+ * On mobile it forms the narrow left icon strip (72px) of the Discord-style layout.
+ * The old drawer/slide-in behaviour has been removed.
  */
-export const mobileDrawer = style({
-  '@media': {
-    [`(max-width: ${MOBILE_MAX})`]: {
-      position: 'fixed',
-      top: 0,
-      left: 0,
-      height: '100%',
-      zIndex: 200,
-      transform: 'translateX(-100%)',
-      transition: 'transform 250ms cubic-bezier(0.4, 0, 0.2, 1)',
-      selectors: {
-        '&[data-open="true"]': {
-          transform: 'translateX(0)',
-        },
-      },
-    },
-  },
-});
+export const mobileDrawer = style({});
 
 /**
- * Semi-transparent overlay behind the open drawer.
- * Hidden on desktop, rendered (but transparent+non-interactive) on mobile.
- * Becomes visible when data-open="true".
+ * Overlay is no longer used (sidebar is always visible, no drawer to close).
+ * Kept as an empty style so imports don't break.
  */
 export const mobileOverlay = style({
   display: 'none',
-  '@media': {
-    [`(max-width: ${MOBILE_MAX})`]: {
-      display: 'block',
-      position: 'fixed',
-      inset: 0,
-      zIndex: 199,
-      backgroundColor: 'rgba(0,0,0,0.5)',
-      opacity: 0,
-      pointerEvents: 'none',
-      transition: 'opacity 250ms ease',
-      selectors: {
-        '&[data-open="true"]': {
-          opacity: 1,
-          pointerEvents: 'auto',
-        },
-      },
-    },
-  },
 });
