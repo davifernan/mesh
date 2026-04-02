@@ -300,8 +300,8 @@ function MicTestButton({ micDeviceId, speakerDeviceId }: MicTestProps) {
           whiteSpace: testing ? 'normal' : 'nowrap',
         }}>
           {testing
-            ? 'Sprich — du hörst dich selbst über die Ausgabe'
-            : 'Mikrofon testen'}
+            ? 'Speak — you will hear yourself through the output'
+            : 'Test microphone'}
         </span>
       </div>
     </div>

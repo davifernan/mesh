@@ -61,14 +61,14 @@ function UploadTab({ onFile, isLoading }: UploadTabProps) {
         onClick={() => !isLoading && fileInputRef.current?.click()}
         role="button"
         tabIndex={0}
-        aria-label="Datei auswählen oder hierher ziehen"
+        aria-label="Select or drag a file here"
         onKeyDown={(e) => {
           if (e.key === 'Enter' || e.key === ' ') fileInputRef.current?.click();
         }}
       >
         <span style={{ fontSize: 28 }}>🎵</span>
         <span className={css.DropZoneText}>
-          Datei hierher ziehen oder klicken zum Auswählen
+          Drag a file here or click to select
         </span>
         <span className={css.DropZoneSub}>
           MP3, WAV, OGG, M4A, AAC, FLAC, OPUS, WEBM — max. 2 MB
@@ -82,7 +82,7 @@ function UploadTab({ onFile, isLoading }: UploadTabProps) {
           }}
           disabled={isLoading}
         >
-          Datei auswählen
+          Browse file
         </button>
       </div>
       <input
@@ -129,7 +129,7 @@ function UrlTab({ onFetch, isLoading }: UrlTabProps) {
         onClick={handleFetch}
         disabled={isLoading || !urlValue.trim()}
       >
-        {isLoading ? '…' : 'Abrufen'}
+        {isLoading ? '…' : 'Fetch'}
       </button>
     </div>
   );
@@ -180,7 +180,7 @@ export function ImportSoundModal({
         onClose();
       }
     } catch (err) {
-      setCommitError(err instanceof Error ? err.message : 'Unbekannter Fehler');
+      setCommitError(err instanceof Error ? err.message : 'Unknown error');
     } finally {
       setCommitting(false);
     }
@@ -202,20 +202,20 @@ export function ImportSoundModal({
         {/* ── Header ────────────────────────────────────────────────────── */}
         <div className={css.Header}>
           <h2 id="import-sound-title" className={css.Title}>
-            Sound hinzufügen
+            Add sound
           </h2>
           <button
             type="button"
             className={css.CloseBtn}
             onClick={handleClose}
-            aria-label="Schließen"
+            aria-label="Close"
           >
             ✕
           </button>
         </div>
 
         {/* ── Provider tabs ─────────────────────────────────────────────── */}
-        <div className={css.TabBar} role="tablist" aria-label="Importquelle">
+        <div className={css.TabBar} role="tablist" aria-label="Import source">
           {providers.map((p) => (
             <button
               key={p.id}
@@ -244,7 +244,7 @@ export function ImportSoundModal({
           {/* Upload tab */}
           {selectedProvider?.id === 'upload' && (
             <div>
-              <div className={css.SectionLabel}>Audiodatei</div>
+              <div className={css.SectionLabel}>Audio file</div>
               <UploadTab onFile={importFromFile} isLoading={isLoading} />
             </div>
           )}
@@ -252,7 +252,7 @@ export function ImportSoundModal({
           {/* URL tab */}
           {selectedProvider?.id === 'url' && (
             <div>
-              <div className={css.SectionLabel}>Direkte URL</div>
+              <div className={css.SectionLabel}>Direct URL</div>
               <UrlTab onFetch={importFromUrl} isLoading={isLoading} />
             </div>
           )}
@@ -260,7 +260,7 @@ export function ImportSoundModal({
           {/* No provider selected yet */}
           {!selectedProvider && (
             <p style={{ color: 'rgba(255,255,255,0.35)', fontSize: 13, margin: 0 }}>
-              Wähle oben eine Importquelle.
+              Select an import source above.
             </p>
           )}
 
@@ -286,7 +286,7 @@ export function ImportSoundModal({
           {/* Loading indicator */}
           {isLoading && (
             <p style={{ color: 'rgba(255,255,255,0.4)', fontSize: 13, margin: 0 }}>
-              Lade…
+              Loading…
             </p>
           )}
 
@@ -296,14 +296,14 @@ export function ImportSoundModal({
               {/* Title + Emoji */}
               <div className={css.FieldGroup}>
                 <label className={css.FieldLabel} htmlFor="sound-title">
-                  Titel
+                  Title
                 </label>
                 <div className={css.TitleEmojiRow}>
                   <button
                     type="button"
                     className={css.EmojiBtn}
-                    aria-label="Emoji auswählen"
-                    title="Emoji auswählen"
+                    aria-label="Pick emoji"
+                    title="Pick emoji"
                     onClick={() => {
                       // Cycle through common sound emojis for now;
                       // replace with a real picker in Stream D / V2
@@ -318,7 +318,7 @@ export function ImportSoundModal({
                     id="sound-title"
                     className={css.TextInput}
                     type="text"
-                    placeholder="Sound-Titel"
+                    placeholder="Sound title"
                     value={metadata.title}
                     onChange={(e) => setMetadata({ title: e.target.value })}
                     maxLength={64}
@@ -329,7 +329,7 @@ export function ImportSoundModal({
               {/* Volume */}
               <div className={css.FieldGroup}>
                 <label className={css.FieldLabel} htmlFor="sound-volume">
-                  Lautstärke
+                  Volume
                 </label>
                 <div className={css.VolumeRow}>
                   <input
@@ -354,14 +354,14 @@ export function ImportSoundModal({
                 <label className={css.FieldLabel} htmlFor="sound-tags">
                   Tags{' '}
                   <span style={{ color: 'rgba(255,255,255,0.25)', fontWeight: 400 }}>
-                    (kommagetrennt)
+                    (comma-separated)
                   </span>
                 </label>
                 <input
                   id="sound-tags"
                   className={css.TextInput}
                   type="text"
-                  placeholder="lustig, intro, meme"
+                  placeholder="funny, intro, meme"
                   value={metadata.tags}
                   onChange={(e) => setMetadata({ tags: e.target.value })}
                 />
@@ -388,7 +388,7 @@ export function ImportSoundModal({
         {/* ── Footer ────────────────────────────────────────────────────── */}
         <div className={css.Footer}>
           <button type="button" className={css.BtnCancel} onClick={handleClose}>
-            Abbrechen
+            Cancel
           </button>
           <button
             type="button"
@@ -396,7 +396,7 @@ export function ImportSoundModal({
             onClick={handleCommit}
             disabled={!canCommit}
           >
-            {committing ? 'Hinzufügen…' : 'Hinzufügen'}
+            {committing ? 'Adding…' : 'Add'}
           </button>
         </div>
       </div>

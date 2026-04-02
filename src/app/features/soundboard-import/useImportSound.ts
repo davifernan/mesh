@@ -100,7 +100,7 @@ export function useImportSound(spaceId: string, boardId: string): UseImportSound
           title: result.title || prev.title,
         }));
       } catch (err) {
-        setError(err instanceof Error ? err.message : 'Fehler beim Import');
+        setError(err instanceof Error ? err.message : 'Error importing sound');
       } finally {
         setIsLoading(false);
       }
@@ -124,7 +124,7 @@ export function useImportSound(spaceId: string, boardId: string): UseImportSound
           title: result.title || prev.title,
         }));
       } catch (err) {
-        setError(err instanceof Error ? err.message : 'Fehler beim Abrufen der URL');
+        setError(err instanceof Error ? err.message : 'Error fetching URL');
       } finally {
         setIsLoading(false);
       }
@@ -134,10 +134,10 @@ export function useImportSound(spaceId: string, boardId: string): UseImportSound
 
   // ── commit ──────────────────────────────────────────────────────────────────
   const commit = useCallback(async (): Promise<SoundItem | null> => {
-    if (!importResult) throw new Error('Kein Sound importiert');
+    if (!importResult) throw new Error('No sound imported');
 
     const titleTrimmed = metadata.title.trim();
-    if (!titleTrimmed) throw new Error('Bitte einen Titel eingeben');
+    if (!titleTrimmed) throw new Error('Please enter a title');
 
     const tags = metadata.tags
       .split(',')
@@ -157,14 +157,14 @@ export function useImportSound(spaceId: string, boardId: string): UseImportSound
 
       // matrix-js-sdk v38 returns { content_uri: string }
       const mxcUri = (uploadResponse as { content_uri: string }).content_uri;
-      if (!mxcUri) throw new Error('Upload fehlgeschlagen – keine MXC-URI erhalten');
+      if (!mxcUri) throw new Error('Upload failed – no MXC URI received');
       sourceType = 'mxc';
       url = mxcUri;
     } else if (importResult.url) {
       sourceType = 'url';
       url = importResult.url;
     } else {
-      throw new Error('Kein Blob und keine URL im Import-Ergebnis');
+      throw new Error('No blob or URL in import result');
     }
 
     const soundDraft: Omit<SoundItem, 'id' | 'addedBy' | 'addedAt'> = {

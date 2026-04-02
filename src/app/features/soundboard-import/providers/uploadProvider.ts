@@ -99,8 +99,8 @@ export const uploadProvider: SoundImportProvider = {
     const ext = file.name.split('.').pop()?.toLowerCase();
     if (!ext || !SUPPORTED_EXTENSIONS.has(ext)) {
       throw new Error(
-        `Nicht unterstütztes Dateiformat ".${ext ?? ''}". ` +
-          `Erlaubt: ${[...SUPPORTED_EXTENSIONS].join(', ')}`
+        `Unsupported file format ".${ext ?? ''}". ` +
+          `Allowed: ${[...SUPPORTED_EXTENSIONS].join(', ')}`
       );
     }
 
@@ -108,7 +108,7 @@ export const uploadProvider: SoundImportProvider = {
     const mimeType = resolveMimeType(file);
     if (mimeType && !SUPPORTED_MIME_TYPES.has(mimeType)) {
       throw new Error(
-        `Ungültiger Dateityp: ${mimeType}. Bitte eine Audio-Datei auswählen.`
+        `Invalid file type: ${mimeType}. Please select an audio file.`
       );
     }
 
@@ -116,7 +116,7 @@ export const uploadProvider: SoundImportProvider = {
     if (file.size > MAX_SIZE_BYTES) {
       const sizeMb = (file.size / (1024 * 1024)).toFixed(1);
       throw new Error(
-        `Datei zu groß (${sizeMb} MB). Maximum ist 2 MB.`
+        `File too large (${sizeMb} MB). Maximum is 2 MB.`
       );
     }
 

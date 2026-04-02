@@ -40,7 +40,7 @@ export class MatrixKeyProvider extends BaseKeyProvider {
       })
       .catch((err) => {
         console.error('[MatrixKeyProvider] Failed to import encryption key:', err);
-        this.onError?.('E2EE Verschlüsselung konnte nicht initialisiert werden');
+        this.onError?.('E2EE encryption could not be initialized');
       });
   };
 }

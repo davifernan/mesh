@@ -90,12 +90,12 @@ export const urlProvider: SoundImportProvider = {
     try {
       parsed = new URL(url);
     } catch {
-      throw new Error('Ungültige URL. Bitte eine vollständige URL eingeben.');
+      throw new Error('Invalid URL. Please enter a complete URL.');
     }
 
     if (parsed.protocol !== 'https:') {
       throw new Error(
-        'Nur HTTPS-URLs sind erlaubt. Stelle sicher, dass die URL mit https:// beginnt.'
+        'Only HTTPS URLs are allowed. Make sure the URL starts with https://.'
       );
     }
 
@@ -109,14 +109,14 @@ export const urlProvider: SoundImportProvider = {
       if (sizeBytes !== null && sizeBytes > MAX_SIZE_BYTES) {
         const sizeMb = (sizeBytes / (1024 * 1024)).toFixed(1);
         throw new Error(
-          `Datei zu groß (${sizeMb} MB). Maximum ist 5 MB.`
+          `File too large (${sizeMb} MB). Maximum is 5 MB.`
         );
       }
 
       // Content-type check (only if HEAD succeeded)
       if (contentType && !hasExt && !isAudioContentType(contentType)) {
         throw new Error(
-          `Die URL scheint keine Audio-Datei zu sein (Content-Type: ${contentType}).`
+          `The URL does not appear to be an audio file (Content-Type: ${contentType}).`
         );
       }
     } else if (!hasExt) {

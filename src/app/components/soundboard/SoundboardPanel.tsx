@@ -255,7 +255,7 @@ export function SoundboardPanel({ onClose }: SoundboardPanelProps) {
 
   const sections = useMemo(() => {
     if (isSearching) {
-      return [{ title: `Ergebnisse fur "${search}"`, sounds: allSounds }];
+      return [{ title: `Results for "${search}"`, sounds: allSounds }];
     }
     if (!selectedSourceId) return [];
     return selectedBoards.map((board) => ({
@@ -286,10 +286,10 @@ export function SoundboardPanel({ onClose }: SoundboardPanelProps) {
           <input
             className={styles.searchInput}
             type="text"
-            placeholder="Finde den perfekten Sound"
+            placeholder="Find the perfect sound"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            aria-label="Suche Sounds"
+            aria-label="Search sounds"
           />
         </div>
 
@@ -324,7 +324,7 @@ export function SoundboardPanel({ onClose }: SoundboardPanelProps) {
             )}
           </div>
 
-          <button className={styles.closeBtn} onClick={onClose} aria-label="Soundboard schliessen">
+          <button className={styles.closeBtn} onClick={onClose} aria-label="Close soundboard">
             <X size={14} />
           </button>
         </div>
@@ -349,7 +349,7 @@ export function SoundboardPanel({ onClose }: SoundboardPanelProps) {
         <div className={styles.content}>
           {!isSearching && favoriteSoundItems.length > 0 && (
             <SoundboardSection
-              title="Meine Favoriten"
+              title="My Favorites"
               sounds={favoriteSoundItems}
               playingUrls={playingUrls}
               favoriteIds={favoriteIds}
@@ -375,7 +375,7 @@ export function SoundboardPanel({ onClose }: SoundboardPanelProps) {
           ))}
 
           {sections.every((section) => section.sounds.length === 0) && !favoriteSoundItems.length && (
-            <div className={styles.emptyState}>Keine Sounds</div>
+            <div className={styles.emptyState}>No sounds</div>
           )}
         </div>
       </div>

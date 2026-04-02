@@ -106,7 +106,7 @@ function CreateBoardForm({ spaceId, onDone, onCancel }: CreateBoardFormProps) {
         await createSoundboard(mx, spaceId, trimmedName, emoji.trim() || undefined);
         onDone();
       } catch (err) {
-        setError(err instanceof Error ? err.message : 'Fehler beim Erstellen');
+        setError(err instanceof Error ? err.message : 'Error creating soundboard');
       } finally {
         setSaving(false);
       }
@@ -128,7 +128,7 @@ function CreateBoardForm({ spaceId, onDone, onCancel }: CreateBoardFormProps) {
       }}
     >
       <Text size="L400" style={labelStyle}>
-        Neues Soundboard
+        New Soundboard
       </Text>
       <Box gap="200" alignItems="Center">
         <input
@@ -143,7 +143,7 @@ function CreateBoardForm({ spaceId, onDone, onCancel }: CreateBoardFormProps) {
         <input
           style={inputStyle}
           type="text"
-          placeholder="Name des Soundboards"
+          placeholder="Soundboard name"
           required
           value={name}
           onChange={(e) => setName(e.target.value)}
@@ -151,10 +151,10 @@ function CreateBoardForm({ spaceId, onDone, onCancel }: CreateBoardFormProps) {
           autoFocus
         />
         <button type="submit" style={primaryButtonStyle(saving || !name.trim())} disabled={saving || !name.trim()}>
-          {saving ? 'Erstellen…' : 'Erstellen'}
+          {saving ? 'Creating…' : 'Create'}
         </button>
         <button type="button" style={ghostButtonStyle} onClick={onCancel}>
-          Abbrechen
+          Cancel
         </button>
       </Box>
       {error && (
@@ -225,9 +225,9 @@ function SoundRow({ sound, boardId, spaceId, canManage }: SoundRowProps) {
           style={dangerButtonStyle(removing)}
           onClick={handleRemove}
           disabled={removing}
-          aria-label={`Sound ${sound.title} entfernen`}
+          aria-label={`Remove sound ${sound.title}`}
         >
-          {removing ? '…' : 'Entfernen'}
+          {removing ? '…' : 'Remove'}
         </button>
       )}
     </Box>
@@ -252,7 +252,7 @@ function SoundboardCard({ board, canManage, isAdmin }: SoundboardCardProps) {
   const soundCount = sounds.length;
 
   const handleDelete = useCallback(async () => {
-    if (!window.confirm(`Soundboard "${board.content.name}" wirklich löschen?`)) return;
+    if (!window.confirm(`Delete soundboard "${board.content.name}"?`)) return;
     setDeleting(true);
     try {
       await deleteSoundboard(mx, board.spaceId, board.boardId);
@@ -299,9 +299,9 @@ function SoundboardCard({ board, canManage, isAdmin }: SoundboardCardProps) {
               style={dangerButtonStyle(deleting)}
               onClick={handleDelete}
               disabled={deleting}
-              aria-label={`Soundboard ${board.content.name} löschen`}
+              aria-label={`Delete soundboard ${board.content.name}`}
             >
-              {deleting ? '…' : 'Löschen'}
+              {deleting ? '…' : 'Delete'}
             </button>
           )}
           <Icon
@@ -323,7 +323,7 @@ function SoundboardCard({ board, canManage, isAdmin }: SoundboardCardProps) {
         >
           {sounds.length === 0 && (
             <Text size="T300" style={{ color: 'var(--text-muted)', padding: '4px 0' }}>
-              Noch keine Sounds in diesem Board.
+              No sounds in this board yet.
             </Text>
           )}
           {sounds.map((sound) => (
@@ -342,7 +342,7 @@ function SoundboardCard({ board, canManage, isAdmin }: SoundboardCardProps) {
                 style={ghostButtonStyle}
                 onClick={() => setShowImport(true)}
               >
-                + Sound hinzufügen
+                + Add sound
               </button>
               {showImport && (
                 <ImportSoundModal
@@ -392,7 +392,7 @@ export function SpaceSoundboardSettings({ spaceId, requestClose }: SpaceSoundboa
         <Box grow="Yes">
           <PageContent>
             <Text size="T300" style={{ color: 'var(--text-muted)' }}>
-              Space nicht gefunden.
+              Space not found.
             </Text>
           </PageContent>
         </Box>
@@ -410,7 +410,7 @@ export function SpaceSoundboardSettings({ spaceId, requestClose }: SpaceSoundboa
             </Text>
           </Box>
           <Box shrink="No">
-            <IconButton onClick={requestClose} variant="Surface" aria-label="Schließen">
+            <IconButton onClick={requestClose} variant="Surface" aria-label="Close">
               <Icon src={Icons.Cross} />
             </IconButton>
           </Box>
@@ -424,11 +424,11 @@ export function SpaceSoundboardSettings({ spaceId, requestClose }: SpaceSoundboa
               /* ── No permission ── */
               <Box direction="Column" gap="200">
                 <Text size="T300" style={{ color: 'var(--text-muted)' }}>
-                  Du hast keine Berechtigung, Soundboards zu verwalten (Power Level ≥ 50 erforderlich).
+                  You do not have permission to manage soundboards (Power Level ≥ 50 required).
                 </Text>
                 {boards.length === 0 ? (
                   <Text size="T300" style={{ color: 'var(--text-muted)' }}>
-                    Keine Soundboards
+                    No soundboards
                   </Text>
                 ) : (
                   <Box direction="Column" gap="200" style={{ marginTop: 8 }}>
@@ -447,8 +447,8 @@ export function SpaceSoundboardSettings({ spaceId, requestClose }: SpaceSoundboa
               /* ── Can manage ── */
               <Box direction="Column" gap="400">
                 <Text size="T400" style={{ color: 'var(--text-muted)' }}>
-                  Verwalte die Community-Soundboards dieses Spaces. Mitglieder können Sounds im
-                  Soundboard-Panel abspielen.
+                  Manage the community soundboards of this space. Members can play sounds from
+                  the soundboard panel.
                 </Text>
 
                 {/* Create button / inline form */}
@@ -459,7 +459,7 @@ export function SpaceSoundboardSettings({ spaceId, requestClose }: SpaceSoundboa
                       style={primaryButtonStyle()}
                       onClick={() => setShowCreateForm(true)}
                     >
-                      + Neue Soundboard erstellen
+                      + Create new soundboard
                     </button>
                   </Box>
                 )}
@@ -486,12 +486,12 @@ export function SpaceSoundboardSettings({ spaceId, requestClose }: SpaceSoundboa
                   >
                     <Text size="H5" as="h3" align="Center">
                       {isAdmin
-                        ? 'Noch keine Soundboards. Erstelle das erste!'
-                        : 'Keine Soundboards'}
+                        ? 'No soundboards yet. Create the first one!'
+                        : 'No soundboards'}
                     </Text>
                     {isAdmin && (
                       <Text size="T200" align="Center" style={{ color: 'var(--text-muted)' }}>
-                        Klicke oben auf „Neue Soundboard erstellen", um loszulegen.
+                        Click "Create new soundboard" above to get started.
                       </Text>
                     )}
                   </Box>

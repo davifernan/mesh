@@ -7,16 +7,16 @@
 
 /** Known error patterns → user-facing messages. */
 const ERROR_PATTERNS: Array<[RegExp, string]> = [
-  [/device not found/i,         'Mikrofon nicht gefunden. Schließe ein Mikrofon an und versuche es erneut.'],
-  [/permission denied/i,        'Mikrofonzugriff verweigert. Bitte erlaube den Zugriff in den Browsereinstellungen.'],
-  [/not allowed/i,              'Mikrofonzugriff nicht erlaubt. Bitte Berechtigungen prüfen.'],
-  [/No LiveKit focus URL/i,     'Kein Voice-Server konfiguriert. Bitte einen Administrator kontaktieren.'],
-  [/SFU token.*failed/i,        'Verbindung zum Voice-Server fehlgeschlagen. Bitte erneut versuchen.'],
-  [/Legacy SFU.*failed/i,       'Voice-Server nicht erreichbar. Bitte erneut versuchen.'],
-  [/Room not found/i,           'Raum nicht gefunden. Bitte die Seite neu laden.'],
-  [/ICE.*failed/i,              'Netzwerkverbindung fehlgeschlagen. Firewall oder VPN könnte das Problem sein.'],
-  [/signal.*lost/i,             'Signalverbindung unterbrochen. Verbindung wird wiederhergestellt…'],
-  [/timeout/i,                  'Zeitüberschreitung bei der Verbindung. Bitte erneut versuchen.'],
+  [/device not found/i,         'Microphone not found. Please connect a microphone and try again.'],
+  [/permission denied/i,        'Microphone access denied. Please allow access in your browser settings.'],
+  [/not allowed/i,              'Microphone access not permitted. Please check your permissions.'],
+  [/No LiveKit focus URL/i,     'No voice server configured. Please contact an administrator.'],
+  [/SFU token.*failed/i,        'Connection to voice server failed. Please try again.'],
+  [/Legacy SFU.*failed/i,       'Voice server unreachable. Please try again.'],
+  [/Room not found/i,           'Room not found. Please reload the page.'],
+  [/ICE.*failed/i,              'Network connection failed. A firewall or VPN may be the cause.'],
+  [/signal.*lost/i,             'Signal connection lost. Attempting to reconnect…'],
+  [/timeout/i,                  'Connection timed out. Please try again.'],
 ];
 
 /**
@@ -35,5 +35,5 @@ export function formatCallError(err: unknown): string {
 
   // Generic fallback — show a truncated raw message so devs can still diagnose
   const truncated = message.length > 120 ? `${message.slice(0, 120)}…` : message;
-  return `Verbindungsfehler: ${truncated}`;
+  return `Connection error: ${truncated}`;
 }

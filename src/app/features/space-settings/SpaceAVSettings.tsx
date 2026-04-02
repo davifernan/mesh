@@ -111,7 +111,7 @@ export function SpaceAVSettings({ requestClose }: SpaceAVSettingsProps) {
       setSaved(true);
       setTimeout(() => setSaved(false), 2500);
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Fehler beim Speichern');
+      setError(e instanceof Error ? e.message : 'Error saving settings');
     } finally {
       setSaving(false);
     }
@@ -150,11 +150,11 @@ export function SpaceAVSettings({ requestClose }: SpaceAVSettingsProps) {
         <Box grow="Yes" gap="200">
           <Box grow="Yes" alignItems="Center" gap="200">
             <Text size="H3" as="h1" truncate>
-              A/V Qualitätslimits
+              A/V Quality Limits
             </Text>
           </Box>
           <Box shrink="No">
-            <IconButton onClick={requestClose} variant="Surface" aria-label="Schließen">
+            <IconButton onClick={requestClose} variant="Surface" aria-label="Close">
               <Icon src={Icons.Cross} />
             </IconButton>
           </Box>
@@ -166,24 +166,24 @@ export function SpaceAVSettings({ requestClose }: SpaceAVSettingsProps) {
             {!canEdit ? (
               <Box direction="Column" gap="200">
                 <Text size="T300" style={{ color: 'var(--text-muted)' }}>
-                  Nur Space-Administratoren (Power Level ≥ 100) können diese Einstellungen ändern.
+                  Only space administrators (Power Level ≥ 100) can change these settings.
                 </Text>
                 {stateEvent ? (
                   <Box direction="Column" gap="400">
                     <div style={sectionStyle}>
-                      <div style={labelStyle}>Aktuelle Einstellungen</div>
+                      <div style={labelStyle}>Current Settings</div>
                       <Text size="T300">
                         Audio: max {maxAudioBitrate} kbps · Video: max {maxVideoResolution} @ {maxVideoFps} fps
                       </Text>
                       <Text size="T300">
-                        Screenshare: max {maxSSResolution === 'source' ? 'Quelle' : maxSSResolution} @ {maxSSFps} fps
+                        Screenshare: max {maxSSResolution === 'source' ? 'Source' : maxSSResolution} @ {maxSSFps} fps
                       </Text>
-                      <Text size="T300">Max. Teilnehmer: {maxParticipants}</Text>
+                      <Text size="T300">Max. Participants: {maxParticipants}</Text>
                     </div>
                   </Box>
                 ) : (
                   <Text size="T300" style={{ color: 'var(--text-muted)' }}>
-                    Noch keine Limits gesetzt — Standard gilt (unbegrenzt).
+                    No limits set yet — default applies (unlimited).
                   </Text>
                 )}
               </Box>
@@ -191,14 +191,14 @@ export function SpaceAVSettings({ requestClose }: SpaceAVSettingsProps) {
               <Box direction="Column" gap="500">
                 <Box direction="Column" gap="200">
                   <Text size="T400" style={{ color: 'var(--text-muted)' }}>
-                    Diese Limits gelten für alle Mitglieder in diesem Space. Nutzer können innerhalb
-                    der gesetzten Grenzen ihre eigene Qualität frei wählen.
+                    These limits apply to all members of this space. Users can freely choose their
+                    own quality within the configured bounds.
                   </Text>
                 </Box>
 
                 {/* Audio Bitrate */}
                 <div style={sectionStyle}>
-                  <div style={labelStyle}>Max. Audio-Bitrate</div>
+                  <div style={labelStyle}>Max. Audio Bitrate</div>
                   <div style={chipRowStyle}>
                     {AUDIO_BITRATES.map((b) => (
                       <OptionChip
@@ -214,7 +214,7 @@ export function SpaceAVSettings({ requestClose }: SpaceAVSettingsProps) {
 
                 {/* Video Resolution */}
                 <div style={sectionStyle}>
-                  <div style={labelStyle}>Max. Video-Auflösung</div>
+                  <div style={labelStyle}>Max. Video Resolution</div>
                   <div style={chipRowStyle}>
                     {VIDEO_RESOLUTIONS.map((r) => (
                       <OptionChip
@@ -229,7 +229,7 @@ export function SpaceAVSettings({ requestClose }: SpaceAVSettingsProps) {
 
                 {/* Video FPS */}
                 <div style={sectionStyle}>
-                  <div style={labelStyle}>Max. Video-Framerate</div>
+                  <div style={labelStyle}>Max. Video Framerate</div>
                   <div style={chipRowStyle}>
                     {VIDEO_FPS.map((f) => (
                       <OptionChip
@@ -245,14 +245,14 @@ export function SpaceAVSettings({ requestClose }: SpaceAVSettingsProps) {
 
                 {/* Screenshare Resolution */}
                 <div style={sectionStyle}>
-                  <div style={labelStyle}>Max. Screenshare-Auflösung</div>
+                  <div style={labelStyle}>Max. Screenshare Resolution</div>
                   <div style={chipRowStyle}>
                     {SS_RESOLUTIONS.map((r) => (
                       <OptionChip
                         key={r}
                         value={r}
                         selected={maxSSResolution === r}
-                        label={r === 'source' ? 'Quelle' : r}
+                        label={r === 'source' ? 'Source' : r}
                         onClick={setMaxSSResolution}
                       />
                     ))}
@@ -261,7 +261,7 @@ export function SpaceAVSettings({ requestClose }: SpaceAVSettingsProps) {
 
                 {/* Screenshare FPS */}
                 <div style={sectionStyle}>
-                  <div style={labelStyle}>Max. Screenshare-Framerate</div>
+                  <div style={labelStyle}>Max. Screenshare Framerate</div>
                   <div style={chipRowStyle}>
                     {SS_FPS.map((f) => (
                       <OptionChip
@@ -277,7 +277,7 @@ export function SpaceAVSettings({ requestClose }: SpaceAVSettingsProps) {
 
                 {/* Max Participants */}
                 <div style={sectionStyle}>
-                  <div style={labelStyle}>Max. Teilnehmer</div>
+                  <div style={labelStyle}>Max. Participants</div>
                   <input
                     type="number"
                     min={2}
@@ -320,7 +320,7 @@ export function SpaceAVSettings({ requestClose }: SpaceAVSettingsProps) {
                       opacity: saving ? 0.7 : 1,
                     }}
                   >
-                    {saving ? 'Speichern...' : saved ? 'Gespeichert ✓' : 'Speichern'}
+                    {saving ? 'Saving...' : saved ? 'Saved ✓' : 'Save'}
                   </button>
                 </Box>
               </Box>

@@ -13,7 +13,7 @@ const MB = 1024 * 1024;
 type Preset = 0 | 25 | 50 | 100 | 500 | -1; // -1 = custom
 
 const PRESETS: { value: Preset; label: string }[] = [
-  { value: 0, label: 'Unbegrenzt' },
+  { value: 0, label: 'Unlimited' },
   { value: 25, label: '25 MB' },
   { value: 50, label: '50 MB' },
   { value: 100, label: '100 MB' },
@@ -114,7 +114,7 @@ export function SpaceUploadSettings({ requestClose }: SpaceUploadSettingsProps) 
       setSaved(true);
       setTimeout(() => setSaved(false), 2500);
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Fehler beim Speichern');
+      setError(e instanceof Error ? e.message : 'Error saving settings');
     } finally {
       setSaving(false);
     }
@@ -139,7 +139,7 @@ export function SpaceUploadSettings({ requestClose }: SpaceUploadSettingsProps) 
   };
 
   const formatBytes = (bytes: number) => {
-    if (bytes === 0) return 'Unbegrenzt';
+    if (bytes === 0) return 'Unlimited';
     return `${bytesToMb(bytes)} MB`;
   };
 
@@ -149,11 +149,11 @@ export function SpaceUploadSettings({ requestClose }: SpaceUploadSettingsProps) 
         <Box grow="Yes" gap="200">
           <Box grow="Yes" alignItems="Center" gap="200">
             <Text size="H3" as="h1" truncate>
-              Datei-Upload
+              File Upload
             </Text>
           </Box>
           <Box shrink="No">
-            <IconButton onClick={requestClose} variant="Surface" aria-label="Schließen">
+            <IconButton onClick={requestClose} variant="Surface" aria-label="Close">
               <Icon src={Icons.Cross} />
             </IconButton>
           </Box>
@@ -165,25 +165,25 @@ export function SpaceUploadSettings({ requestClose }: SpaceUploadSettingsProps) 
             {!canEdit ? (
               <Box direction="Column" gap="200">
                 <Text size="T300" style={{ color: 'var(--text-muted)' }}>
-                  Nur Space-Administratoren (Power Level ≥ 100) können diese Einstellungen ändern.
+                  Only space administrators (Power Level ≥ 100) can change these settings.
                 </Text>
                 <Text size="T300">
-                  Aktuelles Limit:{' '}
-                  <strong>{stateEvent ? formatBytes(currentBytes) : 'Unbegrenzt (Standard)'}</strong>
+                  Current limit:{' '}
+                  <strong>{stateEvent ? formatBytes(currentBytes) : 'Unlimited (default)'}</strong>
                 </Text>
               </Box>
             ) : (
               <Box direction="Column" gap="500">
                 <Box direction="Column" gap="200">
                   <Text size="T400" style={{ color: 'var(--text-muted)' }}>
-                    Maximale Dateigröße für Uploads in diesem Space. Dateien die das Limit
-                    überschreiten werden beim Hochladen abgelehnt.
+                    Maximum file size for uploads in this space. Files exceeding the limit
+                    will be rejected on upload.
                   </Text>
                 </Box>
 
                 {/* Preset Chips */}
                 <div style={sectionStyle}>
-                  <div style={labelStyle}>Max. Dateigröße</div>
+                  <div style={labelStyle}>Max. File Size</div>
                   <div style={chipRowStyle}>
                     {PRESETS.map((preset) => (
                       <OptionChip
@@ -200,7 +200,7 @@ export function SpaceUploadSettings({ requestClose }: SpaceUploadSettingsProps) 
                 {/* Custom Input */}
                 {selectedPreset === -1 && (
                   <div style={sectionStyle}>
-                    <div style={labelStyle}>Eigene Größe (MB)</div>
+                    <div style={labelStyle}>Custom Size (MB)</div>
                     <Box gap="200" alignItems="Center">
                       <input
                         type="number"
@@ -231,9 +231,9 @@ export function SpaceUploadSettings({ requestClose }: SpaceUploadSettingsProps) 
 
                 {/* Summary */}
                 <Text size="T300" style={{ color: 'var(--text-muted)' }}>
-                  Aktuell gesetzt:{' '}
+                  Currently set:{' '}
                   <strong style={{ color: 'var(--text-normal)' }}>
-                    {effectiveBytes === 0 ? 'Unbegrenzt' : `${bytesToMb(effectiveBytes)} MB`}
+                    {effectiveBytes === 0 ? 'Unlimited' : `${bytesToMb(effectiveBytes)} MB`}
                   </strong>
                 </Text>
 
@@ -260,7 +260,7 @@ export function SpaceUploadSettings({ requestClose }: SpaceUploadSettingsProps) 
                       opacity: saving ? 0.7 : 1,
                     }}
                   >
-                    {saving ? 'Speichern...' : saved ? 'Gespeichert ✓' : 'Speichern'}
+                    {saving ? 'Saving...' : saved ? 'Saved ✓' : 'Save'}
                   </button>
                 </Box>
               </Box>

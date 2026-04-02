@@ -105,7 +105,7 @@ function CreateCollectionForm({ spaceId, onDone, onCancel }: CreateCollectionFor
         await createGifCollection(mx, spaceId, trimmedName, emoji.trim() || undefined);
         onDone();
       } catch (err) {
-        setError(err instanceof Error ? err.message : 'Fehler beim Erstellen');
+        setError(err instanceof Error ? err.message : 'Error creating collection');
       } finally {
         setSaving(false);
       }
@@ -127,7 +127,7 @@ function CreateCollectionForm({ spaceId, onDone, onCancel }: CreateCollectionFor
       }}
     >
       <Text size="L400" style={labelStyle}>
-        Neue GIF-Sammlung
+        New GIF Collection
       </Text>
       <Box gap="200" alignItems="Center">
         <input
@@ -142,7 +142,7 @@ function CreateCollectionForm({ spaceId, onDone, onCancel }: CreateCollectionFor
         <input
           style={inputStyle}
           type="text"
-          placeholder="Name der Sammlung"
+          placeholder="Collection name"
           required
           value={name}
           onChange={(e) => setName(e.target.value)}
@@ -150,10 +150,10 @@ function CreateCollectionForm({ spaceId, onDone, onCancel }: CreateCollectionFor
           autoFocus
         />
         <button type="submit" style={primaryButtonStyle(saving || !name.trim())} disabled={saving || !name.trim()}>
-          {saving ? 'Erstellen…' : 'Erstellen'}
+          {saving ? 'Creating…' : 'Create'}
         </button>
         <button type="button" style={ghostButtonStyle} onClick={onCancel}>
-          Abbrechen
+          Cancel
         </button>
       </Box>
       {error && (
@@ -200,7 +200,7 @@ function AddGifForm({ spaceId, collectionId, onDone, onCancel }: AddGifFormProps
         await addGifToCollection(mx, spaceId, collectionId, gifData);
         onDone();
       } catch (err) {
-        setError(err instanceof Error ? err.message : 'Fehler beim Hinzufügen');
+        setError(err instanceof Error ? err.message : 'Error adding GIF');
       } finally {
         setSaving(false);
       }
@@ -226,7 +226,7 @@ function AddGifForm({ spaceId, collectionId, onDone, onCancel }: AddGifFormProps
         <input
           style={inputStyle}
           type="url"
-          placeholder="GIF-URL (https://...)"
+          placeholder="GIF URL (https://...)"
           required
           value={url}
           onChange={(e) => setUrl(e.target.value)}
@@ -236,10 +236,10 @@ function AddGifForm({ spaceId, collectionId, onDone, onCancel }: AddGifFormProps
         <input
           style={inputStyle}
           type="text"
-          placeholder="Titel (optional)"
+          placeholder="Title (optional)"
           value={title}
           onChange={(e) => setTitle(e.target.value)}
-          aria-label="Titel"
+          aria-label="Title"
         />
       </Box>
       <Box gap="200" alignItems="Center">
@@ -248,10 +248,10 @@ function AddGifForm({ spaceId, collectionId, onDone, onCancel }: AddGifFormProps
           style={primaryButtonStyle(saving || !url.trim())}
           disabled={saving || !url.trim()}
         >
-          {saving ? 'Hinzufügen…' : 'Hinzufügen'}
+          {saving ? 'Adding…' : 'Add'}
         </button>
         <button type="button" style={ghostButtonStyle} onClick={onCancel}>
-          Abbrechen
+          Cancel
         </button>
       </Box>
       {error && (
@@ -348,9 +348,9 @@ function GifThumb({ gif, collectionId, spaceId, canManage }: GifThumbProps) {
             }}
             onClick={handleRemove}
             disabled={removing}
-            aria-label={`GIF ${gif.title} entfernen`}
+            aria-label={`Remove GIF ${gif.title}`}
           >
-            {removing ? '…' : 'Entfernen'}
+            {removing ? '…' : 'Remove'}
           </button>
         )}
       </Box>
@@ -376,7 +376,7 @@ function CollectionCard({ collection, canManage, isAdmin }: CollectionCardProps)
   const gifCount = gifs.length;
 
   const handleDelete = useCallback(async () => {
-    if (!window.confirm(`GIF-Sammlung "${collection.content.name}" wirklich löschen?`)) return;
+    if (!window.confirm(`Delete GIF collection "${collection.content.name}"?`)) return;
     setDeleting(true);
     try {
       await deleteGifCollection(mx, collection.spaceId, collection.collectionId);
@@ -423,9 +423,9 @@ function CollectionCard({ collection, canManage, isAdmin }: CollectionCardProps)
               style={dangerButtonStyle(deleting)}
               onClick={handleDelete}
               disabled={deleting}
-              aria-label={`Sammlung ${collection.content.name} löschen`}
+              aria-label={`Delete collection ${collection.content.name}`}
             >
-              {deleting ? '…' : 'Löschen'}
+              {deleting ? '…' : 'Delete'}
             </button>
           )}
           <Icon
@@ -447,7 +447,7 @@ function CollectionCard({ collection, canManage, isAdmin }: CollectionCardProps)
         >
           {gifs.length === 0 && !showAddForm && (
             <Text size="T300" style={{ color: 'var(--text-muted)', padding: '4px 0' }}>
-              Noch keine GIFs in dieser Sammlung.
+              No GIFs in this collection yet.
             </Text>
           )}
 
@@ -490,7 +490,7 @@ function CollectionCard({ collection, canManage, isAdmin }: CollectionCardProps)
                     style={ghostButtonStyle}
                     onClick={() => setShowAddForm(true)}
                   >
-                    + GIF hinzufügen
+                    + Add GIF
                   </button>
                 </Box>
               )}
@@ -529,14 +529,14 @@ export function SpaceGifCollectionSettings({
         <PageHeader outlined={false}>
           <Box grow="Yes" alignItems="Center" gap="200">
             <Text size="H3" as="h1" truncate>
-              GIF-Sammlungen
+              GIF Collections
             </Text>
           </Box>
         </PageHeader>
         <Box grow="Yes">
           <PageContent>
             <Text size="T300" style={{ color: 'var(--text-muted)' }}>
-              Space nicht gefunden.
+              Space not found.
             </Text>
           </PageContent>
         </Box>
@@ -550,11 +550,11 @@ export function SpaceGifCollectionSettings({
         <Box grow="Yes" gap="200">
           <Box grow="Yes" alignItems="Center" gap="200">
             <Text size="H3" as="h1" truncate>
-              GIF-Sammlungen
+              GIF Collections
             </Text>
           </Box>
           <Box shrink="No">
-            <IconButton onClick={requestClose} variant="Surface" aria-label="Schließen">
+            <IconButton onClick={requestClose} variant="Surface" aria-label="Close">
               <Icon src={Icons.Cross} />
             </IconButton>
           </Box>
@@ -568,11 +568,11 @@ export function SpaceGifCollectionSettings({
               /* ── No permission ── */
               <Box direction="Column" gap="200">
                 <Text size="T300" style={{ color: 'var(--text-muted)' }}>
-                  Du hast keine Berechtigung, GIF-Sammlungen zu verwalten (Power Level ≥ 50 erforderlich).
+                  You do not have permission to manage GIF collections (Power Level ≥ 50 required).
                 </Text>
                 {collections.length === 0 ? (
                   <Text size="T300" style={{ color: 'var(--text-muted)' }}>
-                    Keine GIF-Sammlungen
+                    No GIF collections
                   </Text>
                 ) : (
                   <Box direction="Column" gap="200" style={{ marginTop: 8 }}>
@@ -591,8 +591,8 @@ export function SpaceGifCollectionSettings({
               /* ── Can manage ── */
               <Box direction="Column" gap="400">
                 <Text size="T400" style={{ color: 'var(--text-muted)' }}>
-                  Verwalte die Community-GIF-Sammlungen dieses Spaces. Mitglieder können GIFs aus
-                  diesen Sammlungen direkt im Chat verwenden.
+                  Manage the community GIF collections of this space. Members can use GIFs from
+                  these collections directly in chat.
                 </Text>
 
                 {/* Create button / inline form */}
@@ -603,7 +603,7 @@ export function SpaceGifCollectionSettings({
                       style={primaryButtonStyle()}
                       onClick={() => setShowCreateForm(true)}
                     >
-                      + Neue Sammlung erstellen
+                      + Create new collection
                     </button>
                   </Box>
                 )}
@@ -630,18 +630,18 @@ export function SpaceGifCollectionSettings({
                   >
                     <Text size="H5" as="h3" align="Center">
                       {isAdmin
-                        ? 'Noch keine GIF-Sammlungen. Erstelle die erste!'
-                        : 'Keine GIF-Sammlungen'}
+                        ? 'No GIF collections yet. Create the first one!'
+                        : 'No GIF collections'}
                     </Text>
                     {isAdmin && (
                       <Text size="T200" align="Center" style={{ color: 'var(--text-muted)' }}>
-                        Klicke oben auf „Neue Sammlung erstellen", um loszulegen.
+                        Click "Create new collection" above to get started.
                       </Text>
                     )}
                   </Box>
                 ) : (
                   <Box direction="Column" gap="200">
-                    <div style={labelStyle}>Sammlungen ({collections.length})</div>
+                    <div style={labelStyle}>Collections ({collections.length})</div>
                     {collections.map((col) => (
                       <CollectionCard
                         key={col.collectionId}

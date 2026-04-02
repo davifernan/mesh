@@ -586,7 +586,7 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
             <IconButton
               variant="SurfaceVariant"
               onClick={() => setUploadSizeError(null)}
-              aria-label="Schließen"
+              aria-label="Close"
             >
               <Icon size="100" src={Icons.Cross} />
             </IconButton>

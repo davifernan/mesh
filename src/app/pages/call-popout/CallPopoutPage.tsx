@@ -39,7 +39,7 @@ function PopoutInner() {
           fontFamily: 'sans-serif',
         }}
       >
-        Kein Raum angegeben. Bitte dieses Fenster schließen.
+        No room specified. Please close this window.
       </div>
     );
   }
