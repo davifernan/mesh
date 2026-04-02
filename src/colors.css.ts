@@ -98,29 +98,30 @@ export const silverTheme = createTheme(color, {
   },
 });
 
-// mesh color palette for dark theme — spreaded surface hierarchy
+// mesh color palette for dark theme — Discord-inspired calibration
+// Sanfte Hierarchie: alle Werte im 11–17% Helligkeitsband, 2–3 Punkte Abstand
 const darkThemeData = {
   Background: {
-    Container: '#0f1218',         // sidebar + modals (hsl(220,13%,7%))
-    ContainerHover: '#14171f',
-    ContainerActive: '#191d26',
-    ContainerLine: '#0a0c10',     // darkest dividers (hsl(220,13%,4.5%))
-    OnContainer: '#eaecf2',       // near-white text — leicht satter
+    Container: '#191d24',         // sidebar + modals (hsl(220,13%,11%))
+    ContainerHover: '#1d2129',
+    ContainerActive: '#21262f',
+    ContainerLine: '#121519',     // dividers (hsl(220,13%,7%))
+    OnContainer: '#eaecf2',       // near-white text
   },
 
   Surface: {
-    Container: '#171b22',         // chat area (hsl(220,13%,10%))
-    ContainerHover: '#1b1f28',
-    ContainerActive: '#1f2430',
-    ContainerLine: '#0f1218',
+    Container: '#20252e',         // chat area (hsl(220,13%,14%))
+    ContainerHover: '#242a34',
+    ContainerActive: '#282f3a',
+    ContainerLine: '#191d24',
     OnContainer: '#eaecf2',
   },
 
   SurfaceVariant: {
-    Container: '#0a0c10',         // deepest bg / guild list (hsl(220,13%,4.5%))
-    ContainerHover: '#0d1016',
-    ContainerActive: '#111419',
-    ContainerLine: '#06080b',
+    Container: '#121519',         // deepest bg / guild list (hsl(220,13%,7%))
+    ContainerHover: '#161a20',
+    ContainerActive: '#191d24',
+    ContainerLine: '#0d0f13',
     OnContainer: '#9da4b5',       // muted text on dark
   },
 

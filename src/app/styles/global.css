@@ -66,28 +66,30 @@
   --brand-experiment-560: hsl(242, 60%, 49%);
 
   /* ================================================================
-     DARK THEME BACKGROUNDS
-     (spreaded easeOut curve, HSL 220 13%):
-       background-floating      ~4.5% = context menus, tooltips, deepest
-       background-secondary     ~7.0% = guild strip + channel sidebar + modals
-       bg-secondary-lighter     ~8.2% = chat area (slightly lighter)
-       bg-secondary-alt         ~7.5% = subtle alternates
-       background-primary      ~10.0% = main chat background
-       background-tertiary     ~14.0% = inputs/panels (was 11.4%)
-       background-textarea     ~20.0% = text inputs (was 18.7%)
+     DARK THEME BACKGROUNDS — Discord-inspired calibration
+     Prinzip: alles etwas heller, benachbarte Ebenen 2–4 Punkte Abstand.
+     Kein hartes Schwarz; sanfte, wahrnehmbare Tiefe ohne harte Kanten.
+
+       background-floating     ~7%  = context menus, tooltips (tiefste Ebene)
+       background-secondary   ~11%  = guild strip + channel sidebar + modals
+       bg-secondary-lighter   ~12%  = subtil heller als sidebar
+       bg-secondary-alt      ~11.5% = subtle alt
+       background-primary     ~14%  = main chat background
+       background-tertiary    ~17%  = inputs/panels
+       background-textarea    ~21%  = text inputs
      ================================================================ */
-  --background-tertiary:             hsl(220, 13%, 14%);  /* inputs/panels — spread from 11.4% */
-  --background-floating:             hsl(220, 13%, 4.5%); /* context menus, tooltips, deepest */
-  --background-secondary:            hsl(220, 13%, 7%);   /* guild list + sidebar + modals */
-  --background-secondary-lighter:    hsl(220, 13%, 8.2%); /* chat area (slightly lighter) */
-  --background-secondary-alt:        hsl(220, 13%, 7.5%); /* subtle alt */
-  --background-primary:              hsl(220, 13%, 10%);  /* main chat background */
-  --background-channel-header:       hsl(220, 13%, 8.2%); /* channel topbar */
-  --background-header-primary:       hsl(220, 13%, 7%);   /* modal surface (= sidebar) */
-  --background-header-primary-hover: hsl(220, 13%, 21%);
-  --background-header-secondary:     hsl(220, 13%, 10.5%);
-  --background-textarea:             hsl(220, 13%, 20%);  /* inputs */
-  --guild-list-foreground:           hsl(220, 13%, 13%);  /* guild icon no-image bg */
+  --background-tertiary:             hsl(220, 13%, 17%);  /* inputs/panels */
+  --background-floating:             hsl(220, 13%, 7%);   /* context menus, tooltips, deepest */
+  --background-secondary:            hsl(220, 13%, 11%);  /* guild list + sidebar + modals */
+  --background-secondary-lighter:    hsl(220, 13%, 12%);  /* chat area (slightly lighter) */
+  --background-secondary-alt:        hsl(220, 13%, 11.5%); /* subtle alt */
+  --background-primary:              hsl(220, 13%, 14%);  /* main chat background */
+  --background-channel-header:       hsl(220, 13%, 12%);  /* channel topbar */
+  --background-header-primary:       hsl(220, 13%, 11%);  /* modal surface (= sidebar) */
+  --background-header-primary-hover: hsl(220, 13%, 22%);
+  --background-header-secondary:     hsl(220, 13%, 14.5%);
+  --background-textarea:             hsl(220, 13%, 21%);  /* text inputs */
+  --guild-list-foreground:           hsl(220, 13%, 15%);  /* guild icon no-image bg */
 
   /* Interaction modifiers — leicht brand-getönt statt pure weiß */
   --background-modifier-hover:        hsla(242, 40%, 82%, 0.06);
