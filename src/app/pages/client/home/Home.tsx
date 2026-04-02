@@ -340,135 +340,143 @@ export function Home() {
   return (
     <PageNav>
       <HomeHeader />
-      {noRoomToDisplay ? (
+      {/* Desktop-only empty state — on mobile we always render PageNavContent
+          so HomeSpacesSection is accessible even when there are no orphan rooms */}
+      {noRoomToDisplay && !isMobile ? (
         <HomeEmpty />
       ) : (
         <PageNavContent scrollRef={scrollRef}>
           <Box direction="Column" gap="300">
             <ActiveCallsSection />
+            {/* Always show spaces grid on mobile so users can reach their communities
+                regardless of whether they have orphan rooms */}
             {isMobile && <HomeSpacesSection />}
-            {isMobile && <div className={homeStyles.sectionDivider} />}
-            <NavCategory>
-              <NavItem variant="Background" radii="400" aria-selected={createRoomSelected}>
-                <NavButton onClick={() => navigate(getHomeCreatePath())}>
-                  <NavItemContent>
-                    <Box as="span" grow="Yes" alignItems="Center" gap="200">
-                      <Avatar size="200" radii="400">
-                        <Icon src={Icons.Plus} size="100" />
-                      </Avatar>
-                      <Box as="span" grow="Yes">
-                        <Text as="span" size="Inherit" truncate>
-                          Create Room
-                        </Text>
-                      </Box>
-                    </Box>
-                  </NavItemContent>
-                </NavButton>
-              </NavItem>
-              <UseStateProvider initial={false}>
-                {(open, setOpen) => (
-                  <>
-                    <NavItem variant="Background" radii="400">
-                      <NavButton onClick={() => setOpen(true)}>
-                        <NavItemContent>
-                          <Box as="span" grow="Yes" alignItems="Center" gap="200">
-                            <Avatar size="200" radii="400">
-                              <Icon src={Icons.Link} size="100" />
-                            </Avatar>
-                            <Box as="span" grow="Yes">
-                              <Text as="span" size="Inherit" truncate>
-                                Join with Address
-                              </Text>
-                            </Box>
+            {isMobile && !noRoomToDisplay && <div className={homeStyles.sectionDivider} />}
+            {noRoomToDisplay ? null : (
+              <>
+                <NavCategory>
+                  <NavItem variant="Background" radii="400" aria-selected={createRoomSelected}>
+                    <NavButton onClick={() => navigate(getHomeCreatePath())}>
+                      <NavItemContent>
+                        <Box as="span" grow="Yes" alignItems="Center" gap="200">
+                          <Avatar size="200" radii="400">
+                            <Icon src={Icons.Plus} size="100" />
+                          </Avatar>
+                          <Box as="span" grow="Yes">
+                            <Text as="span" size="Inherit" truncate>
+                              Create Room
+                            </Text>
                           </Box>
-                        </NavItemContent>
-                      </NavButton>
-                    </NavItem>
-                    {open && (
-                      <JoinAddressPrompt
-                        onCancel={() => setOpen(false)}
-                        onOpen={(target) => {
-                          setOpen(false);
-                          navigate(getmeshPermalinkPath(target));
-                        }}
-                      />
+                        </Box>
+                      </NavItemContent>
+                    </NavButton>
+                  </NavItem>
+                  <UseStateProvider initial={false}>
+                    {(open, setOpen) => (
+                      <>
+                        <NavItem variant="Background" radii="400">
+                          <NavButton onClick={() => setOpen(true)}>
+                            <NavItemContent>
+                              <Box as="span" grow="Yes" alignItems="Center" gap="200">
+                                <Avatar size="200" radii="400">
+                                  <Icon src={Icons.Link} size="100" />
+                                </Avatar>
+                                <Box as="span" grow="Yes">
+                                  <Text as="span" size="Inherit" truncate>
+                                    Join with Address
+                                  </Text>
+                                </Box>
+                              </Box>
+                            </NavItemContent>
+                          </NavButton>
+                        </NavItem>
+                        {open && (
+                          <JoinAddressPrompt
+                            onCancel={() => setOpen(false)}
+                            onOpen={(target) => {
+                              setOpen(false);
+                              navigate(getmeshPermalinkPath(target));
+                            }}
+                          />
+                        )}
+                      </>
                     )}
-                  </>
-                )}
-              </UseStateProvider>
-              <NavItem variant="Background" radii="400" aria-selected={searchSelected}>
-                <NavLink to={getHomeSearchPath()}>
-                  <NavItemContent>
-                    <Box as="span" grow="Yes" alignItems="Center" gap="200">
-                      <Avatar size="200" radii="400">
-                        <Icon src={Icons.Search} size="100" filled={searchSelected} />
-                      </Avatar>
-                      <Box as="span" grow="Yes">
-                        <Text as="span" size="Inherit" truncate>
-                          Message Search
-                        </Text>
-                      </Box>
-                    </Box>
-                  </NavItemContent>
-                </NavLink>
-              </NavItem>
-            </NavCategory>
-            <NavCategory>
-              <NavCategoryHeader>
-                <RoomNavCategoryButton
-                  closed={closedCategories.has(DEFAULT_CATEGORY_ID)}
-                  data-category-id={DEFAULT_CATEGORY_ID}
-                  onClick={handleCategoryClick}
-                >
-                  Rooms
-                </RoomNavCategoryButton>
-              </NavCategoryHeader>
-              <RoomListbox
-                id="mesh-room-listbox"
-                aria-label="Room list"
-                items={sortedRooms}
-                focusedIndex={keyboardNav.focusedIndex}
-                onKeyDown={keyboardNav.handleKeyDown}
-                onFocus={keyboardNav.handleFocus}
-              >
-                <div
-                  style={{
-                    position: 'relative',
-                    height: virtualizer.getTotalSize(),
-                    width: '100%',
-                  }}
-                >
-                  {virtualizer.getVirtualItems().map((vItem) => {
-                    const roomId = sortedRooms[vItem.index];
-                    const room = mx.getRoom(roomId);
-                    if (!room) return null;
-                    const selected = selectedRoomId === roomId;
-                    const focused = keyboardNav.focusedIndex === vItem.index;
+                  </UseStateProvider>
+                  <NavItem variant="Background" radii="400" aria-selected={searchSelected}>
+                    <NavLink to={getHomeSearchPath()}>
+                      <NavItemContent>
+                        <Box as="span" grow="Yes" alignItems="Center" gap="200">
+                          <Avatar size="200" radii="400">
+                            <Icon src={Icons.Search} size="100" filled={searchSelected} />
+                          </Avatar>
+                          <Box as="span" grow="Yes">
+                            <Text as="span" size="Inherit" truncate>
+                              Message Search
+                            </Text>
+                          </Box>
+                        </Box>
+                      </NavItemContent>
+                    </NavLink>
+                  </NavItem>
+                </NavCategory>
+                <NavCategory>
+                  <NavCategoryHeader>
+                    <RoomNavCategoryButton
+                      closed={closedCategories.has(DEFAULT_CATEGORY_ID)}
+                      data-category-id={DEFAULT_CATEGORY_ID}
+                      onClick={handleCategoryClick}
+                    >
+                      Rooms
+                    </RoomNavCategoryButton>
+                  </NavCategoryHeader>
+                  <RoomListbox
+                    id="mesh-room-listbox"
+                    aria-label="Room list"
+                    items={sortedRooms}
+                    focusedIndex={keyboardNav.focusedIndex}
+                    onKeyDown={keyboardNav.handleKeyDown}
+                    onFocus={keyboardNav.handleFocus}
+                  >
+                    <div
+                      style={{
+                        position: 'relative',
+                        height: virtualizer.getTotalSize(),
+                        width: '100%',
+                      }}
+                    >
+                      {virtualizer.getVirtualItems().map((vItem) => {
+                        const roomId = sortedRooms[vItem.index];
+                        const room = mx.getRoom(roomId);
+                        if (!room) return null;
+                        const selected = selectedRoomId === roomId;
+                        const focused = keyboardNav.focusedIndex === vItem.index;
 
-                    return (
-                      <VirtualTile
-                        virtualItem={vItem}
-                        key={vItem.key}
-                        ref={virtualizer.measureElement}
-                      >
-                        <RoomNavItem
-                          room={room}
-                          selected={selected}
-                          focused={focused}
-                          optionId={`room-option-${roomId}`}
-                          tabIndex={-1}
-                          linkPath={getHomeRoomPath(getCanonicalAliasOrRoomId(mx, roomId))}
-                          notificationMode={getRoomNotificationMode(
-                            notificationPreferences,
-                            room.roomId
-                          )}
-                        />
-                      </VirtualTile>
-                    );
-                  })}
-                </div>
-              </RoomListbox>
-            </NavCategory>
+                        return (
+                          <VirtualTile
+                            virtualItem={vItem}
+                            key={vItem.key}
+                            ref={virtualizer.measureElement}
+                          >
+                            <RoomNavItem
+                              room={room}
+                              selected={selected}
+                              focused={focused}
+                              optionId={`room-option-${roomId}`}
+                              tabIndex={-1}
+                              linkPath={getHomeRoomPath(getCanonicalAliasOrRoomId(mx, roomId))}
+                              notificationMode={getRoomNotificationMode(
+                                notificationPreferences,
+                                room.roomId
+                              )}
+                            />
+                          </VirtualTile>
+                        );
+                      })}
+                    </div>
+                  </RoomListbox>
+                </NavCategory>
+              </>
+            )}
           </Box>
         </PageNavContent>
       )}
