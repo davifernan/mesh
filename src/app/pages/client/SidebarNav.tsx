@@ -1,4 +1,5 @@
 import React, { useEffect, useRef } from 'react';
+import { useMatch } from 'react-router-dom';
 
 import {
   Sidebar,
@@ -18,11 +19,14 @@ import {
 } from './sidebar';
 import { CreateTab } from './sidebar/CreateTab';
 import { ScreenSize, useScreenSizeContext } from '../../hooks/useScreenSize';
+import { HOME_PATH } from '../paths';
 
 export function SidebarNav() {
   const scrollRef = useRef<HTMLDivElement>(null);
   const screenSize = useScreenSizeContext();
   const isMobile = screenSize === ScreenSize.Mobile;
+  // On mobile: icon strip only visible when on the Home route (incl. sub-routes like rooms)
+  const isOnHome = !!useMatch({ path: HOME_PATH, end: false });
 
   // Initialise roving tabIndex: all sidebar buttons get tabindex=-1 except the first.
   // This makes the sidebar a single tab stop; arrow keys move within it.
@@ -61,6 +65,17 @@ export function SidebarNav() {
     }
   };
 
+  // On mobile outside of Home: render only the invisible modal controllers.
+  // Space/Room/Direct pages get the full screen width — no icon strip.
+  if (isMobile && !isOnHome) {
+    return (
+      <>
+        <SettingsTab />
+        <UnverifiedTab />
+      </>
+    );
+  }
+
   return (
     <Sidebar role="navigation" aria-label="Main navigation" onKeyDown={handleKeyDown}>
       <SidebarContent
@@ -84,8 +99,7 @@ export function SidebarNav() {
                 alignItems: 'center',
               }}
             >
-              {/* On mobile: only show space icons (Discord-style persistent strip).
-                  Home / DMs / Inbox / Settings live in the bottom nav on mobile. */}
+              {/* On mobile: only SpaceTabs in the strip (Home/Inbox/Settings → bottom nav). */}
               {!isMobile && (
                 <SidebarStack>
                   <HomeTab />
@@ -107,9 +121,6 @@ export function SidebarNav() {
         }
         sticky={
           isMobile ? (
-            // On mobile: SettingsTab + UnverifiedTab are modal controllers with no visible
-            // button UI — they must stay in the tree so their atom listeners stay alive.
-            // The actual gear/verify buttons live in MobileBottomNav on mobile.
             <>
               <SettingsTab />
               <UnverifiedTab />
