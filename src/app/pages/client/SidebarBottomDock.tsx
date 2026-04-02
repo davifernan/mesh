@@ -1,4 +1,5 @@
 import React, { useEffect, useLayoutEffect, useRef } from 'react';
+import { useMatch } from 'react-router-dom';
 import { ScreenSize, useScreenSizeContext } from '../../hooks/useScreenSize';
 import { UserArea } from '../../components/user-area/UserArea';
 import { CallNavStatus } from '../../features/room-nav/RoomCallNavStatus';
@@ -12,6 +13,10 @@ export function SidebarBottomDock() {
   const callState = useCallStateOptional();
   const hasActiveCall = Boolean(callState?.activeCallRoomId);
   const hostRef = useRef<HTMLDivElement>(null);
+  // On mobile: hide the dock when a room is open (MobileSlide is on top — the dock
+  // would cover the message input). Show it on channel-list views (Home, Space, Direct).
+  const inRoom = !!useMatch({ path: '*/:section/room/:roomId/*', end: false })
+    || !!useMatch({ path: '*/:section/room/:roomId', end: true });
 
   useLayoutEffect(() => {
     if (screenSize === ScreenSize.Mobile) {
@@ -42,7 +47,8 @@ export function SidebarBottomDock() {
     []
   );
 
-  if (screenSize === ScreenSize.Mobile) return null;
+  // On mobile: hide entirely when a room is open; otherwise show above the bottom nav.
+  if (screenSize === ScreenSize.Mobile && inRoom) return null;
 
   return (
     <div ref={hostRef} className={css.host}>

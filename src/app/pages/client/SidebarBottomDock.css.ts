@@ -1,5 +1,7 @@
 import { style } from '@vanilla-extract/css';
 
+const MOBILE_MAX = '750px';
+
 export const host = style({
   position: 'absolute',
   left: '8px',
@@ -7,6 +9,16 @@ export const host = style({
   width: 'calc(var(--layout-guild-list-width) + var(--layout-sidebar-width) - 16px)',
   zIndex: 140,
   pointerEvents: 'none',
+  '@media': {
+    // On mobile: position fixed just above the bottom nav, full width
+    [`(max-width: ${MOBILE_MAX})`]: {
+      position: 'fixed',
+      left: '8px',
+      right: '8px',
+      width: 'auto',
+      bottom: 'calc(var(--mobile-bottom-nav-height, calc(3.75rem + env(safe-area-inset-bottom))) + 8px)',
+    },
+  },
 });
 
 export const inner = style({

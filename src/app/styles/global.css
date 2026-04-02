@@ -925,6 +925,15 @@ select {
      Use it directly so there is no double-counting on notched devices. */
   #root { padding-bottom: var(--mobile-bottom-nav-height, calc(3.75rem + env(safe-area-inset-bottom))); }
   body { padding-left: env(safe-area-inset-left); padding-right: env(safe-area-inset-right); }
+
+  /* On mobile the channel list (PageNav) must fill its container (absolute inset:0
+     from MobileFriendlyPageNav) instead of being pinned to the desktop 270px width. */
+  [data-ui-kind="PageNav"],
+  [class*="PageNav"]:not([class*="PageNavContent"]):not([class*="PageNavHeader"]) {
+    width: 100% !important;
+    min-width: 0 !important;
+    flex-shrink: 1 !important;
+  }
 }
 
 /* ================================================================
