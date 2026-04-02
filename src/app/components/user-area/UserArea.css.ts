@@ -103,13 +103,18 @@ export const presenceDot = style({
   position: 'absolute',
   bottom: toRem(-2),
   right: toRem(-2),
-  width: toRem(10),
-  height: toRem(10),
+  width: toRem(12),   // war 10 — etwas sichtbarer
+  height: toRem(12),
   borderRadius: '50%',
   border: `${toRem(2)} solid color-mix(in srgb, var(--background-primary) 88%, transparent)`,
   backgroundColor: 'var(--status-offline)',
+  transition: 'background-color 200ms ease, box-shadow 200ms ease',
   selectors: {
-    '&[data-presence="online"]': { backgroundColor: 'var(--status-online)' },
+    '&[data-presence="online"]': {
+      backgroundColor: 'var(--status-online)',
+      // subtiler Glow analog zum Speaking-Ring in RoomNavUser
+      boxShadow: `0 0 0 2.5px color-mix(in srgb, var(--status-online) 28%, transparent)`,
+    },
     '&[data-presence="unavailable"]': { backgroundColor: 'var(--status-idle)' },
     '&[data-presence="offline"]': { backgroundColor: 'var(--status-offline)' },
   },

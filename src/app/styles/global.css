@@ -55,59 +55,69 @@
   --z-index-contextmenu: 2147483647;
 
   /* === BRAND (hsl(242, 70%, 55%)) === */
-  --brand-primary:       hsl(242, 70%, 55%);
-  --brand-secondary:     hsl(242, 60%, 49%);
-  --brand-primary-light: hsl(242, 100%, 84%);
-  --brand-primary-fill:  #ffffff;
-  --focus-primary:       hsl(210, 100%, 60%);
+  --brand-primary:        hsl(242, 70%, 55%);
+  --brand-primary-hover:  hsl(242, 68%, 48%);   /* fix: war nirgends definiert → Fallback-Bug */
+  --brand-secondary:      hsl(242, 60%, 49%);
+  --brand-primary-light:  hsl(242, 100%, 84%);
+  --brand-primary-fill:   #ffffff;
+  --focus-primary:        hsl(210, 100%, 60%);
   /* Discord-compat aliases used by ScreenShareModal and SpaceAVSettings */
-  --brand-experiment:    hsl(242, 70%, 55%);
+  --brand-experiment:     hsl(242, 70%, 55%);
   --brand-experiment-560: hsl(242, 60%, 49%);
 
   /* ================================================================
      DARK THEME BACKGROUNDS
-     (easeOut curve, HSL 220 13%):
-       background-primary    ~5%   = floating / deepest (menus, overlays)
-       background-secondary  ~7.6% = guild strip + channel sidebar + modals
-       bg-secondary-lighter  ~8.4% = chat area (slightly lighter)
-       bg-secondary-alt      ~9.1% = subtle alternates
-       background-tertiary   ~11.4%
-       background-textarea   ~18.7%
+     (spreaded easeOut curve, HSL 220 13%):
+       background-floating      ~4.5% = context menus, tooltips, deepest
+       background-secondary     ~7.0% = guild strip + channel sidebar + modals
+       bg-secondary-lighter     ~8.2% = chat area (slightly lighter)
+       bg-secondary-alt         ~7.5% = subtle alternates
+       background-primary      ~10.0% = main chat background
+       background-tertiary     ~14.0% = inputs/panels (was 11.4%)
+       background-textarea     ~20.0% = text inputs (was 18.7%)
      ================================================================ */
-  --background-tertiary:             hsl(220, 13%, 11.4%); /* inputs/panels (~11.4%) */
-  --background-floating:             hsl(220, 13%, 6%);    /* context menus, tooltips, deepest */
-  --background-secondary:            hsl(220, 13%, 8%);   /* guild list + sidebar + modals */
-  --background-secondary-lighter:    hsl(220, 13%, 9%);   /* chat area (slightly lighter) */
-  --background-secondary-alt:        hsl(220, 13%, 8.5%); /* subtle alt */
-  --background-primary:              hsl(220, 13%, 9.5%); /* main chat background */
-  --background-channel-header:       hsl(220, 13%, 9%);   /* channel topbar */
-  --background-header-primary:       hsl(220, 13%, 8%);   /* modal surface (= sidebar) */
-  --background-header-primary-hover: hsl(220, 13%, 20%);
-  --background-header-secondary:     hsl(220, 13%, 10%);
-  --background-textarea:             hsl(220, 13%, 19%);  /* inputs (~18.7%) */
-  --guild-list-foreground:           hsl(220, 13%, 11%);  /* guild icon no-image bg */
+  --background-tertiary:             hsl(220, 13%, 14%);  /* inputs/panels — spread from 11.4% */
+  --background-floating:             hsl(220, 13%, 4.5%); /* context menus, tooltips, deepest */
+  --background-secondary:            hsl(220, 13%, 7%);   /* guild list + sidebar + modals */
+  --background-secondary-lighter:    hsl(220, 13%, 8.2%); /* chat area (slightly lighter) */
+  --background-secondary-alt:        hsl(220, 13%, 7.5%); /* subtle alt */
+  --background-primary:              hsl(220, 13%, 10%);  /* main chat background */
+  --background-channel-header:       hsl(220, 13%, 8.2%); /* channel topbar */
+  --background-header-primary:       hsl(220, 13%, 7%);   /* modal surface (= sidebar) */
+  --background-header-primary-hover: hsl(220, 13%, 21%);
+  --background-header-secondary:     hsl(220, 13%, 10.5%);
+  --background-textarea:             hsl(220, 13%, 20%);  /* inputs */
+  --guild-list-foreground:           hsl(220, 13%, 13%);  /* guild icon no-image bg */
 
-  /* Interaction modifiers */
-  --background-modifier-hover:        hsla(220, 13%, 100%, 0.05);
-  --background-modifier-selected:     hsla(220, 13%, 100%, 0.10);
-  --background-modifier-accent:       hsla(220, 13%, 80%, 0.15);
-  --background-modifier-accent-focus: hsla(220, 13%, 80%, 0.22);
+  /* Interaction modifiers — leicht brand-getönt statt pure weiß */
+  --background-modifier-hover:        hsla(242, 40%, 82%, 0.06);
+  --background-modifier-selected:     hsla(242, 50%, 78%, 0.13);
+  --background-modifier-accent:       hsla(242, 50%, 74%, 0.20);
+  --background-modifier-accent-focus: hsla(242, 55%, 72%, 0.28);
 
-  /* === TEXT === */
-  --text-primary:            hsl(220, 13%, 96%);
-  --text-chat:               hsl(220, 13%, 87%);
-  --text-secondary:          hsl(220, 13%, 82%);
-  --text-chat-muted:         hsl(220, 13%, 74%);
-  --text-primary-muted:      hsl(220, 13%, 74%);
-  --text-tertiary:           hsl(220, 13%, 65%);
-  --text-tertiary-muted:     hsl(220, 13%, 57%);
-  --text-tertiary-secondary: hsl(220, 13%, 52%);
-  --text-muted:              hsl(220, 11%, 50%);
+  /* === TEXT ===
+     4 klare Stufen:
+       L1 (96%): primary — Überschriften, aktive Labels
+       L2 (87%): chat/body — Fließtext, Nachrichten (unverändert)
+       L3 (75%): secondary — dimmed Labels, Timestamps
+       L4 (63%): muted-chat — zurückhaltende Info
+       L5 (50%): tertiary — sehr dezent
+       L6 (42%): muted — Platzhalter, deaktiviert
+  */
+  --text-primary:            hsl(220, 15%, 96%);  /* leicht satter */
+  --text-chat:               hsl(220, 12%, 87%);  /* Fließtext unverändert */
+  --text-secondary:          hsl(220, 10%, 75%);  /* war 82% → mehr Abstand */
+  --text-chat-muted:         hsl(220,  9%, 63%);  /* war 74% → klarer Level 4 */
+  --text-primary-muted:      hsl(220,  9%, 63%);  /* identisch chat-muted, bleibt compat */
+  --text-tertiary:           hsl(220,  7%, 50%);  /* war 65% → klarer Level 5 */
+  --text-tertiary-muted:     hsl(220,  6%, 43%);  /* war 57% */
+  --text-tertiary-secondary: hsl(220,  6%, 43%);  /* war 52%, identisch tertiary-muted */
+  --text-muted:              hsl(220,  5%, 38%);  /* war 50% → deutlich zurück */
   --text-link:               hsl(210, 100%, 70%);
   --text-danger:             hsl(1, 77%, 60%);
   /* Discord-compat aliases used by ScreenShareModal, RoomCallNavStatus, settings UI */
-  --text-normal:             hsl(220, 13%, 87%);  /* = --text-chat */
-  --header-primary:          hsl(220, 13%, 96%);  /* = --text-primary */
+  --text-normal:             hsl(220, 12%, 87%);  /* = --text-chat */
+  --header-primary:          hsl(220, 15%, 96%);  /* = --text-primary */
 
   /* === DIVIDERS & PANELS === */
   --user-area-divider-color: rgba(255, 255, 255, 0.06);
@@ -120,11 +130,17 @@
   --status-offline: hsl(218, 11%, 65%);
   --status-danger:  hsl(1,   77%, 55%);
 
-  /* === BUTTONS (primary = GREEN confirmatory) === */
-  --button-primary-fill: hsl(139, 55%, 44%);
-  --button-danger-fill:  hsl(359, 70%, 54%);
-  --button-primary-text: #ffffff;
-  --button-danger-text:  #ffffff;
+  /* === BUTTONS ===
+     primary = Brand-Indigo (create, save, send, generic actions)
+     confirm = Grün (accept call, positive confirm — semantisch)
+     danger  = Rot (delete, reject, destructive)
+  */
+  --button-primary-fill:  hsl(242, 70%, 55%);  /* Brand-Indigo — war: hsl(139,55%,44%) Grün */
+  --button-confirm-fill:  hsl(139, 55%, 44%);  /* Grün: accept / confirm — neu */
+  --button-danger-fill:   hsl(359, 70%, 54%);
+  --button-primary-text:  #ffffff;
+  --button-confirm-text:  #ffffff;
+  --button-danger-text:   #ffffff;
 
   /* === INTERACTIVE (used by RoomCallNavStatus, MobileBottomNav) === */
   --interactive-normal:  hsl(220, 13%, 74%);

@@ -1,7 +1,11 @@
 :root {
-  --voice-surface-0: var(--background-primary);
-  --voice-surface-1: var(--background-secondary);
-  --voice-surface-2: var(--background-tertiary);
+  /* Voice-Raum bekommt eigene Surfaces — leicht kühler (hue 228 statt 220)
+     und minimal tiefer als der Chat, damit der Kontext-Wechsel spürbar ist.
+     Chat:  hsl(220, 13%, 10%) — warm-neutral
+     Voice: hsl(228, 16%, x%)  — etwas kühler/bläulicher */
+  --voice-surface-0: hsl(228, 16%, 8.5%);  /* war: var(--background-primary) */
+  --voice-surface-1: hsl(228, 15%, 6.5%);  /* war: var(--background-secondary) */
+  --voice-surface-2: hsl(228, 14%, 12.5%); /* war: var(--background-tertiary) */
   --voice-overlay-strong: rgba(0, 0, 0, 0.72);
   --voice-overlay:        rgba(0, 0, 0, 0.62);
   --voice-overlay-soft:   rgba(0, 0, 0, 0.46);

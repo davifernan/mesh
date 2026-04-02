@@ -17,7 +17,7 @@
   overflow: hidden;
   background: color-mix(
     in srgb,
-    var(--voice-tile-accent-color, var(--voice-surface-2)) 25%,
+    var(--voice-tile-accent-color, var(--voice-surface-2)) 45%,
     var(--voice-surface-2)
   );
   aspect-ratio: 16/9;

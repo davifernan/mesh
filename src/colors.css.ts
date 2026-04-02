@@ -98,29 +98,29 @@ export const silverTheme = createTheme(color, {
   },
 });
 
-// mesh color palette for dark theme
+// mesh color palette for dark theme — spreaded surface hierarchy
 const darkThemeData = {
   Background: {
-    Container: '#121317',         // sidebar + modals (hsl(220,13%,8%))
-    ContainerHover: '#161820',
-    ContainerActive: '#1a1c26',
-    ContainerLine: '#0d0f11',     // darkest dividers (hsl(220,13%,6%))
-    OnContainer: '#e8eaf0',       // near-white text
+    Container: '#0f1218',         // sidebar + modals (hsl(220,13%,7%))
+    ContainerHover: '#14171f',
+    ContainerActive: '#191d26',
+    ContainerLine: '#0a0c10',     // darkest dividers (hsl(220,13%,4.5%))
+    OnContainer: '#eaecf2',       // near-white text — leicht satter
   },
 
   Surface: {
-    Container: '#14161a',         // chat area (hsl(220,13%,9.5%))
-    ContainerHover: '#181b20',
-    ContainerActive: '#1c1f26',
-    ContainerLine: '#121317',
-    OnContainer: '#e8eaf0',
+    Container: '#171b22',         // chat area (hsl(220,13%,10%))
+    ContainerHover: '#1b1f28',
+    ContainerActive: '#1f2430',
+    ContainerLine: '#0f1218',
+    OnContainer: '#eaecf2',
   },
 
   SurfaceVariant: {
-    Container: '#0d0f11',         // deepest bg / guild list (hsl(220,13%,6%))
-    ContainerHover: '#111317',
-    ContainerActive: '#161820',
-    ContainerLine: '#090a0e',
+    Container: '#0a0c10',         // deepest bg / guild list (hsl(220,13%,4.5%))
+    ContainerHover: '#0d1016',
+    ContainerActive: '#111419',
+    ContainerLine: '#06080b',
     OnContainer: '#9da4b5',       // muted text on dark
   },
 
@@ -151,7 +151,7 @@ const darkThemeData = {
   },
 
   Success: {
-    Main: '#2ea84d',              // mesh: primary button = GREEN (hsl(139, 55%, 44%))
+    Main: '#2ea84d',              // success / confirm / accept / speaking — bleibt grün
     MainHover: '#279443',
     MainActive: '#22863c',
     MainLine: '#1e7535',
